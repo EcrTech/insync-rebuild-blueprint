@@ -15,9 +15,12 @@ import { ActivityTimeline } from "@/components/Contact/ActivityTimeline";
 import { CustomerJourney } from "@/components/Contact/CustomerJourney";
 import { LogActivityDialog } from "@/components/Contact/LogActivityDialog";
 import { EditContactDialog } from "@/components/Contact/EditContactDialog";
+import { ContactEmails } from "@/components/Contact/ContactEmails";
+import { ContactPhones } from "@/components/Contact/ContactPhones";
 
 interface Contact {
   id: string;
+  org_id: string;
   first_name: string;
   last_name: string | null;
   email: string | null;
@@ -172,23 +175,15 @@ export default function ContactDetail() {
                 )}
               </div>
 
-              {contact.email && (
-                <div className="flex items-center gap-2">
-                  <Mail className="h-4 w-4 text-muted-foreground" />
-                  <a href={`mailto:${contact.email}`} className="text-sm hover:underline">
-                    {contact.email}
-                  </a>
-                </div>
-              )}
+              <div>
+                <p className="text-sm font-medium mb-2">Email Addresses</p>
+                <ContactEmails contactId={id!} orgId={contact.org_id} readOnly />
+              </div>
 
-              {contact.phone && (
-                <div className="flex items-center gap-2">
-                  <PhoneIcon className="h-4 w-4 text-muted-foreground" />
-                  <a href={`tel:${contact.phone}`} className="text-sm hover:underline">
-                    {contact.phone}
-                  </a>
-                </div>
-              )}
+              <div>
+                <p className="text-sm font-medium mb-2">Phone Numbers</p>
+                <ContactPhones contactId={id!} orgId={contact.org_id} readOnly />
+              </div>
 
               {contact.linkedin_url && (
                 <div className="flex items-center gap-2">

@@ -7,9 +7,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { ContactEmails } from "./ContactEmails";
+import { ContactPhones } from "./ContactPhones";
+import { Separator } from "@/components/ui/separator";
 
 interface Contact {
   id: string;
+  org_id: string;
   first_name: string;
   last_name: string | null;
   email: string | null;
@@ -212,6 +216,20 @@ export function EditContactDialog({
               placeholder="https://linkedin.com/in/username"
             />
           </div>
+
+          <Separator className="my-4" />
+
+          <div className="space-y-2">
+            <Label>Email Addresses</Label>
+            <ContactEmails contactId={contact.id} orgId={contact.org_id} />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Phone Numbers</Label>
+            <ContactPhones contactId={contact.id} orgId={contact.org_id} />
+          </div>
+
+          <Separator className="my-4" />
 
           <div className="space-y-2">
             <Label htmlFor="notes">Notes</Label>
