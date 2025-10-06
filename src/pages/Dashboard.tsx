@@ -55,70 +55,94 @@ export default function Dashboard() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Fetch total contacts
-      const { count: totalContacts } = await supabase
-        .from("contacts")
-        .select("*", { count: "exact", head: true });
+      // Calculate date ranges once
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      const monthStart = new Date();
+      monthStart.setDate(1);
+      monthStart.setHours(0, 0, 0, 0);
 
-      // Fetch contacts in active pipeline stages (excluding Won/Lost)
-      const { data: stages } = await supabase
-        .from("pipeline_stages")
-        .select("id")
-        .not("name", "in", '("Won","Lost")');
+      // OPTIMIZATION: Batch all queries in parallel using Promise.all
+      const [
+        { count: totalContacts },
+        { data: stages },
+        { count: callsToday },
+        { count: newContactsThisWeek },
+        { data: wonStage },
+        { data: pipelineStats },
+        { data: activityStats }
+      ] = await Promise.all([
+        // Total contacts
+        supabase
+          .from("contacts")
+          .select("*", { count: "exact", head: true }),
+        
+        // Pipeline stages (for active deals)
+        supabase
+          .from("pipeline_stages")
+          .select("id, name")
+          .not("name", "in", '("Won","Lost")'),
+        
+        // Calls today
+        supabase
+          .from("contact_activities")
+          .select("*", { count: "exact", head: true })
+          .eq("activity_type", "call")
+          .gte("created_at", today.toISOString()),
+        
+        // New contacts this week
+        supabase
+          .from("contacts")
+          .select("*", { count: "exact", head: true })
+          .gte("created_at", weekAgo.toISOString()),
+        
+        // Won stage
+        supabase
+          .from("pipeline_stages")
+          .select("id")
+          .eq("name", "Won")
+          .maybeSingle(),
+        
+        // Pipeline distribution
+        supabase
+          .from("contacts")
+          .select(`
+            pipeline_stage_id,
+            pipeline_stages (name, stage_order)
+          `),
+        
+        // OPTIMIZATION: Fetch all activities for 7 days in ONE query instead of 21 queries
+        supabase
+          .from("contact_activities")
+          .select("activity_type, created_at")
+          .gte("created_at", weekAgo.toISOString())
+          .in("activity_type", ["call", "email", "meeting"])
+      ]);
 
+      // Calculate active deals
       const stageIds = stages?.map(s => s.id) || [];
       const { count: activeDeals } = await supabase
         .from("contacts")
         .select("*", { count: "exact", head: true })
         .in("pipeline_stage_id", stageIds);
 
-      // Fetch calls today
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const { count: callsToday } = await supabase
-        .from("contact_activities")
-        .select("*", { count: "exact", head: true })
-        .eq("activity_type", "call")
-        .gte("created_at", today.toISOString());
-
-      // Fetch contacts created this week
-      const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      const { count: newContactsThisWeek } = await supabase
-        .from("contacts")
-        .select("*", { count: "exact", head: true })
-        .gte("created_at", weekAgo.toISOString());
-
-      // Fetch won deals this month
-      const monthStart = new Date();
-      monthStart.setDate(1);
-      monthStart.setHours(0, 0, 0, 0);
-      
-      const { data: wonStage } = await supabase
-        .from("pipeline_stages")
-        .select("id")
-        .eq("name", "Won")
-        .single();
-
-      const { count: dealsWonThisMonth } = await supabase
-        .from("contacts")
-        .select("*", { count: "exact", head: true })
-        .eq("pipeline_stage_id", wonStage?.id)
-        .gte("updated_at", monthStart.toISOString());
+      // Calculate won deals this month
+      const { count: dealsWonThisMonth } = wonStage?.id 
+        ? await supabase
+            .from("contacts")
+            .select("*", { count: "exact", head: true })
+            .eq("pipeline_stage_id", wonStage.id)
+            .gte("updated_at", monthStart.toISOString())
+        : { count: 0 };
 
       // Calculate conversion rate
       const conversionRate = totalContacts && dealsWonThisMonth
         ? Math.round((dealsWonThisMonth / totalContacts) * 100)
         : 0;
 
-      // Fetch pipeline distribution
-      const { data: pipelineStats } = await supabase
-        .from("contacts")
-        .select(`
-          pipeline_stage_id,
-          pipeline_stages (name, stage_order)
-        `);
-
+      // Process pipeline distribution
       const pipelineMap = new Map<string, number>();
       pipelineStats?.forEach(contact => {
         const stageName = (contact as any).pipeline_stages?.name || "Unassigned";
@@ -131,7 +155,7 @@ export default function Dashboard() {
         value: count,
       }));
 
-      // Fetch activity data for last 7 days
+      // OPTIMIZATION: Process activities in memory instead of 21 database queries
       const activities: ActivityData[] = [];
       for (let i = 6; i >= 0; i--) {
         const date = new Date();
@@ -140,32 +164,17 @@ export default function Dashboard() {
         const nextDay = new Date(date);
         nextDay.setDate(nextDay.getDate() + 1);
 
-        const { count: calls } = await supabase
-          .from("contact_activities")
-          .select("*", { count: "exact", head: true })
-          .eq("activity_type", "call")
-          .gte("created_at", date.toISOString())
-          .lt("created_at", nextDay.toISOString());
-
-        const { count: emails } = await supabase
-          .from("contact_activities")
-          .select("*", { count: "exact", head: true })
-          .eq("activity_type", "email")
-          .gte("created_at", date.toISOString())
-          .lt("created_at", nextDay.toISOString());
-
-        const { count: meetings } = await supabase
-          .from("contact_activities")
-          .select("*", { count: "exact", head: true })
-          .eq("activity_type", "meeting")
-          .gte("created_at", date.toISOString())
-          .lt("created_at", nextDay.toISOString());
+        // Filter activities in memory
+        const dayActivities = activityStats?.filter(activity => {
+          const activityDate = new Date(activity.created_at);
+          return activityDate >= date && activityDate < nextDay;
+        }) || [];
 
         activities.push({
           date: date.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-          calls: calls || 0,
-          emails: emails || 0,
-          meetings: meetings || 0,
+          calls: dayActivities.filter(a => a.activity_type === "call").length,
+          emails: dayActivities.filter(a => a.activity_type === "email").length,
+          meetings: dayActivities.filter(a => a.activity_type === "meeting").length,
         });
       }
 
