@@ -22,6 +22,7 @@ import OrgChart from "./pages/OrgChart";
 import CustomFields from "./pages/CustomFields";
 import Forms from "./pages/Forms";
 import CallingDashboard from "./pages/CallingDashboard";
+import CallLogs from "./pages/CallLogs";
 import ProtectedRoute from "./components/Auth/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -70,6 +71,12 @@ const App = () => (
           <Route path="/calling-dashboard" element={
             <ProtectedRoute>
               <CallingDashboard />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/call-logs" element={
+            <ProtectedRoute>
+              <CallLogs />
             </ProtectedRoute>
           } />
           
