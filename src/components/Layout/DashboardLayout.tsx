@@ -9,6 +9,16 @@ import {
   LogOut,
   Menu,
   X,
+  Contact,
+  GitBranch,
+  BarChart3,
+  Network,
+  UserCog,
+  UsersRound,
+  Layers,
+  PhoneCall,
+  CheckSquare,
+  Award,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -112,7 +122,7 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                 className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
                 onClick={() => setSidebarOpen(false)}
               >
-                <Users size={20} />
+                <Contact size={20} />
                 <span>Contacts</span>
               </Link>
 
@@ -121,7 +131,7 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                 className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
                 onClick={() => setSidebarOpen(false)}
               >
-                <LayoutDashboard size={20} />
+                <GitBranch size={20} />
                 <span>Pipeline</span>
               </Link>
 
@@ -130,7 +140,7 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                 className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
                 onClick={() => setSidebarOpen(false)}
               >
-                <LayoutDashboard size={20} />
+                <BarChart3 size={20} />
                 <span>Reports</span>
               </Link>
 
@@ -139,7 +149,7 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                 className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
                 onClick={() => setSidebarOpen(false)}
               >
-                <Users size={20} />
+                <Network size={20} />
                 <span>Org Chart</span>
               </Link>
 
@@ -155,7 +165,7 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                     className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
                     onClick={() => setSidebarOpen(false)}
                   >
-                    <Users size={20} />
+                    <UserCog size={20} />
                     <span>Users</span>
                   </Link>
                   <Link
@@ -163,7 +173,7 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                     className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
                     onClick={() => setSidebarOpen(false)}
                   >
-                    <Users size={20} />
+                    <UsersRound size={20} />
                     <span>Teams</span>
                   </Link>
                 </>
@@ -189,7 +199,7 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                     className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
                     onClick={() => setSidebarOpen(false)}
                   >
-                    <Settings size={20} />
+                    <Layers size={20} />
                     <span>Pipeline Stages</span>
                   </Link>
                   <Link
@@ -197,7 +207,7 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                     className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
                     onClick={() => setSidebarOpen(false)}
                   >
-                    <Settings size={20} />
+                    <PhoneCall size={20} />
                     <span>Call Dispositions</span>
                   </Link>
                   <Link
@@ -205,7 +215,7 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                     className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
                     onClick={() => setSidebarOpen(false)}
                   >
-                    <Settings size={20} />
+                    <CheckSquare size={20} />
                     <span>Approval Matrix</span>
                   </Link>
                   <Link
@@ -213,7 +223,7 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                     className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
                     onClick={() => setSidebarOpen(false)}
                   >
-                    <Settings size={20} />
+                    <Award size={20} />
                     <span>Designations</span>
                   </Link>
                 </>
