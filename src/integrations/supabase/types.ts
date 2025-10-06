@@ -701,6 +701,44 @@ export type Database = {
           },
         ]
       }
+      platform_admin_audit_log: {
+        Row: {
+          action: string
+          admin_id: string
+          created_at: string
+          details: Json | null
+          id: string
+          target_org_id: string | null
+          target_user_id: string | null
+        }
+        Insert: {
+          action: string
+          admin_id: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          target_org_id?: string | null
+          target_user_id?: string | null
+        }
+        Update: {
+          action?: string
+          admin_id?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          target_org_id?: string | null
+          target_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_admin_audit_log_target_org_id_fkey"
+            columns: ["target_org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -710,6 +748,7 @@ export type Database = {
           email_enabled: boolean | null
           first_name: string | null
           id: string
+          is_platform_admin: boolean | null
           last_name: string | null
           org_id: string | null
           phone: string | null
@@ -725,6 +764,7 @@ export type Database = {
           email_enabled?: boolean | null
           first_name?: string | null
           id: string
+          is_platform_admin?: boolean | null
           last_name?: string | null
           org_id?: string | null
           phone?: string | null
@@ -740,6 +780,7 @@ export type Database = {
           email_enabled?: boolean | null
           first_name?: string | null
           id?: string
+          is_platform_admin?: boolean | null
           last_name?: string | null
           org_id?: string | null
           phone?: string | null
@@ -941,6 +982,10 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      is_platform_admin: {
+        Args: { _user_id: string }
         Returns: boolean
       }
     }

@@ -24,6 +24,7 @@ import Forms from "./pages/Forms";
 import CallingDashboard from "./pages/CallingDashboard";
 import CallLogs from "./pages/CallLogs";
 import PublicForm from "./pages/PublicForm";
+import PlatformAdmin from "./pages/PlatformAdmin";
 import ProtectedRoute from "./components/Auth/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -139,6 +140,12 @@ const App = () => (
           <Route path="/org-chart" element={
             <ProtectedRoute>
               <OrgChart />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/platform-admin" element={
+            <ProtectedRoute>
+              <PlatformAdmin />
             </ProtectedRoute>
           } />
           

@@ -36,6 +36,7 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [userName, setUserName] = useState<string>("");
   const [orgLogo, setOrgLogo] = useState<string>("");
+  const [isPlatformAdmin, setIsPlatformAdmin] = useState<boolean>(false);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -56,12 +57,13 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
       // Get user profile and organization
       const { data: profileData } = await supabase
         .from("profiles")
-        .select("first_name, last_name, org_id")
+        .select("first_name, last_name, org_id, is_platform_admin")
         .eq("id", user.id)
         .single();
 
       if (profileData) {
         setUserName(`${profileData.first_name} ${profileData.last_name}`);
+        setIsPlatformAdmin(profileData.is_platform_admin || false);
         
         // Get organization logo
         if (profileData.org_id) {
@@ -230,6 +232,24 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                   >
                     <UsersRound size={20} />
                     <span>Teams</span>
+                  </Link>
+                </>
+              )}
+
+              {isPlatformAdmin && (
+                <>
+                  <div className="pt-4 pb-2">
+                    <p className="px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Platform Admin
+                    </p>
+                  </div>
+                  <Link
+                    to="/platform-admin"
+                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    <Settings size={20} />
+                    <span>Platform Dashboard</span>
                   </Link>
                 </>
               )}
