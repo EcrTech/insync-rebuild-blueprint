@@ -35,6 +35,7 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [userName, setUserName] = useState<string>("");
+  const [orgLogo, setOrgLogo] = useState<string>("");
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -52,15 +53,28 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
         setUserRole(roleData.role);
       }
 
-      // Get user profile
+      // Get user profile and organization
       const { data: profileData } = await supabase
         .from("profiles")
-        .select("first_name, last_name")
+        .select("first_name, last_name, org_id")
         .eq("id", user.id)
         .single();
 
       if (profileData) {
         setUserName(`${profileData.first_name} ${profileData.last_name}`);
+        
+        // Get organization logo
+        if (profileData.org_id) {
+          const { data: orgData } = await supabase
+            .from("organizations")
+            .select("logo_url")
+            .eq("id", profileData.org_id)
+            .single();
+          
+          if (orgData?.logo_url) {
+            setOrgLogo(orgData.logo_url);
+          }
+        }
       }
     };
 
@@ -82,7 +96,11 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
     <div className="min-h-screen bg-background">
       {/* Mobile header */}
       <div className="lg:hidden bg-card border-b border-border px-4 py-3 flex items-center justify-between">
-        <h1 className="text-xl font-bold text-primary">In-Sync</h1>
+        {orgLogo ? (
+          <img src={orgLogo} alt="Organization Logo" className="h-8 object-contain" />
+        ) : (
+          <h1 className="text-xl font-bold text-primary">In-Sync</h1>
+        )}
         <Button
           variant="ghost"
           size="icon"
@@ -105,7 +123,11 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
           <div className="h-full flex flex-col">
             {/* Logo */}
             <div className="p-6 border-b border-border">
-              <h1 className="text-2xl font-bold text-primary">In-Sync</h1>
+              {orgLogo ? (
+                <img src={orgLogo} alt="Organization Logo" className="h-10 object-contain mb-2" />
+              ) : (
+                <h1 className="text-2xl font-bold text-primary">In-Sync</h1>
+              )}
               <p className="text-sm text-muted-foreground mt-1">{userName}</p>
             </div>
 

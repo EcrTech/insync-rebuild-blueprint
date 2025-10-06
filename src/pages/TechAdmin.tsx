@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import DashboardLayout from "@/components/Layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -6,11 +6,13 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Building2, Palette, Users } from "lucide-react";
+import { Building2, Palette, Users, Upload } from "lucide-react";
 
 export default function TechAdmin() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [orgData, setOrgData] = useState({
     name: "",
     slug: "",
@@ -83,6 +85,78 @@ export default function TechAdmin() {
     }
   };
 
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        variant: "destructive",
+        title: "Invalid file type",
+        description: "Please upload an image file",
+      });
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        variant: "destructive",
+        title: "File too large",
+        description: "Please upload an image smaller than 5MB",
+      });
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("org_id")
+        .eq("id", user.id)
+        .single();
+
+      if (!profile?.org_id) throw new Error("No organization found");
+
+      // Create unique filename
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${profile.org_id}-${Date.now()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      // Upload to storage
+      const { error: uploadError } = await supabase.storage
+        .from('org-logos')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('org-logos')
+        .getPublicUrl(filePath);
+
+      // Update organization with new logo URL
+      setOrgData({ ...orgData, logo_url: publicUrl });
+
+      toast({
+        title: "Logo uploaded",
+        description: "Logo uploaded successfully. Don't forget to save changes.",
+      });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Upload failed",
+        description: error.message,
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleSave = async () => {
     setLoading(true);
     try {
@@ -112,6 +186,9 @@ export default function TechAdmin() {
         title: "Settings saved",
         description: "Your organization settings have been updated",
       });
+      
+      // Reload page to show new logo in sidebar
+      window.location.reload();
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -202,17 +279,49 @@ export default function TechAdmin() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="logoUrl">Logo URL</Label>
-              <Input
-                id="logoUrl"
-                type="url"
-                placeholder="https://example.com/logo.png"
-                value={orgData.logo_url}
-                onChange={(e) => setOrgData({ ...orgData, logo_url: e.target.value })}
-              />
-              <p className="text-xs text-muted-foreground">
-                Enter a URL to your organization's logo
-              </p>
+              <Label htmlFor="logoUrl">Organization Logo</Label>
+              <div className="flex gap-4 items-start">
+                <div className="flex-1">
+                  <Input
+                    id="logoUrl"
+                    type="url"
+                    placeholder="https://example.com/logo.png"
+                    value={orgData.logo_url}
+                    onChange={(e) => setOrgData({ ...orgData, logo_url: e.target.value })}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Enter a URL to your organization's logo
+                  </p>
+                </div>
+                <div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleLogoUpload}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                  >
+                    <Upload className="mr-2 h-4 w-4" />
+                    {uploading ? "Uploading..." : "Upload Logo"}
+                  </Button>
+                </div>
+              </div>
+              {orgData.logo_url && (
+                <div className="mt-2 p-4 border rounded-lg bg-muted/50">
+                  <p className="text-xs text-muted-foreground mb-2">Preview:</p>
+                  <img 
+                    src={orgData.logo_url} 
+                    alt="Organization logo preview" 
+                    className="h-16 object-contain"
+                  />
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
