@@ -2,6 +2,123 @@
 @tailwind components;
 @tailwind utilities;
 
+/* In-Sync Design System - Brand Colors & Tokens */
+@layer base {
+  :root {
+    /* Brand Colors - Primary */
+    --primary-teal: 178 89% 36%;
+    --deep-teal: 168 49% 40%;
+    --analytics-teal: 197 55% 35%;
+    --success-teal: 175 72% 31%;
+    
+    /* Neutrals */
+    --deep-slate: 186 14% 24%;
+    --medium-gray: 185 7% 40%;
+    --charcoal: 186 8% 30%;
+    
+    /* Accents - Energy */
+    --coral: 1 98% 69%;
+    --soft-coral: 0 95% 75%;
+    --warm-coral: 16 99% 70%;
+    --salmon: 13 97% 76%;
+    
+    /* Accents - Supporting */
+    --vibrant-yellow: 48 94% 50%;
+    --soft-yellow: 50 84% 65%;
+    --purple: 318 23% 53%;
+    --lavender: 318 21% 62%;
+    --sky-blue: 195 76% 73%;
+    --light-blue: 195 71% 79%;
+    
+    /* Neutrals - Light */
+    --light-neutral: 0 14% 81%;
+    --sage: 78 11% 65%;
+    --gray-green: 185 7% 52%;
+    
+    /* Semantic Colors */
+    --success: 175 72% 31%;
+    --success-bg: 165 56% 92%;
+    --warning: 50 84% 65%;
+    --warning-bg: 48 100% 95%;
+    --error: 1 98% 69%;
+    --error-bg: 0 100% 95%;
+    --info: 195 76% 73%;
+    --info-bg: 195 76% 95%;
+    
+    /* Design Tokens */
+    --background: 0 0% 100%;
+    --foreground: var(--deep-slate);
+    
+    --card: 0 0% 100%;
+    --card-foreground: var(--deep-slate);
+    
+    --popover: 0 0% 100%;
+    --popover-foreground: var(--deep-slate);
+    
+    --primary: var(--primary-teal);
+    --primary-foreground: 0 0% 100%;
+    
+    --secondary: var(--medium-gray);
+    --secondary-foreground: 0 0% 100%;
+    
+    --muted: 0 0% 97%;
+    --muted-foreground: var(--medium-gray);
+    
+    --accent: var(--coral);
+    --accent-foreground: 0 0% 100%;
+    
+    --destructive: var(--error);
+    --destructive-foreground: 0 0% 100%;
+    
+    --border: 0 8% 82%;
+    --input: 0 8% 82%;
+    --ring: var(--primary-teal);
+    
+    --radius: 0.5rem;
+  }
+  
+  .dark {
+    /* Dark mode tokens */
+    --background: 186 15% 15%;
+    --foreground: 0 0% 98%;
+    
+    --card: 186 14% 18%;
+    --card-foreground: 0 0% 98%;
+    
+    --popover: 186 14% 18%;
+    --popover-foreground: 0 0% 98%;
+    
+    --primary: var(--primary-teal);
+    --primary-foreground: 0 0% 100%;
+    
+    --secondary: var(--medium-gray);
+    --secondary-foreground: 0 0% 100%;
+    
+    --muted: 186 12% 25%;
+    --muted-foreground: 185 7% 60%;
+    
+    --accent: var(--coral);
+    --accent-foreground: 0 0% 100%;
+    
+    --destructive: var(--error);
+    --destructive-foreground: 0 0% 100%;
+    
+    --border: 186 12% 25%;
+    --input: 186 12% 25%;
+    --ring: var(--primary-teal);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+}
+
 /* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
 All colors MUST be HSL.
 */
