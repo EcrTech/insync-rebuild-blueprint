@@ -13,28 +13,42 @@ export default function ProtectedRoute({ children, requiredRole }: ProtectedRout
   const [user, setUser] = useState<User | null>(null);
   const [hasAccess, setHasAccess] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
+  const [initialCheckDone, setInitialCheckDone] = useState(false);
 
   useEffect(() => {
+    let mounted = true;
+
+    // Check for existing session first
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!mounted) return;
+      console.log("ProtectedRoute - Initial session check:", session ? "Session exists" : "No session");
+      setSession(session);
+      setUser(session?.user ?? null);
+      setInitialCheckDone(true);
+    });
+
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        if (!mounted) return;
         console.log("ProtectedRoute - Auth state change:", event, session ? "Session exists" : "No session");
         setSession(session);
         setUser(session?.user ?? null);
       }
     );
 
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log("ProtectedRoute - Initial session check:", session ? "Session exists" : "No session");
-      setSession(session);
-      setUser(session?.user ?? null);
-    });
-
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
+    // Don't check access until initial session check is complete
+    if (!initialCheckDone) {
+      return;
+    }
+
     const checkAccess = async () => {
       // Check session instead of user to avoid timing issues
       if (!session?.user) {
@@ -85,7 +99,7 @@ export default function ProtectedRoute({ children, requiredRole }: ProtectedRout
     };
 
     checkAccess();
-  }, [session, requiredRole]);
+  }, [session, requiredRole, initialCheckDone]);
 
   if (loading) {
     return (
