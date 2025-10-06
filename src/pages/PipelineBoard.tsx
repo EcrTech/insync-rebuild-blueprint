@@ -5,12 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Mail, Phone as PhoneIcon, Building, LayoutGrid, Table as TableIcon, Sparkles, Loader2 } from "lucide-react";
+import { Mail, Phone as PhoneIcon, Building, LayoutGrid, Table as TableIcon, Sparkles, Loader2, Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Input } from "@/components/ui/input";
 
 interface PipelineStage {
   id: string;
@@ -42,11 +43,14 @@ interface Contact {
 export default function PipelineBoard() {
   const [stages, setStages] = useState<PipelineStage[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const [allContacts, setAllContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [draggedContact, setDraggedContact] = useState<string | null>(null);
   const [scoringLeadId, setScoringLeadId] = useState<string | null>(null);
   const [selectedLeadScore, setSelectedLeadScore] = useState<any>(null);
   const [showScoreDialog, setShowScoreDialog] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -73,6 +77,7 @@ export default function PipelineBoard() {
 
       setStages(stagesRes.data || []);
       setContacts(contactsRes.data || []);
+      setAllContacts(contactsRes.data || []);
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -174,6 +179,54 @@ export default function PipelineBoard() {
     return "bg-gray-300 text-gray-700";
   };
 
+  const handleAiSearch = async () => {
+    if (!searchQuery.trim()) {
+      setContacts(allContacts);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('analyze-lead', {
+        body: { 
+          searchQuery: searchQuery.trim(),
+          contacts: allContacts
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      // Filter contacts based on AI response
+      const filteredContactIds = data.filteredContactIds || [];
+      const filtered = allContacts.filter(c => filteredContactIds.includes(c.id));
+      
+      setContacts(filtered);
+      
+      toast({
+        title: "Search complete",
+        description: `Found ${filtered.length} matching contacts`,
+      });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Search failed",
+        description: error.message,
+      });
+      setContacts(allContacts);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleClearSearch = () => {
+    setSearchQuery("");
+    setContacts(allContacts);
+  };
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -193,6 +246,55 @@ export default function PipelineBoard() {
             <p className="text-muted-foreground">View and manage your sales pipeline</p>
           </div>
         </div>
+
+        {/* AI Search Bar */}
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <Input
+                  placeholder="Search contacts using AI (e.g., 'designation Manager, company in Mumbai, age 30-40')"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !isSearching) {
+                      handleAiSearch();
+                    }
+                  }}
+                  disabled={isSearching}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Search by: designation, company, location (city/state/country), source, or combine criteria
+                </p>
+              </div>
+              <Button 
+                onClick={handleAiSearch}
+                disabled={isSearching || !searchQuery.trim()}
+              >
+                {isSearching ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Searching...
+                  </>
+                ) : (
+                  <>
+                    <Search className="h-4 w-4 mr-2" />
+                    AI Search
+                  </>
+                )}
+              </Button>
+              {searchQuery && (
+                <Button 
+                  variant="outline" 
+                  onClick={handleClearSearch}
+                  disabled={isSearching}
+                >
+                  Clear
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
 
         <Tabs defaultValue="table" className="w-full">

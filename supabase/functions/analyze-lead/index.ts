@@ -12,11 +12,100 @@ serve(async (req) => {
   }
 
   try {
-    const { contact } = await req.json();
+    const { contact, searchQuery, contacts } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     
     if (!LOVABLE_API_KEY) {
       throw new Error('LOVABLE_API_KEY is not configured');
+    }
+
+    // Handle search query - filter contacts based on criteria
+    if (searchQuery && contacts) {
+      const searchSystemPrompt = `You are a CRM search assistant. Your task is to filter contacts based on natural language search queries that map to CRM fields.
+
+Available CRM fields:
+- first_name, last_name: Contact name
+- company: Company name
+- job_title: Job title/designation
+- email, phone: Contact information
+- source: Lead source
+- status: Contact status
+- city, state, country: Location information
+- website: Company website
+- notes: Additional notes
+- created_at: Creation date
+
+Return ONLY a JSON object with this structure:
+{
+  "filteredContactIds": ["id1", "id2", "id3"]
+}
+
+Include contact IDs that match the search criteria. Be intelligent about matching - understand synonyms, partial matches, and combined criteria.
+
+Examples:
+- "designation Manager" -> Match job_title containing "Manager"
+- "company in Mumbai" -> Match city = "Mumbai"
+- "designation Manager, company in Mumbai" -> Match both conditions
+- "age 30-40" -> You cannot filter by age as it's not a CRM field, return empty array
+- "source LinkedIn" -> Match source = "LinkedIn"`;
+
+      const contactsSummary = contacts.map((c: any) => ({
+        id: c.id,
+        name: `${c.first_name || ''} ${c.last_name || ''}`.trim(),
+        company: c.company,
+        job_title: c.job_title,
+        source: c.source,
+        status: c.status,
+        city: c.city,
+        state: c.state,
+        country: c.country,
+        email: c.email,
+        phone: c.phone
+      }));
+
+      const searchUserPrompt = `Search Query: "${searchQuery}"
+
+Contacts to filter:
+${JSON.stringify(contactsSummary, null, 2)}
+
+Return the IDs of contacts that match the search criteria.`;
+
+      console.log('Filtering contacts with query:', searchQuery);
+
+      const searchResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-2.5-flash',
+          messages: [
+            { role: 'system', content: searchSystemPrompt },
+            { role: 'user', content: searchUserPrompt }
+          ],
+          response_format: { type: "json_object" }
+        }),
+      });
+
+      if (!searchResponse.ok) {
+        throw new Error('Failed to process search query');
+      }
+
+      const searchData = await searchResponse.json();
+      const searchResult = JSON.parse(searchData.choices[0].message.content);
+      
+      console.log('Search result:', searchResult);
+
+      return new Response(
+        JSON.stringify(searchResult),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Handle single contact scoring
+    if (!contact) {
+      throw new Error('Either contact or searchQuery with contacts must be provided');
     }
 
     const systemPrompt = `You are an expert lead scoring AI specialized in the Indian SMB market. You understand the unique characteristics of Indian small and medium businesses including budget sensitivity, relationship-driven sales, multi-stakeholder decision-making, and diverse digital maturity levels.
