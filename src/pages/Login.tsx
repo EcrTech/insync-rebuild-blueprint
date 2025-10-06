@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { AuthLayout } from "@/components/Auth/AuthLayout";
@@ -14,24 +14,36 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
+  useEffect(() => {
+    // Check if user is already logged in
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        navigate("/dashboard", { replace: true });
+      }
+    });
+  }, [navigate]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) throw error;
 
-      toast({
-        title: "Welcome back!",
-        description: "You've successfully signed in",
-      });
+      if (data.session) {
+        toast({
+          title: "Welcome back!",
+          description: "You've successfully signed in",
+        });
 
-      navigate("/dashboard");
+        // Use replace to prevent back button issues
+        navigate("/dashboard", { replace: true });
+      }
     } catch (error: any) {
       toast({
         variant: "destructive",
