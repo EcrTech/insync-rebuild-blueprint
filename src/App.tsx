@@ -23,6 +23,7 @@ import CustomFields from "./pages/CustomFields";
 import Forms from "./pages/Forms";
 import CallingDashboard from "./pages/CallingDashboard";
 import CallLogs from "./pages/CallLogs";
+import PublicForm from "./pages/PublicForm";
 import ProtectedRoute from "./components/Auth/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -37,6 +38,7 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<SignUp />} />
+          <Route path="/form/:formId" element={<PublicForm />} />
           
           <Route path="/dashboard" element={
             <ProtectedRoute>

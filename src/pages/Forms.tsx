@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, FileText } from "lucide-react";
+import { Plus, Pencil, Trash2, FileText, Link2, Copy } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -277,6 +277,15 @@ export default function Forms() {
     );
   };
 
+  const copyFormLink = (formId: string) => {
+    const link = `${window.location.origin}/form/${formId}`;
+    navigator.clipboard.writeText(link);
+    toast({
+      title: "Link copied",
+      description: "Form link has been copied to clipboard",
+    });
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -408,14 +417,34 @@ export default function Forms() {
                             <Badge variant="outline" className="text-xs">Inactive</Badge>
                           )}
                         </CardTitle>
-                        <CardDescription>
-                          {form.description || "No description"}
-                          {" • "}
-                          <span>{form.field_count} field{form.field_count !== 1 ? 's' : ''}</span>
+                        <CardDescription className="space-y-1">
+                          <div>{form.description || "No description"}</div>
+                          <div className="flex items-center gap-2 text-xs">
+                            <span>{form.field_count} field{form.field_count !== 1 ? 's' : ''}</span>
+                            <span>•</span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                copyFormLink(form.id);
+                              }}
+                              className="inline-flex items-center gap-1 text-primary hover:underline"
+                            >
+                              <Link2 className="h-3 w-3" />
+                              Public link
+                            </button>
+                          </div>
                         </CardDescription>
                       </div>
                     </div>
                     <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => copyFormLink(form.id)}
+                        title="Copy form link"
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"
