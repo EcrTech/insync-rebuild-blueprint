@@ -70,6 +70,7 @@ export default function Users() {
   }, []);
 
   const fetchUsers = async () => {
+    console.log("🔍 FETCH USERS STARTED");
     try {
       const { data, error } = await supabase
         .from("user_roles")
@@ -80,14 +81,20 @@ export default function Users() {
         `)
         .order("created_at", { ascending: false });
 
+      console.log("📊 User roles fetched:", { count: data?.length, data, error });
+
       if (error) throw error;
 
       // Fetch profiles separately
       const userIds = data?.map(ur => ur.user_id) || [];
+      console.log("👤 Fetching profiles for user IDs:", userIds);
+      
       const { data: profilesData } = await supabase
         .from("profiles")
         .select("id, first_name, last_name, phone, avatar_url, calling_enabled, whatsapp_enabled, email_enabled, sms_enabled")
         .in("id", userIds);
+
+      console.log("👥 Profiles fetched:", { count: profilesData?.length, profilesData });
 
       // Combine the data
       const usersWithProfiles = data?.map(ur => ({
@@ -105,8 +112,17 @@ export default function Users() {
         }
       })) || [];
 
+      console.log("✅ Combined users with profiles:", usersWithProfiles.map(u => ({ 
+        id: u.id, 
+        user_id: u.user_id, 
+        name: `${u.profiles.first_name} ${u.profiles.last_name}`, 
+        role: u.role 
+      })));
+
       setUsers(usersWithProfiles);
+      console.log("🏁 FETCH USERS COMPLETED. Total users:", usersWithProfiles.length);
     } catch (error: any) {
+      console.error("❌ Fetch users error:", error);
       toast({
         variant: "destructive",
         title: "Error loading users",
@@ -224,31 +240,53 @@ export default function Users() {
   const handleDelete = async (userId: string, roleId: string) => {
     if (!confirm("Are you sure you want to delete this user?")) return;
 
+    console.log("🗑️ DELETE STARTED:", { userId, roleId });
     setLoading(true);
+    
     try {
+      // Log current users before delete
+      console.log("📋 Users before delete:", users.length, users.map(u => ({ id: u.id, name: `${u.profiles.first_name} ${u.profiles.last_name}` })));
+      
       // First, optimistically update the UI
-      setUsers(prevUsers => prevUsers.filter(u => u.id !== roleId));
+      setUsers(prevUsers => {
+        const filtered = prevUsers.filter(u => u.id !== roleId);
+        console.log("✂️ Optimistically removed. New count:", filtered.length);
+        return filtered;
+      });
 
       // Then perform the delete
-      const { error } = await supabase
+      console.log("🔄 Executing delete query...");
+      const { data, error } = await supabase
         .from("user_roles")
         .delete()
-        .eq("id", roleId);
+        .eq("id", roleId)
+        .select();
+
+      console.log("📡 Delete response:", { data, error, roleId });
 
       if (error) {
+        console.error("❌ Delete failed:", error);
         // If delete fails, revert by fetching fresh data
         await fetchUsers();
         throw error;
       }
 
+      console.log("✅ Delete successful, refreshing list...");
+      
+      // Wait a moment before fetching to ensure DB is updated
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Refresh the list to ensure consistency
+      await fetchUsers();
+      
+      console.log("📋 Users after refresh:", users.length);
+
       toast({
         title: "User deleted",
         description: "User has been removed successfully",
       });
-      
-      // Refresh the list to ensure consistency
-      await fetchUsers();
     } catch (error: any) {
+      console.error("💥 Delete error:", error);
       toast({
         variant: "destructive",
         title: "Error deleting user",
@@ -256,6 +294,7 @@ export default function Users() {
       });
     } finally {
       setLoading(false);
+      console.log("🏁 DELETE COMPLETED");
     }
   };
 
