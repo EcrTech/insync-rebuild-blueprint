@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, Mail, Phone as PhoneIcon, Building, Upload } from "lucide-react";
+import { Plus, Pencil, Trash2, Mail, Phone as PhoneIcon, Building, Upload, Download } from "lucide-react";
 
 interface Contact {
   id: string;
@@ -250,6 +250,27 @@ export default function Contacts() {
     setIsDialogOpen(true);
   };
 
+  const downloadTemplate = () => {
+    const template = `first_name,last_name,email,phone,company,job_title,status,source
+John,Doe,john.doe@example.com,+1234567890,Acme Corp,Sales Manager,new,Website
+Jane,Smith,jane.smith@example.com,+0987654321,Tech Inc,CEO,contacted,Referral`;
+
+    const blob = new Blob([template], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'contacts_template.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+
+    toast({
+      title: "Template Downloaded",
+      description: "Use this template to format your contacts CSV file.",
+    });
+  };
+
   const handleCSVUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -373,6 +394,15 @@ export default function Contacts() {
                       <strong>Required:</strong> first_name<br />
                       <strong>Optional:</strong> last_name, email, phone, company, job_title, status, source
                     </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full mb-4"
+                      onClick={downloadTemplate}
+                    >
+                      <Download className="mr-2 h-4 w-4" />
+                      Download CSV Template
+                    </Button>
                     <Input
                       type="file"
                       accept=".csv"
