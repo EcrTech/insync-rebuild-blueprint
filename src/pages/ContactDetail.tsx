@@ -17,6 +17,7 @@ import { LogActivityDialog } from "@/components/Contact/LogActivityDialog";
 import { EditContactDialog } from "@/components/Contact/EditContactDialog";
 import { ContactEmails } from "@/components/Contact/ContactEmails";
 import { ContactPhones } from "@/components/Contact/ContactPhones";
+import { FillFormDialog } from "@/components/Contact/FillFormDialog";
 
 interface Contact {
   id: string;
@@ -50,6 +51,7 @@ export default function ContactDetail() {
   const [loading, setLoading] = useState(true);
   const [isLogActivityOpen, setIsLogActivityOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isFillFormOpen, setIsFillFormOpen] = useState(false);
   const [activityType, setActivityType] = useState<string>("note");
 
   useEffect(() => {
@@ -113,6 +115,11 @@ export default function ContactDetail() {
     setIsEditOpen(false);
   };
 
+  const handleFormFilled = () => {
+    // Refresh contact data after form is filled
+    fetchContact();
+  };
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -150,6 +157,10 @@ export default function ContactDetail() {
             <Button variant="outline" onClick={() => setIsEditOpen(true)}>
               <Edit className="mr-2 h-4 w-4" />
               Edit
+            </Button>
+            <Button variant="outline" onClick={() => setIsFillFormOpen(true)}>
+              <FileText className="mr-2 h-4 w-4" />
+              Fill Form
             </Button>
             <Button onClick={() => { setActivityType("note"); setIsLogActivityOpen(true); }}>
               <Plus className="mr-2 h-4 w-4" />
@@ -315,6 +326,13 @@ export default function ContactDetail() {
         onOpenChange={setIsEditOpen}
         contact={contact}
         onContactUpdated={handleContactUpdated}
+      />
+
+      <FillFormDialog
+        open={isFillFormOpen}
+        onOpenChange={setIsFillFormOpen}
+        contactId={id!}
+        onFormFilled={handleFormFilled}
       />
     </DashboardLayout>
   );
