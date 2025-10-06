@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, Mail, Phone as PhoneIcon, Building, Upload, Download } from "lucide-react";
+import { useOrgContext } from "@/hooks/useOrgContext";
 
 interface Contact {
   id: string;
@@ -40,6 +41,7 @@ interface User {
 }
 
 export default function Contacts() {
+  const { effectiveOrgId } = useOrgContext();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [pipelineStages, setPipelineStages] = useState<PipelineStage[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -48,7 +50,7 @@ export default function Contacts() {
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const { toast } = useToast();
+  const { toast} = useToast();
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
@@ -66,17 +68,22 @@ export default function Contacts() {
   });
 
   useEffect(() => {
-    fetchContacts();
-    fetchPipelineStages();
-    fetchUsers();
-  }, []);
+    if (effectiveOrgId) {
+      fetchContacts();
+      fetchPipelineStages();
+      fetchUsers();
+    }
+  }, [effectiveOrgId]);
 
   const fetchContacts = async () => {
+    if (!effectiveOrgId) return;
+    
     try {
       // PERFORMANCE: Add pagination with limit to prevent loading thousands of records
       const { data, error } = await supabase
         .from("contacts")
         .select("*")
+        .eq("org_id", effectiveOrgId)
         .order("created_at", { ascending: false })
         .limit(500); // Limit to 500 most recent contacts
 
@@ -94,10 +101,13 @@ export default function Contacts() {
   };
 
   const fetchPipelineStages = async () => {
+    if (!effectiveOrgId) return;
+    
     try {
       const { data, error } = await supabase
         .from("pipeline_stages")
         .select("id, name")
+        .eq("org_id", effectiveOrgId)
         .eq("is_active", true)
         .order("stage_order");
 
@@ -109,10 +119,13 @@ export default function Contacts() {
   };
 
   const fetchUsers = async () => {
+    if (!effectiveOrgId) return;
+    
     try {
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, first_name, last_name");
+        .select("id, first_name, last_name")
+        .eq("org_id", effectiveOrgId);
 
       if (error) throw error;
       setUsers(data || []);

@@ -4,6 +4,7 @@ import DashboardLayout from "@/components/Layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { LayoutDashboard, Users, TrendingUp, Phone, Target, Calendar, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { Bar, BarChart, Line, LineChart, Pie, PieChart, Cell, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from "recharts";
+import { useOrgContext } from "@/hooks/useOrgContext";
 
 interface DashboardStats {
   totalContacts: number;
@@ -32,6 +33,7 @@ interface ActivityData {
 const COLORS = ['#01B8AA', '#168980', '#8AD4EB', '#F2C80F', '#A66999', '#FE9666', '#FD625E'];
 
 export default function Dashboard() {
+  const { effectiveOrgId } = useOrgContext();
   const [stats, setStats] = useState<DashboardStats>({
     totalContacts: 0,
     activeDeals: 0,
@@ -47,10 +49,14 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchDashboardData();
-  }, []);
+    if (effectiveOrgId) {
+      fetchDashboardData();
+    }
+  }, [effectiveOrgId]);
 
   const fetchDashboardData = async () => {
+    if (!effectiveOrgId) return;
+    
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -77,18 +83,21 @@ export default function Dashboard() {
         // Total contacts
         supabase
           .from("contacts")
-          .select("*", { count: "exact", head: true }),
+          .select("*", { count: "exact", head: true })
+          .eq("org_id", effectiveOrgId),
         
         // Pipeline stages (for active deals)
         supabase
           .from("pipeline_stages")
           .select("id, name")
+          .eq("org_id", effectiveOrgId)
           .not("name", "in", '("Won","Lost")'),
         
         // Calls today
         supabase
           .from("contact_activities")
           .select("*", { count: "exact", head: true })
+          .eq("org_id", effectiveOrgId)
           .eq("activity_type", "call")
           .gte("created_at", today.toISOString()),
         
@@ -96,12 +105,14 @@ export default function Dashboard() {
         supabase
           .from("contacts")
           .select("*", { count: "exact", head: true })
+          .eq("org_id", effectiveOrgId)
           .gte("created_at", weekAgo.toISOString()),
         
         // Won stage
         supabase
           .from("pipeline_stages")
           .select("id")
+          .eq("org_id", effectiveOrgId)
           .eq("name", "Won")
           .maybeSingle(),
         
@@ -112,12 +123,14 @@ export default function Dashboard() {
             pipeline_stage_id,
             pipeline_stages (name, stage_order)
           `)
+          .eq("org_id", effectiveOrgId)
           .limit(1000), // Safety limit: max 1000 contacts for dashboard stats
         
         // OPTIMIZATION: Fetch all activities for 7 days in ONE query instead of 21 queries
         supabase
           .from("contact_activities")
           .select("activity_type, created_at")
+          .eq("org_id", effectiveOrgId)
           .gte("created_at", weekAgo.toISOString())
           .in("activity_type", ["call", "email", "meeting"])
           .limit(5000) // Safety limit: max 5000 activities for weekly chart
