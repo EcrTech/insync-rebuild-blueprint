@@ -224,25 +224,38 @@ export default function Users() {
   const handleDelete = async (userId: string, roleId: string) => {
     if (!confirm("Are you sure you want to delete this user?")) return;
 
+    setLoading(true);
     try {
+      // First, optimistically update the UI
+      setUsers(prevUsers => prevUsers.filter(u => u.id !== roleId));
+
+      // Then perform the delete
       const { error } = await supabase
         .from("user_roles")
         .delete()
         .eq("id", roleId);
 
-      if (error) throw error;
+      if (error) {
+        // If delete fails, revert by fetching fresh data
+        await fetchUsers();
+        throw error;
+      }
 
       toast({
         title: "User deleted",
         description: "User has been removed successfully",
       });
-      fetchUsers();
+      
+      // Refresh the list to ensure consistency
+      await fetchUsers();
     } catch (error: any) {
       toast({
         variant: "destructive",
         title: "Error deleting user",
         description: error.message,
       });
+    } finally {
+      setLoading(false);
     }
   };
 
