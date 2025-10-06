@@ -22,6 +22,8 @@ import {
   FileText,
   List,
   Sliders,
+  ShieldCheck,
+  Building2,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { PlatformAdminBanner } from "@/components/PlatformAdminBanner";
@@ -169,6 +171,17 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                 <span>Calling Dashboard</span>
               </Link>
 
+              {isPlatformAdmin && (
+                <Link
+                  to="/platform-admin"
+                  className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  <ShieldCheck size={20} />
+                  <span>Platform Dashboard</span>
+                </Link>
+              )}
+
               {/* Operations Section */}
               <div className="pt-4 pb-2">
                 <p className="px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
@@ -237,23 +250,6 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                 </>
               )}
 
-              {isPlatformAdmin && (
-                <>
-                  <div className="pt-4 pb-2">
-                    <p className="px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                      Platform Admin
-                    </p>
-                  </div>
-                  <Link
-                    to="/platform-admin"
-                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
-                    onClick={() => setSidebarOpen(false)}
-                  >
-                    <Settings size={20} />
-                    <span>Platform Dashboard</span>
-                  </Link>
-                </>
-              )}
 
               {isAdmin && (
                 <>
@@ -267,7 +263,7 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                     className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
                     onClick={() => setSidebarOpen(false)}
                   >
-                    <Settings size={20} />
+                    <Building2 size={20} />
                     <span>Organization Settings</span>
                   </Link>
                   <Link
