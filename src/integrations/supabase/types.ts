@@ -568,6 +568,56 @@ export type Database = {
         }
         Relationships: []
       }
+      org_invites: {
+        Row: {
+          created_at: string
+          email: string | null
+          expires_at: string
+          id: string
+          invite_code: string
+          invited_by: string
+          org_id: string
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at: string
+          used_at: string | null
+          used_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          expires_at: string
+          id?: string
+          invite_code: string
+          invited_by: string
+          org_id: string
+          role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+          used_at?: string | null
+          used_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          expires_at?: string
+          id?: string
+          invite_code?: string
+          invited_by?: string
+          org_id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+          used_at?: string | null
+          used_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_invites_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organizations: {
         Row: {
           created_at: string | null

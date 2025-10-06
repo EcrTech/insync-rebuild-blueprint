@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { AuthLayout } from "@/components/Auth/AuthLayout";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,10 @@ import { useToast } from "@/hooks/use-toast";
 export default function SignUp() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
+  const inviteCode = searchParams.get("invite");
   const [loading, setLoading] = useState(false);
+  const [inviteData, setInviteData] = useState<any>(null);
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -20,6 +23,45 @@ export default function SignUp() {
     organizationName: "",
     organizationSlug: "",
   });
+
+  useEffect(() => {
+    if (inviteCode) {
+      fetchInviteDetails();
+    }
+  }, [inviteCode]);
+
+  const fetchInviteDetails = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("org_invites")
+        .select("*, organizations(name, slug)")
+        .eq("invite_code", inviteCode)
+        .is("used_at", null)
+        .gt("expires_at", new Date().toISOString())
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        setInviteData(data);
+        if (data.email) {
+          setFormData(prev => ({ ...prev, email: data.email }));
+        }
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Invalid invite",
+          description: "This invite link is invalid or has expired",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to load invite details",
+      });
+    }
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -56,60 +98,92 @@ export default function SignUp() {
     setLoading(true);
 
     try {
-      // Sign up the user
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
-        options: {
-          data: {
-            first_name: formData.firstName,
-            last_name: formData.lastName,
+      if (inviteData) {
+        // Join existing organization via invite
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email: formData.email,
+          password: formData.password,
+          options: {
+            data: {
+              first_name: formData.firstName,
+              last_name: formData.lastName,
+              org_id: inviteData.org_id,
+            },
           },
-        },
-      });
-
-      if (authError) throw authError;
-      if (!authData.user) throw new Error("No user returned");
-
-      // Create organization
-      const { data: orgData, error: orgError } = await supabase
-        .from("organizations")
-        .insert({
-          name: formData.organizationName,
-          slug: formData.organizationSlug,
-        })
-        .select()
-        .single();
-
-      if (orgError) throw orgError;
-
-      // Update profile with org_id
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .update({ org_id: orgData.id })
-        .eq("id", authData.user.id);
-
-      if (profileError) throw profileError;
-
-      // Assign admin role
-      const { error: roleError } = await supabase
-        .from("user_roles")
-        .insert({
-          user_id: authData.user.id,
-          org_id: orgData.id,
-          role: "admin",
         });
 
-      if (roleError) throw roleError;
+        if (authError) throw authError;
+        if (!authData.user) throw new Error("No user returned");
 
-      // Create default pipeline stages and dispositions
-      await supabase.rpc("create_default_pipeline_stages", { _org_id: orgData.id });
-      await supabase.rpc("create_default_call_dispositions", { _org_id: orgData.id });
+        // Mark invite as used
+        await supabase
+          .from("org_invites")
+          .update({ 
+            used_at: new Date().toISOString(),
+            used_by: authData.user.id 
+          })
+          .eq("id", inviteData.id);
 
-      toast({
-        title: "Account created!",
-        description: "Welcome to In-Sync",
-      });
+        toast({
+          title: "Account created!",
+          description: `Welcome to ${inviteData.organizations.name}`,
+        });
+      } else {
+        // Create new organization (original flow)
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email: formData.email,
+          password: formData.password,
+          options: {
+            data: {
+              first_name: formData.firstName,
+              last_name: formData.lastName,
+            },
+          },
+        });
+
+        if (authError) throw authError;
+        if (!authData.user) throw new Error("No user returned");
+
+        // Create organization
+        const { data: orgData, error: orgError } = await supabase
+          .from("organizations")
+          .insert({
+            name: formData.organizationName,
+            slug: formData.organizationSlug,
+          })
+          .select()
+          .single();
+
+        if (orgError) throw orgError;
+
+        // Update profile with org_id
+        const { error: profileError } = await supabase
+          .from("profiles")
+          .update({ org_id: orgData.id })
+          .eq("id", authData.user.id);
+
+        if (profileError) throw profileError;
+
+        // Assign admin role
+        const { error: roleError } = await supabase
+          .from("user_roles")
+          .insert({
+            user_id: authData.user.id,
+            org_id: orgData.id,
+            role: "admin",
+          });
+
+        if (roleError) throw roleError;
+
+        // Create default pipeline stages and dispositions
+        await supabase.rpc("create_default_pipeline_stages", { _org_id: orgData.id });
+        await supabase.rpc("create_default_call_dispositions", { _org_id: orgData.id });
+
+        toast({
+          title: "Account created!",
+          description: "Welcome to In-Sync",
+        });
+      }
 
       navigate("/dashboard");
     } catch (error: any) {
@@ -124,8 +198,18 @@ export default function SignUp() {
   };
 
   return (
-    <AuthLayout title="Create your account" subtitle="Start your journey with In-Sync">
+    <AuthLayout 
+      title={inviteData ? `Join ${inviteData.organizations.name}` : "Create your account"} 
+      subtitle={inviteData ? "Complete your registration to join the team" : "Start your journey with In-Sync"}
+    >
       <form onSubmit={handleSubmit} className="space-y-4">
+        {inviteData && (
+          <div className="bg-primary/10 p-3 rounded-md text-sm">
+            You're joining <strong>{inviteData.organizations.name}</strong> as a{" "}
+            <strong>{inviteData.role.replace("_", " ")}</strong>
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="firstName">First Name</Label>
@@ -157,34 +241,39 @@ export default function SignUp() {
             type="email"
             value={formData.email}
             onChange={handleChange}
+            disabled={inviteData?.email}
             required
           />
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="organizationName">Organization Name</Label>
-          <Input
-            id="organizationName"
-            name="organizationName"
-            value={formData.organizationName}
-            onChange={handleChange}
-            required
-          />
-        </div>
+        {!inviteData && (
+          <>
+            <div className="space-y-2">
+              <Label htmlFor="organizationName">Organization Name</Label>
+              <Input
+                id="organizationName"
+                name="organizationName"
+                value={formData.organizationName}
+                onChange={handleChange}
+                required
+              />
+            </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="organizationSlug">Organization ID (URL)</Label>
-          <Input
-            id="organizationSlug"
-            name="organizationSlug"
-            value={formData.organizationSlug}
-            onChange={handleChange}
-            required
-          />
-          <p className="text-xs text-muted-foreground">
-            Your organization URL will be: insync.app/{formData.organizationSlug}
-          </p>
-        </div>
+            <div className="space-y-2">
+              <Label htmlFor="organizationSlug">Organization ID (URL)</Label>
+              <Input
+                id="organizationSlug"
+                name="organizationSlug"
+                value={formData.organizationSlug}
+                onChange={handleChange}
+                required
+              />
+              <p className="text-xs text-muted-foreground">
+                Your organization URL will be: insync.app/{formData.organizationSlug}
+              </p>
+            </div>
+          </>
+        )}
 
         <div className="space-y-2">
           <Label htmlFor="password">Password</Label>
