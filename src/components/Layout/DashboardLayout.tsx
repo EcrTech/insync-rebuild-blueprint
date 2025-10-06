@@ -134,6 +134,15 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 <span>Reports</span>
               </Link>
 
+              <Link
+                to="/org-chart"
+                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
+                onClick={() => setSidebarOpen(false)}
+              >
+                <Users size={20} />
+                <span>Org Chart</span>
+              </Link>
+
               {(userRole === "admin" || userRole === "super_admin" || userRole === "sales_manager" || userRole === "support_manager") && (
                 <>
                   <div className="pt-4 pb-2">
@@ -198,6 +207,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                   >
                     <Settings size={20} />
                     <span>Approval Matrix</span>
+                  </Link>
+                  <Link
+                    to="/admin/designations"
+                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    <Settings size={20} />
+                    <span>Designations</span>
                   </Link>
                 </>
               )}

@@ -389,6 +389,39 @@ export type Database = {
           },
         ]
       }
+      designations: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          org_id: string
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          org_id: string
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          org_id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       organizations: {
         Row: {
           created_at: string | null
@@ -477,6 +510,7 @@ export type Database = {
           avatar_url: string | null
           calling_enabled: boolean | null
           created_at: string | null
+          designation_id: string | null
           email_enabled: boolean | null
           first_name: string | null
           id: string
@@ -491,6 +525,7 @@ export type Database = {
           avatar_url?: string | null
           calling_enabled?: boolean | null
           created_at?: string | null
+          designation_id?: string | null
           email_enabled?: boolean | null
           first_name?: string | null
           id: string
@@ -505,6 +540,7 @@ export type Database = {
           avatar_url?: string | null
           calling_enabled?: boolean | null
           created_at?: string | null
+          designation_id?: string | null
           email_enabled?: boolean | null
           first_name?: string | null
           id?: string
@@ -517,10 +553,59 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "profiles_designation_id_fkey"
+            columns: ["designation_id"]
+            isOneToOne: false
+            referencedRelation: "designations"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "profiles_org_id_fkey"
             columns: ["org_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reporting_hierarchy: {
+        Row: {
+          created_at: string | null
+          designation_id: string
+          id: string
+          org_id: string
+          reports_to_designation_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          designation_id: string
+          id?: string
+          org_id: string
+          reports_to_designation_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          designation_id?: string
+          id?: string
+          org_id?: string
+          reports_to_designation_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reporting_hierarchy_designation_id_fkey"
+            columns: ["designation_id"]
+            isOneToOne: true
+            referencedRelation: "designations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reporting_hierarchy_reports_to_designation_id_fkey"
+            columns: ["reports_to_designation_id"]
+            isOneToOne: false
+            referencedRelation: "designations"
             referencedColumns: ["id"]
           },
         ]
@@ -636,6 +721,20 @@ export type Database = {
       create_default_pipeline_stages: {
         Args: { _org_id: string }
         Returns: undefined
+      }
+      get_reporting_chain: {
+        Args: { p_designation_id: string }
+        Returns: {
+          designation_id: string
+          level: number
+        }[]
+      }
+      get_subordinates: {
+        Args: { p_designation_id: string }
+        Returns: {
+          designation_id: string
+          level: number
+        }[]
       }
       get_user_org_id: {
         Args: { _user_id: string }
