@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Building2, Users, Activity, MoreVertical, Eye, Ban, CheckCircle } from "lucide-react";
+import { Building2, Users, Activity, MoreVertical, Eye, Ban, CheckCircle, LogIn } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -186,6 +186,23 @@ export default function PlatformAdmin() {
     }
   };
 
+  const accessOrganization = (org: Organization) => {
+    // Store impersonation data in session storage
+    sessionStorage.setItem("platform_admin_impersonation", JSON.stringify({
+      org_id: org.id,
+      org_name: org.name,
+      timestamp: new Date().toISOString(),
+    }));
+
+    toast({
+      title: "Switched to organization",
+      description: `You are now accessing ${org.name}`,
+    });
+
+    // Redirect to dashboard
+    navigate("/dashboard");
+  };
+
   const toggleOrgStatus = async (org: Organization, disable: boolean) => {
     try {
       const { error } = await supabase
@@ -318,6 +335,10 @@ export default function PlatformAdmin() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => accessOrganization(org)}>
+                              <LogIn className="mr-2 h-4 w-4" />
+                              Access Organization
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => viewOrgDetails(org)}>
                               <Eye className="mr-2 h-4 w-4" />
                               View Details

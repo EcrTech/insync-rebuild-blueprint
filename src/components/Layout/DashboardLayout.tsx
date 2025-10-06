@@ -24,6 +24,7 @@ import {
   Sliders,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { PlatformAdminBanner } from "@/components/PlatformAdminBanner";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -344,8 +345,11 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
         )}
 
         {/* Main content */}
-        <main className="flex-1 p-6 lg:p-8">
-          {children}
+        <main className="flex-1">
+          <PlatformAdminBanner />
+          <div className="p-6 lg:p-8">
+            {children}
+          </div>
         </main>
       </div>
     </div>
