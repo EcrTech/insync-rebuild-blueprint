@@ -19,6 +19,7 @@ import {
   PhoneCall,
   CheckSquare,
   Award,
+  FileText,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -233,6 +234,14 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                   >
                     <Settings size={20} />
                     <span>Custom Fields</span>
+                  </Link>
+                  <Link
+                    to="/admin/forms"
+                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    <FileText size={20} />
+                    <span>Forms</span>
                   </Link>
                 </>
               )}

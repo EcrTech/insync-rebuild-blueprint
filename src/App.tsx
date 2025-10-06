@@ -20,6 +20,7 @@ import ApprovalMatrix from "./pages/ApprovalMatrix";
 import Designations from "./pages/Designations";
 import OrgChart from "./pages/OrgChart";
 import CustomFields from "./pages/CustomFields";
+import Forms from "./pages/Forms";
 import ProtectedRoute from "./components/Auth/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -110,6 +111,12 @@ const App = () => (
           <Route path="/admin/custom-fields" element={
             <ProtectedRoute requiredRole="admin">
               <CustomFields />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/admin/forms" element={
+            <ProtectedRoute requiredRole="admin">
+              <Forms />
             </ProtectedRoute>
           } />
           
