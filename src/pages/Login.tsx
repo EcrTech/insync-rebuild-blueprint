@@ -15,12 +15,21 @@ export default function Login() {
   const [password, setPassword] = useState("");
 
   useEffect(() => {
-    // Check if user is already logged in
+    // Check if user is already logged in and redirect
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         navigate("/dashboard", { replace: true });
       }
     });
+
+    // Listen for auth changes and redirect on successful login
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        navigate("/dashboard", { replace: true });
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, [navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -28,29 +37,25 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) throw error;
 
-      if (data.session) {
-        toast({
-          title: "Welcome back!",
-          description: "You've successfully signed in",
-        });
+      toast({
+        title: "Welcome back!",
+        description: "You've successfully signed in",
+      });
 
-        // Use replace to prevent back button issues
-        navigate("/dashboard", { replace: true });
-      }
+      // Navigation will be handled by the auth state change listener
     } catch (error: any) {
       toast({
         variant: "destructive",
         title: "Login failed",
         description: error.message,
       });
-    } finally {
       setLoading(false);
     }
   };
