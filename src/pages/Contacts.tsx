@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, Mail, Phone as PhoneIcon, Building } from "lucide-react";
+import { Plus, Pencil, Trash2, Mail, Phone as PhoneIcon, Building, Upload } from "lucide-react";
 
 interface Contact {
   id: string;
@@ -46,6 +46,8 @@ export default function Contacts() {
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
+  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -248,6 +250,91 @@ export default function Contacts() {
     setIsDialogOpen(true);
   };
 
+  const handleCSVUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+
+    try {
+      const text = await file.text();
+      const lines = text.split('\n');
+      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("org_id")
+        .eq("id", user.id)
+        .single();
+
+      if (!profile?.org_id) throw new Error("Organization not found");
+
+      const contactsToInsert = [];
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (let i = 1; i < lines.length; i++) {
+        if (!lines[i].trim()) continue;
+
+        const values = lines[i].split(',').map(v => v.trim());
+        const row: Record<string, string> = {};
+        headers.forEach((header, index) => {
+          row[header] = values[index] || '';
+        });
+
+        // Map CSV columns to database fields
+        const contact = {
+          first_name: row['first_name'] || row['first name'] || row['firstname'],
+          last_name: row['last_name'] || row['last name'] || row['lastname'] || null,
+          email: row['email'] || null,
+          phone: row['phone'] || null,
+          company: row['company'] || null,
+          job_title: row['job_title'] || row['job title'] || row['title'] || null,
+          status: row['status'] || 'new',
+          source: row['source'] || null,
+          org_id: profile.org_id,
+          created_by: user.id,
+        };
+
+        if (!contact.first_name) {
+          errorCount++;
+          continue;
+        }
+
+        contactsToInsert.push(contact);
+      }
+
+      if (contactsToInsert.length > 0) {
+        const { error } = await supabase
+          .from("contacts")
+          .insert(contactsToInsert);
+
+        if (error) throw error;
+        successCount = contactsToInsert.length;
+      }
+
+      toast({
+        title: "CSV Import Complete",
+        description: `Successfully imported ${successCount} contacts. ${errorCount > 0 ? `${errorCount} rows skipped due to errors.` : ''}`,
+      });
+
+      setIsUploadDialogOpen(false);
+      fetchContacts();
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Import Failed",
+        description: error.message,
+      });
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  };
+
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
       new: "bg-blue-500",
@@ -267,7 +354,39 @@ export default function Contacts() {
             <h1 className="text-3xl font-bold">Contact Management</h1>
             <p className="text-muted-foreground">Manage your leads and contacts</p>
           </div>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <div className="flex gap-2">
+            <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline">
+                  <Upload className="mr-2 h-4 w-4" />
+                  Import CSV
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Import Contacts from CSV</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Upload a CSV file with the following columns:<br />
+                      <strong>Required:</strong> first_name<br />
+                      <strong>Optional:</strong> last_name, email, phone, company, job_title, status, source
+                    </p>
+                    <Input
+                      type="file"
+                      accept=".csv"
+                      onChange={handleCSVUpload}
+                      disabled={uploading}
+                    />
+                  </div>
+                  {uploading && (
+                    <p className="text-sm text-muted-foreground">Uploading and processing...</p>
+                  )}
+                </div>
+              </DialogContent>
+            </Dialog>
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button onClick={resetForm}>
                 <Plus className="mr-2 h-4 w-4" />
@@ -415,6 +534,7 @@ export default function Contacts() {
               </form>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
 
         <Card>
