@@ -146,6 +146,15 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
               </Link>
 
               <Link
+                to="/calling-dashboard"
+                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
+                onClick={() => setSidebarOpen(false)}
+              >
+                <PhoneCall size={20} />
+                <span>Calling Dashboard</span>
+              </Link>
+
+              <Link
                 to="/org-chart"
                 className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
                 onClick={() => setSidebarOpen(false)}
