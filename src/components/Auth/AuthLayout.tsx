@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import logo from "@/assets/logo.png";
-import teamHustle from "@/assets/team-hustle.png";
+import backgroundImage from "@/assets/background.svg";
 
 interface AuthLayoutProps {
   children: ReactNode;
@@ -18,7 +18,7 @@ export function AuthLayout({ children, title, subtitle }: AuthLayoutProps) {
             Level up your hustle! Call, connect, and conquer with the CRM that's got all the vibes!
           </h1>
           <img 
-            src={teamHustle} 
+            src={backgroundImage} 
             alt="Team collaboration" 
             className="w-full max-w-lg mx-auto object-contain"
           />
