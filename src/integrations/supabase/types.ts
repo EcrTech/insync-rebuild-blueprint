@@ -103,6 +103,207 @@ export type Database = {
           },
         ]
       }
+      contact_activities: {
+        Row: {
+          activity_type: string
+          call_disposition_id: string | null
+          call_duration: number | null
+          call_sub_disposition_id: string | null
+          completed_at: string | null
+          contact_id: string
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          org_id: string
+          scheduled_at: string | null
+          subject: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          activity_type: string
+          call_disposition_id?: string | null
+          call_duration?: number | null
+          call_sub_disposition_id?: string | null
+          completed_at?: string | null
+          contact_id: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          org_id: string
+          scheduled_at?: string | null
+          subject?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          activity_type?: string
+          call_disposition_id?: string | null
+          call_duration?: number | null
+          call_sub_disposition_id?: string | null
+          completed_at?: string | null
+          contact_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          org_id?: string
+          scheduled_at?: string | null
+          subject?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_activities_call_disposition_id_fkey"
+            columns: ["call_disposition_id"]
+            isOneToOne: false
+            referencedRelation: "call_dispositions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_activities_call_sub_disposition_id_fkey"
+            columns: ["call_sub_disposition_id"]
+            isOneToOne: false
+            referencedRelation: "call_sub_dispositions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_activities_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_activities_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_activities_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contacts: {
+        Row: {
+          address: string | null
+          assigned_team_id: string | null
+          assigned_to: string | null
+          city: string | null
+          company: string | null
+          country: string | null
+          created_at: string | null
+          created_by: string | null
+          email: string | null
+          first_name: string
+          id: string
+          job_title: string | null
+          last_name: string | null
+          notes: string | null
+          org_id: string
+          phone: string | null
+          pipeline_stage_id: string | null
+          postal_code: string | null
+          source: string | null
+          state: string | null
+          status: string | null
+          updated_at: string | null
+          website: string | null
+        }
+        Insert: {
+          address?: string | null
+          assigned_team_id?: string | null
+          assigned_to?: string | null
+          city?: string | null
+          company?: string | null
+          country?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          email?: string | null
+          first_name: string
+          id?: string
+          job_title?: string | null
+          last_name?: string | null
+          notes?: string | null
+          org_id: string
+          phone?: string | null
+          pipeline_stage_id?: string | null
+          postal_code?: string | null
+          source?: string | null
+          state?: string | null
+          status?: string | null
+          updated_at?: string | null
+          website?: string | null
+        }
+        Update: {
+          address?: string | null
+          assigned_team_id?: string | null
+          assigned_to?: string | null
+          city?: string | null
+          company?: string | null
+          country?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          email?: string | null
+          first_name?: string
+          id?: string
+          job_title?: string | null
+          last_name?: string | null
+          notes?: string | null
+          org_id?: string
+          phone?: string | null
+          pipeline_stage_id?: string | null
+          postal_code?: string | null
+          source?: string | null
+          state?: string | null
+          status?: string | null
+          updated_at?: string | null
+          website?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contacts_assigned_team_id_fkey"
+            columns: ["assigned_team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contacts_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contacts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contacts_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contacts_pipeline_stage_id_fkey"
+            columns: ["pipeline_stage_id"]
+            isOneToOne: false
+            referencedRelation: "pipeline_stages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organizations: {
         Row: {
           created_at: string | null

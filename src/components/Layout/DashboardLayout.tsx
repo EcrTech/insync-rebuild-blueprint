@@ -107,6 +107,41 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 <span>Dashboard</span>
               </Link>
 
+              <Link
+                to="/contacts"
+                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
+                onClick={() => setSidebarOpen(false)}
+              >
+                <Users size={20} />
+                <span>Contacts</span>
+              </Link>
+
+              {(userRole === "admin" || userRole === "super_admin" || userRole === "sales_manager" || userRole === "support_manager") && (
+                <>
+                  <div className="pt-4 pb-2">
+                    <p className="px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Management
+                    </p>
+                  </div>
+                  <Link
+                    to="/users"
+                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    <Users size={20} />
+                    <span>Users</span>
+                  </Link>
+                  <Link
+                    to="/teams"
+                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    <Users size={20} />
+                    <span>Teams</span>
+                  </Link>
+                </>
+              )}
+
               {isAdmin && (
                 <>
                   <div className="pt-4 pb-2">

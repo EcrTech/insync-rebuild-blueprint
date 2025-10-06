@@ -10,6 +10,9 @@ import Dashboard from "./pages/Dashboard";
 import TechAdmin from "./pages/TechAdmin";
 import PipelineStages from "./pages/PipelineStages";
 import CallDispositions from "./pages/CallDispositions";
+import Users from "./pages/Users";
+import Teams from "./pages/Teams";
+import Contacts from "./pages/Contacts";
 import ProtectedRoute from "./components/Auth/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -28,6 +31,24 @@ const App = () => (
           <Route path="/dashboard" element={
             <ProtectedRoute>
               <Dashboard />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/contacts" element={
+            <ProtectedRoute>
+              <Contacts />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/users" element={
+            <ProtectedRoute requiredRole="admin">
+              <Users />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/teams" element={
+            <ProtectedRoute requiredRole="admin">
+              <Teams />
             </ProtectedRoute>
           } />
           
