@@ -52,6 +52,7 @@ export default function PublicForm() {
     phone: "",
     company: "",
   });
+  const [formStartTime] = useState(Date.now()); // Track form load time for bot detection
 
   useEffect(() => {
     if (formId) {
@@ -133,41 +134,36 @@ export default function PublicForm() {
         throw new Error("First name and email are required");
       }
 
-      // Create contact
-      const { data: contact, error: contactError } = await supabase
-        .from("contacts")
-        .insert([{
-          org_id: form.org_id,
-          first_name: formValues.first_name,
-          last_name: formValues.last_name || null,
+      // Prepare custom fields data
+      const customFields: Record<string, string> = {};
+      fields.forEach(field => {
+        const value = formValues[field.custom_field.field_name];
+        if (value) {
+          customFields[field.custom_field_id] = typeof value === 'object'
+            ? JSON.stringify(value)
+            : String(value);
+        }
+      });
+
+      // Submit via secure edge function with rate limiting and validation
+      const { data, error } = await supabase.functions.invoke('submit-public-form', {
+        body: {
+          formId: form.id,
+          orgId: form.org_id,
+          firstName: formValues.first_name,
+          lastName: formValues.last_name || undefined,
           email: formValues.email,
-          phone: formValues.phone || null,
-          company: formValues.company || null,
-          source: "web_form",
-          status: "new",
-        }])
-        .select()
-        .single();
+          phone: formValues.phone || undefined,
+          customFields,
+          honeypot: '', // Empty honeypot field for bot detection
+          submissionTime: Date.now() - formStartTime, // Time taken to fill form
+        },
+      });
 
-      if (contactError) throw contactError;
+      if (error) throw error;
 
-      // Insert custom field values
-      const customFieldValues = fields
-        .filter(field => formValues[field.custom_field.field_name])
-        .map(field => ({
-          contact_id: contact.id,
-          custom_field_id: field.custom_field_id,
-          field_value: typeof formValues[field.custom_field.field_name] === 'object'
-            ? JSON.stringify(formValues[field.custom_field.field_name])
-            : String(formValues[field.custom_field.field_name]),
-        }));
-
-      if (customFieldValues.length > 0) {
-        const { error: customFieldsError } = await supabase
-          .from("contact_custom_fields")
-          .insert(customFieldValues);
-
-        if (customFieldsError) throw customFieldsError;
+      if (data?.error) {
+        throw new Error(data.message || data.error);
       }
 
       setSubmitted(true);
@@ -176,11 +172,28 @@ export default function PublicForm() {
         description: "Thank you for your submission. We'll be in touch soon!",
       });
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error submitting form",
-        description: error.message,
-      });
+      const errorMessage = error.message || "Failed to submit form";
+      
+      // Handle rate limiting
+      if (error.message?.includes('Rate limit') || error.message?.includes('Too many')) {
+        toast({
+          variant: "destructive",
+          title: "Submission Limit Reached",
+          description: errorMessage,
+        });
+      } else if (error.message?.includes('Bot detected') || error.message?.includes('too fast')) {
+        toast({
+          variant: "destructive",
+          title: "Invalid Submission",
+          description: "Please try again more slowly.",
+        });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Error submitting form",
+          description: errorMessage,
+        });
+      }
     } finally {
       setSubmitting(false);
     }
