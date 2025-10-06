@@ -21,6 +21,7 @@ import {
   Award,
   FileText,
   List,
+  Sliders,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -263,7 +264,7 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                     className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
                     onClick={() => setSidebarOpen(false)}
                   >
-                    <Settings size={20} />
+                    <Sliders size={20} />
                     <span>Custom Fields</span>
                   </Link>
                   <Link
