@@ -213,7 +213,7 @@ export default function PipelineBoard() {
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="AI-powered search: e.g., 'Hot leads from tech companies' or 'High authority decision makers'"
+                  placeholder="e.g., 'VPs from tech companies in California' or 'Managers from Website source'"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyPress={handleSearchKeyPress}
@@ -243,7 +243,7 @@ export default function PipelineBoard() {
               )}
             </div>
             <p className="text-xs text-muted-foreground mt-2">
-              Use natural language to filter leads based on fit score, intent, authority, and engagement quality
+              Search by designation, company, location, source, or any CRM field. Example: "Get me Directors from technology companies in New York"
             </p>
           </CardContent>
         </Card>

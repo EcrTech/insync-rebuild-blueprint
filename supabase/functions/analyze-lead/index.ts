@@ -19,78 +19,83 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY is not configured');
     }
 
-    const systemPrompt = `# AI-Driven Lead Filter System
+    const systemPrompt = `You are a CRM search assistant that filters contacts based on field criteria specified in natural language queries.
 
-You are an expert lead qualification assistant. Your task is to analyze leads and filter them based on search criteria using these qualification dimensions:
+## Available Contact Fields:
+- **job_title** (also referred to as designation, position, role)
+- **company** (organization name)
+- **first_name** and **last_name** (contact name)
+- **email** (email address)
+- **phone** (phone number)
+- **source** (how they found us: Website, Referral, Cold Call, etc.)
+- **status** (lead status: new, contacted, qualified, etc.)
+- **city**, **state**, **country** (location)
+- **website** (company website)
+- **notes** (additional information)
 
-## Lead Qualification Criteria
+## Your Task:
+Parse the user's natural language search query and identify which contacts match the specified criteria. Look for:
 
-### 1. Fit Score (0-40 points)
-- Company Size: Employee count match with target range
-- Industry: Primary or secondary target industries
-- Budget Indicators: Signs of adequate budget
-- Technology Stack: Compatible or complementary technologies
+### Examples of Queries:
+1. "Get me VPs from tech companies" 
+   → Filter: job_title contains "VP", company contains "tech"
 
-### 2. Intent Score (0-30 points)
-- Engagement Level: Website visits, content downloads, demo requests
-- Pain Points: Explicitly mentioned challenges we can solve
-- Timeline: Stated or implied urgency for solution
-- Competition: Currently evaluating alternatives
+2. "Contacts from California in the technology industry"
+   → Filter: state = "California", company/notes contains "technology"
 
-### 3. Authority Score (0-20 points)
-- Job Title/Role: Decision-maker, influencer, or end-user
-- Seniority: C-level, VP, Director, Manager, Individual Contributor
-- Buying Committee: Can introduce us to other stakeholders
+3. "Leads with designation Manager from Website source"
+   → Filter: job_title contains "Manager", source = "Website"
 
-### 4. Engagement Quality (0-10 points)
-- Information Provided: Completeness and accuracy of data
-- Communication: Quality of questions or comments
-- Channel: How they discovered us
+4. "Show me contacts from companies in New York"
+   → Filter: city/state contains "New York" OR company location mentions New York
 
-## Scoring Classification
-- 80-100: Hot Lead
-- 60-79: Warm Lead
-- 40-59: Nurture Lead
-- 20-39: Cold Lead
-- 0-19: Disqualified
+5. "Find all directors and VPs"
+   → Filter: job_title contains "Director" OR job_title contains "VP"
 
-## Red Flags
-- Generic/role email addresses (info@, hello@)
-- Free email domains for B2B leads
-- Competitor company domains
-- Obvious spam patterns
-- Students/academic institutions (unless B2C)
+## Matching Rules:
+- Use case-insensitive partial matching for text fields
+- For job_title/designation: match common titles (CEO, VP, Director, Manager, etc.)
+- For locations: check city, state, and country fields
+- For company: check company name field
+- For source: exact or partial match (Website, Referral, etc.)
+- Return contacts that match ALL specified criteria (AND logic by default)
+- If multiple options for same field are given, use OR logic for that field
 
-## Your Task
-When given a search query and a list of leads, return ONLY a JSON array of contact IDs that match the search criteria. Analyze the leads based on the qualification criteria above and filter them according to the user's search intent.
+## Response Format:
+Return ONLY a JSON object with an array of contact IDs that match the criteria:
 
-Return format:
 {
   "filteredContactIds": ["id1", "id2", "id3"]
-}`;
+}
+
+If no contacts match, return an empty array.`;
 
     const contactsSummary = contacts.map((c: any) => ({
       id: c.id,
-      name: `${c.first_name} ${c.last_name || ''}`.trim(),
+      first_name: c.first_name,
+      last_name: c.last_name,
       email: c.email,
+      phone: c.phone,
       company: c.company,
       job_title: c.job_title,
       source: c.source,
       status: c.status,
-      phone: c.phone,
+      city: c.city,
+      state: c.state,
+      country: c.country,
       website: c.website,
       notes: c.notes
     }));
 
     const userPrompt = `Search Query: "${searchQuery}"
 
-Analyze these leads and return the IDs of leads that match the search criteria:
+Filter these contacts based on the query criteria:
 
 ${JSON.stringify(contactsSummary, null, 2)}
 
-Return only the JSON response with filteredContactIds array.`;
+Return only the JSON response with filteredContactIds array containing IDs of contacts that match the search criteria.`;
 
-    console.log('Processing AI search with query:', searchQuery);
+    console.log('Processing field-based AI search with query:', searchQuery);
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -123,7 +128,7 @@ Return only the JSON response with filteredContactIds array.`;
       }
       const errorText = await response.text();
       console.error('AI Gateway error:', response.status, errorText);
-      throw new Error('Failed to analyze leads');
+      throw new Error('Failed to search contacts');
     }
 
     const data = await response.json();
@@ -139,6 +144,8 @@ Return only the JSON response with filteredContactIds array.`;
       console.error('Failed to parse AI response:', e);
       filteredContactIds = [];
     }
+
+    console.log(`Filtered ${filteredContactIds.length} contacts from ${contacts.length} total`);
 
     return new Response(
       JSON.stringify({ filteredContactIds }),
