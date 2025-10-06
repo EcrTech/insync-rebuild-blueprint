@@ -12,90 +12,123 @@ serve(async (req) => {
   }
 
   try {
-    const { searchQuery, contacts } = await req.json();
+    const { contact } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     
     if (!LOVABLE_API_KEY) {
       throw new Error('LOVABLE_API_KEY is not configured');
     }
 
-    const systemPrompt = `You are a CRM search assistant that filters contacts based on field criteria specified in natural language queries.
+    const systemPrompt = `You are an expert lead scoring AI specialized in the Indian SMB market. You understand the unique characteristics of Indian small and medium businesses including budget sensitivity, relationship-driven sales, multi-stakeholder decision-making, and diverse digital maturity levels.
 
-## Available Contact Fields:
-- **job_title** (also referred to as designation, position, role)
-- **company** (organization name)
-- **first_name** and **last_name** (contact name)
-- **email** (email address)
-- **phone** (phone number)
-- **source** (how they found us: Website, Referral, Cold Call, etc.)
-- **status** (lead status: new, contacted, qualified, etc.)
-- **city**, **state**, **country** (location)
-- **website** (company website)
-- **notes** (additional information)
+Your task is to analyze a lead and provide a detailed scoring report following the exact format specified. Use the comprehensive Indian SMB scoring framework to evaluate leads across Business Profile, Financial Capability, Engagement & Intent, and Relationship Quality.
 
-## Your Task:
-Parse the user's natural language search query and identify which contacts match the specified criteria. Look for:
-
-### Examples of Queries:
-1. "Get me VPs from tech companies" 
-   → Filter: job_title contains "VP", company contains "tech"
-
-2. "Contacts from California in the technology industry"
-   → Filter: state = "California", company/notes contains "technology"
-
-3. "Leads with designation Manager from Website source"
-   → Filter: job_title contains "Manager", source = "Website"
-
-4. "Show me contacts from companies in New York"
-   → Filter: city/state contains "New York" OR company location mentions New York
-
-5. "Find all directors and VPs"
-   → Filter: job_title contains "Director" OR job_title contains "VP"
-
-## Matching Rules:
-- Use case-insensitive partial matching for text fields
-- For job_title/designation: match common titles (CEO, VP, Director, Manager, etc.)
-- For locations: check city, state, and country fields
-- For company: check company name field
-- For source: exact or partial match (Website, Referral, etc.)
-- Return contacts that match ALL specified criteria (AND logic by default)
-- If multiple options for same field are given, use OR logic for that field
-
-## Response Format:
-Return ONLY a JSON object with an array of contact IDs that match the criteria:
-
+CRITICAL: You must return ONLY valid JSON in this exact structure:
 {
-  "filteredContactIds": ["id1", "id2", "id3"]
+  "finalScore": number (0-100),
+  "grade": string ("A+", "A", "B", "C", "D", or "F"),
+  "temperature": string ("HOT", "WARM", "COOL", "COLD", or "UNQUALIFIED"),
+  "breakdown": {
+    "businessProfile": { "total": number, "companySize": number, "industry": number, "location": number, "registration": number, "msmeGst": number },
+    "financialCapability": { "total": number, "budgetIndicators": number, "priceSensitivity": number, "timeline": number },
+    "engagementIntent": { "total": number, "channels": number, "digitalBehavior": number, "highIntent": number },
+    "relationshipQuality": { "total": number, "decisionMaker": number, "relationship": number, "communication": number }
+  },
+  "modifiers": number,
+  "strengths": [string, string, string],
+  "concerns": [string, string],
+  "businessContext": {
+    "locationAdvantage": string,
+    "paymentCapability": string,
+    "decisionMaking": string,
+    "trustLevel": string
+  },
+  "recommendedAction": string,
+  "bestApproach": {
+    "preferredContact": string,
+    "languagePreference": string,
+    "bestTime": string,
+    "keyMessage": string
+  },
+  "relationshipStrategy": string,
+  "pricingStrategy": {
+    "budgetRange": string,
+    "recommendedPackage": string,
+    "paymentTerms": string,
+    "incentives": string
+  },
+  "conversionProbability": number,
+  "expectedClosureTime": string,
+  "effortLevel": string,
+  "nextFollowUp": {
+    "date": string,
+    "method": string,
+    "purpose": string
+  }
 }
 
-If no contacts match, return an empty array.`;
+Base your scoring on this framework:
 
-    const contactsSummary = contacts.map((c: any) => ({
-      id: c.id,
-      first_name: c.first_name,
-      last_name: c.last_name,
-      email: c.email,
-      phone: c.phone,
-      company: c.company,
-      job_title: c.job_title,
-      source: c.source,
-      status: c.status,
-      city: c.city,
-      state: c.state,
-      country: c.country,
-      website: c.website,
-      notes: c.notes
-    }));
+## Scoring Framework (Total: 100 points)
 
-    const userPrompt = `Search Query: "${searchQuery}"
+### 1. Business Profile Score (0-35 points)
+- Company Size (0-10): Based on employee count and turnover
+- Industry Sector (0-8): Manufacturing, IT, Retail, etc.
+- Geographic Location (0-7): Tier 1/2/3 cities
+- Business Registration (0-5): Pvt Ltd, LLP, Partnership, etc.
+- MSME/GST Status (0-5): Compliance indicators
 
-Filter these contacts based on the query criteria:
+### 2. Financial Capability Score (0-25 points)
+- Budget Indicators (0-10): Stated budget, payment signals
+- Price Sensitivity (0-8): ROI focus, discount requests
+- Decision Timeline (0-7): Urgency level
 
-${JSON.stringify(contactsSummary, null, 2)}
+### 3. Engagement & Intent Score (0-25 points)
+- Communication Channels (0-10): WhatsApp, phone, email engagement
+- Digital Behavior (0-8): Website visits, downloads, demos
+- High-Intent Actions (0-7): Demo requests, proposals
 
-Return only the JSON response with filteredContactIds array containing IDs of contacts that match the search criteria.`;
+### 4. Relationship Quality Score (0-15 points)
+- Decision Maker Profile (0-8): Designation and authority
+- Relationship Signals (0-4): Referrals, connections
+- Communication Quality (0-3): Response time and clarity
 
-    console.log('Processing field-based AI search with query:', searchQuery);
+### Modifiers (can add/subtract points)
+- Positive: Referrals (+15), trusted connections (+8), credibility signals
+- Negative: Red flags, unrealistic expectations, non-responsiveness
+- Seasonal: Festival periods, fiscal timings
+
+### Score Interpretation
+- 85-100: A+ (Hot Lead) - 60-70% conversion, 7-21 days
+- 70-84: A (Very Warm) - 40-55% conversion, 2-6 weeks
+- 55-69: B (Warm) - 25-40% conversion, 1-3 months
+- 40-54: C (Cool) - 10-25% conversion, 3-6 months
+- 25-39: D (Very Cold) - 5-15% conversion, 6+ months
+- 0-24: F (Unqualified) - Disqualify or revisit after 12 months`;
+
+    const contactData = {
+      name: `${contact.first_name || ''} ${contact.last_name || ''}`.trim(),
+      company: contact.company,
+      job_title: contact.job_title,
+      email: contact.email,
+      phone: contact.phone,
+      source: contact.source,
+      status: contact.status,
+      city: contact.city,
+      state: contact.state,
+      country: contact.country,
+      website: contact.website,
+      notes: contact.notes,
+      created_at: contact.created_at
+    };
+
+    const userPrompt = `Analyze this Indian SMB lead and provide a detailed scoring report:
+
+${JSON.stringify(contactData, null, 2)}
+
+Provide a comprehensive lead score following the exact JSON structure specified in the system prompt. Be thorough in your analysis and provide actionable insights.`;
+
+    console.log('Scoring lead:', contactData.name);
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -128,7 +161,7 @@ Return only the JSON response with filteredContactIds array containing IDs of co
       }
       const errorText = await response.text();
       console.error('AI Gateway error:', response.status, errorText);
-      throw new Error('Failed to search contacts');
+      throw new Error('Failed to score lead');
     }
 
     const data = await response.json();
@@ -136,21 +169,16 @@ Return only the JSON response with filteredContactIds array containing IDs of co
     
     console.log('AI Response:', aiResponse);
     
-    let filteredContactIds = [];
     try {
-      const parsed = JSON.parse(aiResponse);
-      filteredContactIds = parsed.filteredContactIds || [];
+      const scoreReport = JSON.parse(aiResponse);
+      return new Response(
+        JSON.stringify(scoreReport),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     } catch (e) {
       console.error('Failed to parse AI response:', e);
-      filteredContactIds = [];
+      throw new Error('Invalid AI response format');
     }
-
-    console.log(`Filtered ${filteredContactIds.length} contacts from ${contacts.length} total`);
-
-    return new Response(
-      JSON.stringify({ filteredContactIds }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
   } catch (error) {
     console.error('Error in analyze-lead function:', error);
     return new Response(

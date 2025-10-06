@@ -5,11 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Mail, Phone as PhoneIcon, Building, LayoutGrid, Table as TableIcon, Search, Loader2 } from "lucide-react";
+import { Mail, Phone as PhoneIcon, Building, LayoutGrid, Table as TableIcon, Sparkles, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface PipelineStage {
   id: string;
@@ -41,11 +42,11 @@ interface Contact {
 export default function PipelineBoard() {
   const [stages, setStages] = useState<PipelineStage[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
-  const [allContacts, setAllContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [draggedContact, setDraggedContact] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [isSearching, setIsSearching] = useState(false);
+  const [scoringLeadId, setScoringLeadId] = useState<string | null>(null);
+  const [selectedLeadScore, setSelectedLeadScore] = useState<any>(null);
+  const [showScoreDialog, setShowScoreDialog] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -63,7 +64,7 @@ export default function PipelineBoard() {
           .order("stage_order"),
         supabase
           .from("contacts")
-          .select("id, first_name, last_name, email, phone, company, pipeline_stage_id, job_title, source, status, notes, website, address, city, state, country")
+          .select("id, first_name, last_name, email, phone, company, pipeline_stage_id, job_title, source, status, notes, website, address, city, state, country, created_at")
           .order("created_at", { ascending: false }),
       ]);
 
@@ -71,7 +72,6 @@ export default function PipelineBoard() {
       if (contactsRes.error) throw contactsRes.error;
 
       setStages(stagesRes.data || []);
-      setAllContacts(contactsRes.data || []);
       setContacts(contactsRes.data || []);
     } catch (error: any) {
       toast({
@@ -135,19 +135,11 @@ export default function PipelineBoard() {
     return contacts.filter(contact => !contact.pipeline_stage_id);
   };
 
-  const handleAiSearch = async () => {
-    if (!searchQuery.trim()) {
-      setContacts(allContacts);
-      return;
-    }
-
-    setIsSearching(true);
+  const handleScoreLead = async (contact: Contact) => {
+    setScoringLeadId(contact.id);
     try {
       const { data, error } = await supabase.functions.invoke('analyze-lead', {
-        body: { 
-          searchQuery: searchQuery,
-          contacts: allContacts 
-        }
+        body: { contact }
       });
 
       if (error) throw error;
@@ -156,35 +148,30 @@ export default function PipelineBoard() {
         throw new Error(data.error);
       }
 
-      // Filter contacts based on AI response
-      const filteredIds = data.filteredContactIds || [];
-      const filtered = allContacts.filter(c => filteredIds.includes(c.id));
-      setContacts(filtered);
-
+      setSelectedLeadScore(data);
+      setShowScoreDialog(true);
       toast({
-        title: "Search completed",
-        description: `Found ${filtered.length} matching leads`,
+        title: "Lead scored successfully",
+        description: `Score: ${data.finalScore}/100 (${data.grade})`,
       });
     } catch (error: any) {
       toast({
         variant: "destructive",
-        title: "Search failed",
+        title: "Scoring failed",
         description: error.message,
       });
     } finally {
-      setIsSearching(false);
+      setScoringLeadId(null);
     }
   };
 
-  const handleSearchKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      handleAiSearch();
-    }
-  };
-
-  const handleClearSearch = () => {
-    setSearchQuery("");
-    setContacts(allContacts);
+  const getScoreBadgeColor = (score: number) => {
+    if (score >= 85) return "bg-red-500 text-white";
+    if (score >= 70) return "bg-orange-500 text-white";
+    if (score >= 55) return "bg-yellow-500 text-white";
+    if (score >= 40) return "bg-blue-500 text-white";
+    if (score >= 25) return "bg-gray-500 text-white";
+    return "bg-gray-300 text-gray-700";
   };
 
   if (loading) {
@@ -207,46 +194,6 @@ export default function PipelineBoard() {
           </div>
         </div>
 
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="e.g., 'VPs from tech companies in California' or 'Managers from Website source'"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyPress={handleSearchKeyPress}
-                  className="pl-10"
-                />
-              </div>
-              <Button 
-                onClick={handleAiSearch}
-                disabled={isSearching || !searchQuery.trim()}
-              >
-                {isSearching ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Searching
-                  </>
-                ) : (
-                  'Search'
-                )}
-              </Button>
-              {searchQuery && (
-                <Button 
-                  variant="outline"
-                  onClick={handleClearSearch}
-                >
-                  Clear
-                </Button>
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground mt-2">
-              Search by designation, company, location, source, or any CRM field. Example: "Get me Directors from technology companies in New York"
-            </p>
-          </CardContent>
-        </Card>
 
         <Tabs defaultValue="table" className="w-full">
           <TabsList>
@@ -378,6 +325,7 @@ export default function PipelineBoard() {
                       <TableHead>Contact Info</TableHead>
                       <TableHead>Pipeline Stage</TableHead>
                       <TableHead>Probability</TableHead>
+                      <TableHead>AI Score</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -386,13 +334,15 @@ export default function PipelineBoard() {
                       return (
                         <TableRow
                           key={contact.id}
-                          className="cursor-pointer hover:bg-muted/50"
-                          onClick={() => navigate(`/contacts/${contact.id}`)}
+                          className="hover:bg-muted/50"
                         >
-                          <TableCell className="font-medium">
+                          <TableCell 
+                            className="font-medium cursor-pointer"
+                            onClick={() => navigate(`/contacts/${contact.id}`)}
+                          >
                             {contact.first_name} {contact.last_name}
                           </TableCell>
-                          <TableCell>
+                          <TableCell onClick={() => navigate(`/contacts/${contact.id}`)} className="cursor-pointer">
                             {contact.company && (
                               <div className="flex items-center gap-1">
                                 <Building className="h-3 w-3" />
@@ -400,7 +350,7 @@ export default function PipelineBoard() {
                               </div>
                             )}
                           </TableCell>
-                          <TableCell>
+                          <TableCell onClick={() => navigate(`/contacts/${contact.id}`)} className="cursor-pointer">
                             <div className="flex flex-col gap-1 text-sm">
                               {contact.email && (
                                 <span className="flex items-center gap-1">
@@ -416,7 +366,7 @@ export default function PipelineBoard() {
                               )}
                             </div>
                           </TableCell>
-                          <TableCell>
+                          <TableCell onClick={() => navigate(`/contacts/${contact.id}`)} className="cursor-pointer">
                             {stage ? (
                               <Badge style={{ backgroundColor: stage.color }}>
                                 {stage.name}
@@ -425,8 +375,28 @@ export default function PipelineBoard() {
                               <Badge variant="secondary">Unassigned</Badge>
                             )}
                           </TableCell>
-                          <TableCell>
+                          <TableCell onClick={() => navigate(`/contacts/${contact.id}`)} className="cursor-pointer">
                             {stage ? `${stage.probability}%` : '-'}
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleScoreLead(contact);
+                              }}
+                              disabled={scoringLeadId === contact.id}
+                            >
+                              {scoringLeadId === contact.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <>
+                                  <Sparkles className="h-4 w-4 mr-1" />
+                                  Score
+                                </>
+                              )}
+                            </Button>
                           </TableCell>
                         </TableRow>
                       );
@@ -437,6 +407,166 @@ export default function PipelineBoard() {
             </Card>
           </TabsContent>
         </Tabs>
+
+        {/* Lead Score Dialog */}
+        <Dialog open={showScoreDialog} onOpenChange={setShowScoreDialog}>
+          <DialogContent className="max-w-4xl max-h-[90vh]">
+            <DialogHeader>
+              <DialogTitle className="text-2xl">Indian SMB Lead Score Report</DialogTitle>
+              <DialogDescription>AI-powered lead qualification analysis</DialogDescription>
+            </DialogHeader>
+            
+            {selectedLeadScore && (
+              <ScrollArea className="h-[calc(90vh-120px)] pr-4">
+                <div className="space-y-6">
+                  {/* Score Header */}
+                  <div className="text-center border-2 border-primary rounded-lg p-6 bg-primary/5">
+                    <div className="text-5xl font-bold mb-2">{selectedLeadScore.finalScore}/100</div>
+                    <Badge className={`text-lg px-4 py-1 ${getScoreBadgeColor(selectedLeadScore.finalScore)}`}>
+                      {selectedLeadScore.grade} Grade
+                    </Badge>
+                    <div className="text-xl font-semibold mt-2 text-muted-foreground">
+                      {selectedLeadScore.temperature}
+                    </div>
+                  </div>
+
+                  {/* Score Breakdown */}
+                  <div>
+                    <h3 className="text-lg font-semibold mb-3">Score Breakdown</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="border rounded-lg p-4">
+                        <div className="text-sm text-muted-foreground">Business Profile</div>
+                        <div className="text-2xl font-bold">{selectedLeadScore.breakdown.businessProfile.total}/35</div>
+                      </div>
+                      <div className="border rounded-lg p-4">
+                        <div className="text-sm text-muted-foreground">Financial Capability</div>
+                        <div className="text-2xl font-bold">{selectedLeadScore.breakdown.financialCapability.total}/25</div>
+                      </div>
+                      <div className="border rounded-lg p-4">
+                        <div className="text-sm text-muted-foreground">Engagement & Intent</div>
+                        <div className="text-2xl font-bold">{selectedLeadScore.breakdown.engagementIntent.total}/25</div>
+                      </div>
+                      <div className="border rounded-lg p-4">
+                        <div className="text-sm text-muted-foreground">Relationship Quality</div>
+                        <div className="text-2xl font-bold">{selectedLeadScore.breakdown.relationshipQuality.total}/15</div>
+                      </div>
+                    </div>
+                    {selectedLeadScore.modifiers !== 0 && (
+                      <div className="mt-2 text-sm text-muted-foreground">
+                        Modifiers Applied: {selectedLeadScore.modifiers > 0 ? '+' : ''}{selectedLeadScore.modifiers} points
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Strengths */}
+                  <div>
+                    <h3 className="text-lg font-semibold mb-2">Key Strengths</h3>
+                    <ul className="space-y-1">
+                      {selectedLeadScore.strengths.map((strength: string, idx: number) => (
+                        <li key={idx} className="flex items-start gap-2">
+                          <span className="text-green-500 mt-0.5">✓</span>
+                          <span>{strength}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {/* Concerns */}
+                  <div>
+                    <h3 className="text-lg font-semibold mb-2">Concerns</h3>
+                    <ul className="space-y-1">
+                      {selectedLeadScore.concerns.map((concern: string, idx: number) => (
+                        <li key={idx} className="flex items-start gap-2">
+                          <span className="text-amber-500 mt-0.5">⚠</span>
+                          <span>{concern}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {/* Business Context */}
+                  <div>
+                    <h3 className="text-lg font-semibold mb-2">Business Context</h3>
+                    <div className="space-y-2 text-sm">
+                      <div><strong>Location:</strong> {selectedLeadScore.businessContext.locationAdvantage}</div>
+                      <div><strong>Payment Capability:</strong> {selectedLeadScore.businessContext.paymentCapability}</div>
+                      <div><strong>Decision Making:</strong> {selectedLeadScore.businessContext.decisionMaking}</div>
+                      <div><strong>Trust Level:</strong> {selectedLeadScore.businessContext.trustLevel}</div>
+                    </div>
+                  </div>
+
+                  {/* Recommended Action */}
+                  <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                    <h3 className="text-lg font-semibold mb-2">Recommended Action</h3>
+                    <p>{selectedLeadScore.recommendedAction}</p>
+                  </div>
+
+                  {/* Best Approach */}
+                  <div>
+                    <h3 className="text-lg font-semibold mb-2">Best Approach</h3>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <strong>Preferred Contact:</strong> {selectedLeadScore.bestApproach.preferredContact}
+                      </div>
+                      <div>
+                        <strong>Language:</strong> {selectedLeadScore.bestApproach.languagePreference}
+                      </div>
+                      <div>
+                        <strong>Best Time:</strong> {selectedLeadScore.bestApproach.bestTime}
+                      </div>
+                      <div className="col-span-2">
+                        <strong>Key Message:</strong> {selectedLeadScore.bestApproach.keyMessage}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Relationship Strategy */}
+                  <div>
+                    <h3 className="text-lg font-semibold mb-2">Relationship Building Strategy</h3>
+                    <p className="text-sm">{selectedLeadScore.relationshipStrategy}</p>
+                  </div>
+
+                  {/* Pricing Strategy */}
+                  <div>
+                    <h3 className="text-lg font-semibold mb-2">Pricing Strategy</h3>
+                    <div className="space-y-2 text-sm">
+                      <div><strong>Budget Range:</strong> {selectedLeadScore.pricingStrategy.budgetRange}</div>
+                      <div><strong>Recommended Package:</strong> {selectedLeadScore.pricingStrategy.recommendedPackage}</div>
+                      <div><strong>Payment Terms:</strong> {selectedLeadScore.pricingStrategy.paymentTerms}</div>
+                      <div><strong>Incentives:</strong> {selectedLeadScore.pricingStrategy.incentives}</div>
+                    </div>
+                  </div>
+
+                  {/* Conversion Metrics */}
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="border rounded-lg p-4">
+                      <div className="text-sm text-muted-foreground">Conversion Probability</div>
+                      <div className="text-2xl font-bold">{selectedLeadScore.conversionProbability}%</div>
+                    </div>
+                    <div className="border rounded-lg p-4">
+                      <div className="text-sm text-muted-foreground">Expected Closure</div>
+                      <div className="text-lg font-semibold">{selectedLeadScore.expectedClosureTime}</div>
+                    </div>
+                    <div className="border rounded-lg p-4">
+                      <div className="text-sm text-muted-foreground">Effort Level</div>
+                      <div className="text-lg font-semibold">{selectedLeadScore.effortLevel}</div>
+                    </div>
+                  </div>
+
+                  {/* Next Follow Up */}
+                  <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                    <h3 className="text-lg font-semibold mb-2">Next Follow-Up</h3>
+                    <div className="space-y-1 text-sm">
+                      <div><strong>Date:</strong> {selectedLeadScore.nextFollowUp.date}</div>
+                      <div><strong>Method:</strong> {selectedLeadScore.nextFollowUp.method}</div>
+                      <div><strong>Purpose:</strong> {selectedLeadScore.nextFollowUp.purpose}</div>
+                    </div>
+                  </div>
+                </div>
+              </ScrollArea>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );
