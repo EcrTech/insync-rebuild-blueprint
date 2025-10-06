@@ -33,6 +33,12 @@ interface DashboardStats {
   positive_rate: number;
 }
 
+interface User {
+  id: string;
+  first_name: string;
+  last_name: string;
+}
+
 export default function CallingDashboard() {
   const [agentStats, setAgentStats] = useState<AgentStats[]>([]);
   const [dispositionStats, setDispositionStats] = useState<DispositionStats[]>([]);
@@ -45,11 +51,91 @@ export default function CallingDashboard() {
   });
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState("7");
+  const [selectedUser, setSelectedUser] = useState<string>("all");
+  const [users, setUsers] = useState<User[]>([]);
+  const [teamMemberIds, setTeamMemberIds] = useState<string[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  useEffect(() => {
+    if (selectedUser !== "all") {
+      fetchTeamMembers(selectedUser);
+    } else {
+      setTeamMemberIds([]);
+    }
+  }, [selectedUser]);
+
+  useEffect(() => {
     fetchDashboardData();
-  }, [timeRange]);
+  }, [timeRange, selectedUser, teamMemberIds]);
+
+  const fetchUsers = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("org_id")
+        .eq("id", user.id)
+        .single();
+
+      if (!profile?.org_id) throw new Error("Organization not found");
+
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, first_name, last_name")
+        .eq("org_id", profile.org_id)
+        .order("first_name");
+
+      if (error) throw error;
+      setUsers(data || []);
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error loading users",
+        description: error.message,
+      });
+    }
+  };
+
+  const fetchTeamMembers = async (userId: string) => {
+    try {
+      // Check if user is a team manager
+      const { data: managedTeams } = await supabase
+        .from("teams")
+        .select("id")
+        .eq("manager_id", userId);
+
+      if (managedTeams && managedTeams.length > 0) {
+        // Get all team members from the managed teams
+        const { data: teamMembers } = await supabase
+          .from("team_members")
+          .select("user_id")
+          .in("team_id", managedTeams.map(t => t.id));
+
+        if (teamMembers) {
+          const memberIds = teamMembers.map(tm => tm.user_id);
+          // Include the manager themselves
+          setTeamMemberIds([userId, ...memberIds]);
+          return;
+        }
+      }
+
+      // If not a manager or no team members, just set the single user
+      setTeamMemberIds([userId]);
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error loading team",
+        description: error.message,
+      });
+      setTeamMemberIds([userId]);
+    }
+  };
 
   const fetchDashboardData = async () => {
     try {
@@ -67,8 +153,8 @@ export default function CallingDashboard() {
       const daysAgo = new Date();
       daysAgo.setDate(daysAgo.getDate() - parseInt(timeRange));
 
-      // Fetch all call activities with related data
-      const { data: activities, error: activitiesError } = await supabase
+      // Build query for activities
+      let activitiesQuery = supabase
         .from("contact_activities")
         .select(`
           *,
@@ -79,6 +165,13 @@ export default function CallingDashboard() {
         .eq("activity_type", "call")
         .gte("created_at", daysAgo.toISOString())
         .not("call_duration", "is", null);
+
+      // Apply user/team filter
+      if (selectedUser !== "all" && teamMemberIds.length > 0) {
+        activitiesQuery = activitiesQuery.in("created_by", teamMemberIds);
+      }
+
+      const { data: activities, error: activitiesError } = await activitiesQuery;
 
       if (activitiesError) throw activitiesError;
 
@@ -220,17 +313,32 @@ export default function CallingDashboard() {
             <h1 className="text-3xl font-bold">Calling Dashboard</h1>
             <p className="text-muted-foreground">Monitor and assess agent call performance</p>
           </div>
-          <Select value={timeRange} onValueChange={setTimeRange}>
-            <SelectTrigger className="w-48">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="1">Last 24 Hours</SelectItem>
-              <SelectItem value="7">Last 7 Days</SelectItem>
-              <SelectItem value="30">Last 30 Days</SelectItem>
-              <SelectItem value="90">Last 90 Days</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Select value={selectedUser} onValueChange={setSelectedUser}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="All Users" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Users</SelectItem>
+                {users.map((user) => (
+                  <SelectItem key={user.id} value={user.id}>
+                    {user.first_name} {user.last_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={timeRange} onValueChange={setTimeRange}>
+              <SelectTrigger className="w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1">Last 24 Hours</SelectItem>
+                <SelectItem value="7">Last 7 Days</SelectItem>
+                <SelectItem value="30">Last 30 Days</SelectItem>
+                <SelectItem value="90">Last 90 Days</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         {/* Overview Cards */}
