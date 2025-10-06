@@ -33,6 +33,14 @@ const BATCH_LIMITS: Record<string, number> = {
   'bulk_contact_create': 50, // Process 50 contacts at a time
 };
 
+// Maximum total items per operation
+const MAX_ITEMS_PER_OPERATION: Record<string, number> = {
+  'contact_import': 10000, // Max 10k contacts per import
+  'bulk_contact_create': 10000, // Max 10k contacts per bulk create
+  'form_submit': 1, // Only 1 form submit at a time
+  'contact_create': 1, // Only 1 contact create at a time
+};
+
 function checkRateLimit(userId: string, operation: string): boolean {
   const config = RATE_LIMITS[operation] || { maxRequests: 100, windowMs: 60000 };
   const key = `${userId}:${operation}`;
@@ -159,6 +167,20 @@ Deno.serve(async (req) => {
     const { operation, data: items, priority = 5 } = await req.json() as QueueItem
 
     console.log(`Queue request: ${operation} from user ${user.id}, ${items?.length || 0} items`)
+
+    // Validate item count against maximum
+    const maxItems = MAX_ITEMS_PER_OPERATION[operation] || 10000
+    if (items && items.length > maxItems) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'Item limit exceeded',
+          message: `Maximum ${maxItems} items allowed per ${operation} operation. You submitted ${items.length} items.`,
+          maxItems,
+          submitted: items.length
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
 
     // Check rate limit
     if (!checkRateLimit(user.id, operation)) {

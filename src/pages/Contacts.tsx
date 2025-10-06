@@ -284,6 +284,19 @@ Jane,Smith,jane.smith@example.com,+0987654321,Tech Inc,CEO,contacted,Referral`;
       const lines = text.split('\n');
       const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
 
+      // LIMIT: Check total row count before processing
+      const dataRows = lines.slice(1).filter(line => line.trim());
+      if (dataRows.length > 10000) {
+        toast({
+          variant: "destructive",
+          title: "File Too Large",
+          description: `Maximum 10,000 contacts allowed per import. Your file contains ${dataRows.length} rows. Please split into smaller files.`,
+        });
+        setUploading(false);
+        e.target.value = '';
+        return;
+      }
+
       const contactsToInsert = [];
 
       for (let i = 1; i < lines.length; i++) {
@@ -339,6 +352,12 @@ Jane,Smith,jane.smith@example.com,+0987654321,Tech Inc,CEO,contacted,Referral`;
             variant: "destructive",
             title: "Rate Limit Exceeded",
             description: "Please wait a minute before importing more contacts.",
+          });
+        } else if (error.message?.includes('Item limit exceeded')) {
+          toast({
+            variant: "destructive",
+            title: "Import Limit Exceeded",
+            description: error.message,
           });
         } else {
           throw error;
@@ -403,7 +422,8 @@ Jane,Smith,jane.smith@example.com,+0987654321,Tech Inc,CEO,contacted,Referral`;
                     <p className="text-sm text-muted-foreground mb-4">
                       Upload a CSV file with the following columns:<br />
                       <strong>Required:</strong> first_name<br />
-                      <strong>Optional:</strong> last_name, email, phone, company, job_title, status, source
+                      <strong>Optional:</strong> last_name, email, phone, company, job_title, status, source<br />
+                      <strong className="text-destructive">Maximum: 10,000 contacts per file</strong>
                     </p>
                     <Button
                       type="button"
@@ -423,8 +443,8 @@ Jane,Smith,jane.smith@example.com,+0987654321,Tech Inc,CEO,contacted,Referral`;
                   </div>
                   {uploading && (
                     <div className="space-y-2">
-                      <p className="text-sm text-muted-foreground">Processing CSV in batches...</p>
-                      <p className="text-xs text-muted-foreground">Large imports may take a minute. Rate limited to prevent system overload.</p>
+                      <p className="text-sm text-muted-foreground">Processing CSV in batches of 100...</p>
+                      <p className="text-xs text-muted-foreground">Large imports may take several minutes. Rate limited to 5 imports/min (max 10k contacts per file).</p>
                     </div>
                   )}
                 </div>
