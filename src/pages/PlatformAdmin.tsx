@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Building2, Users, Activity, MoreVertical, Eye, Ban, CheckCircle, LogIn, PhoneCall, Mail, UserCheck } from "lucide-react";
+import { Building2, Users, Activity, MoreVertical, Eye, Ban, CheckCircle, LogIn, PhoneCall, Mail, UserCheck, AlertTriangle } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,6 +32,19 @@ interface Organization {
   usersActive30Days?: number;
   callVolume?: number;
   emailVolume?: number;
+}
+
+interface ErrorLog {
+  id: string;
+  org_id: string;
+  user_id: string | null;
+  error_type: string;
+  error_message: string;
+  error_details: any;
+  page_url: string | null;
+  created_at: string;
+  organization?: { name: string };
+  profile?: { first_name: string; last_name: string };
 }
 
 interface OrgStats {
@@ -63,6 +76,8 @@ export default function PlatformAdmin() {
   const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null);
   const [orgDetails, setOrgDetails] = useState<any>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [errorLogs, setErrorLogs] = useState<ErrorLog[]>([]);
+  const [showErrorLogs, setShowErrorLogs] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -331,6 +346,49 @@ export default function PlatformAdmin() {
     }
   };
 
+  const fetchErrorLogs = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("error_logs")
+        .select(`
+          *,
+          organizations!error_logs_org_id_fkey(name),
+          profiles!error_logs_user_id_fkey(first_name, last_name)
+        `)
+        .order("created_at", { ascending: false })
+        .limit(100);
+
+      if (error) throw error;
+
+      const formattedLogs = data?.map(log => ({
+        ...log,
+        organization: log.organizations,
+        profile: log.profiles
+      })) as ErrorLog[];
+
+      setErrorLogs(formattedLogs || []);
+      setShowErrorLogs(true);
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error loading logs",
+        description: error.message,
+      });
+    }
+  };
+
+  const getErrorTypeBadgeVariant = (type: string) => {
+    switch (type.toLowerCase()) {
+      case "critical":
+      case "fatal":
+        return "destructive";
+      case "warning":
+        return "default";
+      default:
+        return "secondary";
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -528,6 +586,76 @@ export default function PlatformAdmin() {
                       </TableCell>
                     </TableRow>
                   ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Error Logs Section */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Error Logs</CardTitle>
+                <CardDescription>System-wide error tracking across all organizations</CardDescription>
+              </div>
+              <Button onClick={fetchErrorLogs} variant="outline">
+                <AlertTriangle className="mr-2 h-4 w-4" />
+                {showErrorLogs ? "Refresh Logs" : "Load Error Logs"}
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {showErrorLogs && (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Timestamp</TableHead>
+                    <TableHead>Organization</TableHead>
+                    <TableHead>User</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Error Message</TableHead>
+                    <TableHead>Page</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {errorLogs.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center text-muted-foreground">
+                        No error logs found
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    errorLogs.map((log) => (
+                      <TableRow key={log.id}>
+                        <TableCell className="font-mono text-xs">
+                          {new Date(log.created_at).toLocaleString()}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">
+                            {log.organization?.name || "Unknown"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {log.profile
+                            ? `${log.profile.first_name} ${log.profile.last_name}`
+                            : "Anonymous"}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={getErrorTypeBadgeVariant(log.error_type)}>
+                            {log.error_type}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="max-w-md truncate">
+                          {log.error_message}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {log.page_url || "-"}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             )}
