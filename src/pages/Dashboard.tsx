@@ -105,13 +105,14 @@ export default function Dashboard() {
           .eq("name", "Won")
           .maybeSingle(),
         
-        // Pipeline distribution
+        // Pipeline distribution (limit to prevent loading huge datasets)
         supabase
           .from("contacts")
           .select(`
             pipeline_stage_id,
             pipeline_stages (name, stage_order)
-          `),
+          `)
+          .limit(1000), // Safety limit: max 1000 contacts for dashboard stats
         
         // OPTIMIZATION: Fetch all activities for 7 days in ONE query instead of 21 queries
         supabase
@@ -119,6 +120,7 @@ export default function Dashboard() {
           .select("activity_type, created_at")
           .gte("created_at", weekAgo.toISOString())
           .in("activity_type", ["call", "email", "meeting"])
+          .limit(5000) // Safety limit: max 5000 activities for weekly chart
       ]);
 
       // Calculate active deals

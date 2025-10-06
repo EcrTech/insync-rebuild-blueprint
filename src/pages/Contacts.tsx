@@ -73,10 +73,12 @@ export default function Contacts() {
 
   const fetchContacts = async () => {
     try {
+      // PERFORMANCE: Add pagination with limit to prevent loading thousands of records
       const { data, error } = await supabase
         .from("contacts")
         .select("*")
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(500); // Limit to 500 most recent contacts
 
       if (error) throw error;
       setContacts(data || []);
@@ -282,20 +284,7 @@ Jane,Smith,jane.smith@example.com,+0987654321,Tech Inc,CEO,contacted,Referral`;
       const lines = text.split('\n');
       const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("org_id")
-        .eq("id", user.id)
-        .single();
-
-      if (!profile?.org_id) throw new Error("Organization not found");
-
       const contactsToInsert = [];
-      let successCount = 0;
-      let errorCount = 0;
 
       for (let i = 1; i < lines.length; i++) {
         if (!lines[i].trim()) continue;
@@ -315,31 +304,53 @@ Jane,Smith,jane.smith@example.com,+0987654321,Tech Inc,CEO,contacted,Referral`;
           company: row['company'] || null,
           job_title: row['job_title'] || row['job title'] || row['title'] || null,
           status: row['status'] || 'new',
-          source: row['source'] || null,
-          org_id: profile.org_id,
-          created_by: user.id,
+          source: row['source'] || 'csv_import',
         };
 
         if (!contact.first_name) {
-          errorCount++;
           continue;
         }
 
         contactsToInsert.push(contact);
       }
 
-      if (contactsToInsert.length > 0) {
-        const { error } = await supabase
-          .from("contacts")
-          .insert(contactsToInsert);
-
-        if (error) throw error;
-        successCount = contactsToInsert.length;
+      if (contactsToInsert.length === 0) {
+        toast({
+          variant: "destructive",
+          title: "No Valid Contacts",
+          description: "No valid contacts found in the CSV file.",
+        });
+        return;
       }
+
+      // PERFORMANCE: Use queue manager for batch processing with rate limiting
+      const { data, error } = await supabase.functions.invoke('queue-manager', {
+        body: {
+          operation: 'contact_import',
+          data: contactsToInsert,
+          priority: 5,
+        },
+      });
+
+      if (error) {
+        // Check if it's a rate limit error
+        if (error.message?.includes('Rate limit')) {
+          toast({
+            variant: "destructive",
+            title: "Rate Limit Exceeded",
+            description: "Please wait a minute before importing more contacts.",
+          });
+        } else {
+          throw error;
+        }
+        return;
+      }
+
+      const result = data as { processed: number; errors: number; total: number };
 
       toast({
         title: "CSV Import Complete",
-        description: `Successfully imported ${successCount} contacts. ${errorCount > 0 ? `${errorCount} rows skipped due to errors.` : ''}`,
+        description: `Successfully imported ${result.processed} contacts. ${result.errors > 0 ? `${result.errors} rows failed.` : ''}`,
       });
 
       setIsUploadDialogOpen(false);
@@ -348,7 +359,7 @@ Jane,Smith,jane.smith@example.com,+0987654321,Tech Inc,CEO,contacted,Referral`;
       toast({
         variant: "destructive",
         title: "Import Failed",
-        description: error.message,
+        description: error.message || "An error occurred during import.",
       });
     } finally {
       setUploading(false);
@@ -411,7 +422,10 @@ Jane,Smith,jane.smith@example.com,+0987654321,Tech Inc,CEO,contacted,Referral`;
                     />
                   </div>
                   {uploading && (
-                    <p className="text-sm text-muted-foreground">Uploading and processing...</p>
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">Processing CSV in batches...</p>
+                      <p className="text-xs text-muted-foreground">Large imports may take a minute. Rate limited to prevent system overload.</p>
+                    </div>
                   )}
                 </div>
               </DialogContent>

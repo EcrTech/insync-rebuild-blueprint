@@ -1,1 +1,4 @@
 project_id = "aizgpxaqvtvvqarzjmze"
+
+[functions.queue-manager]
+verify_jwt = true
