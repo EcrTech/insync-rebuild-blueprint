@@ -12,6 +12,7 @@ import {
   Edit, Plus, MessageSquare, PhoneCall, Video, FileText
 } from "lucide-react";
 import { ActivityTimeline } from "@/components/Contact/ActivityTimeline";
+import { CustomerJourney } from "@/components/Contact/CustomerJourney";
 import { LogActivityDialog } from "@/components/Contact/LogActivityDialog";
 import { EditContactDialog } from "@/components/Contact/EditContactDialog";
 
@@ -264,11 +265,15 @@ export default function ContactDetail() {
               </div>
             </CardHeader>
             <CardContent>
-              <Tabs defaultValue="timeline">
+              <Tabs defaultValue="journey">
                 <TabsList>
+                  <TabsTrigger value="journey">Customer Journey</TabsTrigger>
                   <TabsTrigger value="timeline">Timeline</TabsTrigger>
                   <TabsTrigger value="notes">Notes</TabsTrigger>
                 </TabsList>
+                <TabsContent value="journey" className="space-y-4">
+                  <CustomerJourney contactId={id!} />
+                </TabsContent>
                 <TabsContent value="timeline" className="space-y-4">
                   <ActivityTimeline contactId={id!} />
                 </TabsContent>
