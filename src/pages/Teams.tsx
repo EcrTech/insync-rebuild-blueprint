@@ -240,12 +240,12 @@ export default function Teams() {
 
                 <div className="space-y-2">
                   <Label htmlFor="manager">Team Manager</Label>
-                  <Select value={formData.manager_id} onValueChange={(value) => setFormData({ ...formData, manager_id: value })}>
+                  <Select value={formData.manager_id || "none"} onValueChange={(value) => setFormData({ ...formData, manager_id: value === "none" ? "" : value })}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select a manager" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">No manager</SelectItem>
+                      <SelectItem value="none">No manager</SelectItem>
                       {managers.map((manager) => (
                         <SelectItem key={manager.id} value={manager.id}>
                           {manager.first_name} {manager.last_name}

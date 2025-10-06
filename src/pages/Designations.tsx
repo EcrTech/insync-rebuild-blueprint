@@ -291,14 +291,14 @@ export default function Designations() {
                 <div>
                   <Label htmlFor="reports_to">Reports To</Label>
                   <Select
-                    value={formData.reports_to}
-                    onValueChange={(value) => setFormData({ ...formData, reports_to: value })}
+                    value={formData.reports_to || "none"}
+                    onValueChange={(value) => setFormData({ ...formData, reports_to: value === "none" ? "" : value })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="No direct report" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">None (Top Level)</SelectItem>
+                      <SelectItem value="none">None (Top Level)</SelectItem>
                       {designations
                         .filter(d => d.id !== editingDesignation?.id)
                         .map((des) => (
