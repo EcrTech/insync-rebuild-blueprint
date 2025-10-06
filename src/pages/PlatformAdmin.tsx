@@ -108,187 +108,127 @@ export default function PlatformAdmin() {
     try {
       setLoading(true);
 
-      // Fetch all organizations
-      const { data: orgs, error: orgsError } = await supabase
-        .from("organizations")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (orgsError) throw orgsError;
-
-      // Calculate time thresholds
+      // Calculate time thresholds once
       const now = new Date();
       const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
       const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
       const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-      // Fetch user counts for each org
-      const { data: userCounts } = await supabase
-        .from("user_roles")
-        .select("org_id");
+      // Fetch all data in parallel for better performance
+      const [
+        { data: orgs, error: orgsError },
+        { data: userCounts },
+        { data: contactCounts },
+        { data: profilesData },
+        { data: activityData }
+      ] = await Promise.all([
+        supabase.from("organizations").select("*").order("created_at", { ascending: false }),
+        supabase.from("user_roles").select("org_id"),
+        supabase.from("contacts").select("org_id"),
+        supabase.from("profiles").select("org_id, updated_at"),
+        supabase.from("contact_activities").select("org_id, activity_type")
+      ]);
 
-      // Fetch contact counts for each org
-      const { data: contactCounts } = await supabase
-        .from("contacts")
-        .select("org_id");
+      if (orgsError) throw orgsError;
 
-      // Fetch profiles with activity for each org
-      const { data: profilesData } = await supabase
-        .from("profiles")
-        .select("org_id, updated_at");
+      // Initialize default counts structure
+      const getDefaultCounts = () => ({ 
+        users: 0, 
+        contacts: 0,
+        usersActive1Day: 0,
+        usersActive7Days: 0,
+        usersActive30Days: 0,
+        calls: 0,
+        emails: 0
+      });
 
-      // Fetch call activities per org
-      const { data: callActivities } = await supabase
-        .from("contact_activities")
-        .select("org_id")
-        .eq("activity_type", "call");
-
-      // Fetch email activities per org
-      const { data: emailActivities } = await supabase
-        .from("contact_activities")
-        .select("org_id")
-        .eq("activity_type", "email");
-
-      // Calculate counts per org
+      // Build counts map efficiently in a single pass per data type
       const orgCountsMap = new Map();
       
-      // User counts
       userCounts?.forEach(({ org_id }) => {
-        const current = orgCountsMap.get(org_id) || { 
-          users: 0, 
-          contacts: 0,
-          usersActive1Day: 0,
-          usersActive7Days: 0,
-          usersActive30Days: 0,
-          calls: 0,
-          emails: 0
-        };
-        orgCountsMap.set(org_id, { ...current, users: current.users + 1 });
+        const current = orgCountsMap.get(org_id) || getDefaultCounts();
+        current.users++;
+        orgCountsMap.set(org_id, current);
       });
       
-      // Contact counts
       contactCounts?.forEach(({ org_id }) => {
-        const current = orgCountsMap.get(org_id) || { 
-          users: 0, 
-          contacts: 0,
-          usersActive1Day: 0,
-          usersActive7Days: 0,
-          usersActive30Days: 0,
-          calls: 0,
-          emails: 0
-        };
-        orgCountsMap.set(org_id, { ...current, contacts: current.contacts + 1 });
+        const current = orgCountsMap.get(org_id) || getDefaultCounts();
+        current.contacts++;
+        orgCountsMap.set(org_id, current);
       });
 
-      // Active user counts
+      // Process profiles - count users and active users in one pass
+      let totalUsersActive1Day = 0;
+      let totalUsersActive7Days = 0;
+      let totalUsersActive30Days = 0;
+
       profilesData?.forEach(({ org_id, updated_at }) => {
-        const current = orgCountsMap.get(org_id) || { 
-          users: 0, 
-          contacts: 0,
-          usersActive1Day: 0,
-          usersActive7Days: 0,
-          usersActive30Days: 0,
-          calls: 0,
-          emails: 0
-        };
-        
+        const current = orgCountsMap.get(org_id) || getDefaultCounts();
         const updatedDate = new Date(updated_at);
+        
         if (updatedDate > oneDayAgo) {
           current.usersActive1Day++;
+          totalUsersActive1Day++;
         }
         if (updatedDate > sevenDaysAgo) {
           current.usersActive7Days++;
+          totalUsersActive7Days++;
         }
         if (updatedDate > thirtyDaysAgo) {
           current.usersActive30Days++;
+          totalUsersActive30Days++;
         }
         
         orgCountsMap.set(org_id, current);
       });
 
-      // Call volume per org
-      callActivities?.forEach(({ org_id }) => {
-        const current = orgCountsMap.get(org_id) || { 
-          users: 0, 
-          contacts: 0,
-          usersActive1Day: 0,
-          usersActive7Days: 0,
-          usersActive30Days: 0,
-          calls: 0,
-          emails: 0
-        };
-        orgCountsMap.set(org_id, { ...current, calls: current.calls + 1 });
+      // Process activities - calls and emails in one pass
+      let totalCalls = 0;
+      let totalEmails = 0;
+
+      activityData?.forEach(({ org_id, activity_type }) => {
+        const current = orgCountsMap.get(org_id) || getDefaultCounts();
+        
+        if (activity_type === "call") {
+          current.calls++;
+          totalCalls++;
+        } else if (activity_type === "email") {
+          current.emails++;
+          totalEmails++;
+        }
+        
+        orgCountsMap.set(org_id, current);
       });
 
-      // Email volume per org
-      emailActivities?.forEach(({ org_id }) => {
-        const current = orgCountsMap.get(org_id) || { 
-          users: 0, 
-          contacts: 0,
-          usersActive1Day: 0,
-          usersActive7Days: 0,
-          usersActive30Days: 0,
-          calls: 0,
-          emails: 0
+      // Enrich organizations with counts
+      const enrichedOrgs = orgs?.map(org => {
+        const counts = orgCountsMap.get(org.id) || getDefaultCounts();
+        return {
+          ...org,
+          userCount: counts.users,
+          contactCount: counts.contacts,
+          usersActive1Day: counts.usersActive1Day,
+          usersActive7Days: counts.usersActive7Days,
+          usersActive30Days: counts.usersActive30Days,
+          callVolume: counts.calls,
+          emailVolume: counts.emails,
+          is_active: (org.settings as any)?.is_active !== false,
         };
-        orgCountsMap.set(org_id, { ...current, emails: current.emails + 1 });
-      });
-
-      const enrichedOrgs = orgs?.map(org => ({
-        ...org,
-        userCount: orgCountsMap.get(org.id)?.users || 0,
-        contactCount: orgCountsMap.get(org.id)?.contacts || 0,
-        usersActive1Day: orgCountsMap.get(org.id)?.usersActive1Day || 0,
-        usersActive7Days: orgCountsMap.get(org.id)?.usersActive7Days || 0,
-        usersActive30Days: orgCountsMap.get(org.id)?.usersActive30Days || 0,
-        callVolume: orgCountsMap.get(org.id)?.calls || 0,
-        emailVolume: orgCountsMap.get(org.id)?.emails || 0,
-        is_active: (org.settings as any)?.is_active !== false,
-      })) || [];
+      }) || [];
 
       setOrganizations(enrichedOrgs);
 
-      // Get user login stats - we'll need to query profiles with last activity
-      // Since Supabase auth.users is not accessible, we'll use profiles updated_at as a proxy
-      const { data: recentProfiles } = await supabase
-        .from("profiles")
-        .select("updated_at");
-
-      const usersLast1Day = recentProfiles?.filter(
-        p => new Date(p.updated_at) > oneDayAgo
-      ).length || 0;
-
-      const usersLast7Days = recentProfiles?.filter(
-        p => new Date(p.updated_at) > sevenDaysAgo
-      ).length || 0;
-
-      const usersLast30Days = recentProfiles?.filter(
-        p => new Date(p.updated_at) > thirtyDaysAgo
-      ).length || 0;
-
-      // Get call volume
-      const { data: calls } = await supabase
-        .from("contact_activities")
-        .select("id")
-        .eq("activity_type", "call");
-
-      // Get email volume
-      const { data: emails } = await supabase
-        .from("contact_activities")
-        .select("id")
-        .eq("activity_type", "email");
-
-      // Calculate stats
+      // Set stats - all data already calculated
       setStats({
         totalOrgs: enrichedOrgs.length,
         activeOrgs: enrichedOrgs.filter(o => o.is_active).length,
         totalUsers: userCounts?.length || 0,
         totalContacts: contactCounts?.length || 0,
-        usersLast1Day,
-        usersLast7Days,
-        usersLast30Days,
-        callVolume: calls?.length || 0,
-        emailVolume: emails?.length || 0,
+        usersLast1Day: totalUsersActive1Day,
+        usersLast7Days: totalUsersActive7Days,
+        usersLast30Days: totalUsersActive30Days,
+        callVolume: totalCalls,
+        emailVolume: totalEmails,
       });
     } catch (error: any) {
       toast({
