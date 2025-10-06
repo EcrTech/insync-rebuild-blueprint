@@ -27,6 +27,11 @@ interface Organization {
   userCount?: number;
   contactCount?: number;
   is_active?: boolean;
+  usersActive1Day?: number;
+  usersActive7Days?: number;
+  usersActive30Days?: number;
+  callVolume?: number;
+  emailVolume?: number;
 }
 
 interface OrgStats {
@@ -111,6 +116,12 @@ export default function PlatformAdmin() {
 
       if (orgsError) throw orgsError;
 
+      // Calculate time thresholds
+      const now = new Date();
+      const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
       // Fetch user counts for each org
       const { data: userCounts } = await supabase
         .from("user_roles")
@@ -121,31 +132,121 @@ export default function PlatformAdmin() {
         .from("contacts")
         .select("org_id");
 
+      // Fetch profiles with activity for each org
+      const { data: profilesData } = await supabase
+        .from("profiles")
+        .select("org_id, updated_at");
+
+      // Fetch call activities per org
+      const { data: callActivities } = await supabase
+        .from("contact_activities")
+        .select("org_id")
+        .eq("activity_type", "call");
+
+      // Fetch email activities per org
+      const { data: emailActivities } = await supabase
+        .from("contact_activities")
+        .select("org_id")
+        .eq("activity_type", "email");
+
       // Calculate counts per org
       const orgCountsMap = new Map();
+      
+      // User counts
       userCounts?.forEach(({ org_id }) => {
-        const current = orgCountsMap.get(org_id) || { users: 0, contacts: 0 };
+        const current = orgCountsMap.get(org_id) || { 
+          users: 0, 
+          contacts: 0,
+          usersActive1Day: 0,
+          usersActive7Days: 0,
+          usersActive30Days: 0,
+          calls: 0,
+          emails: 0
+        };
         orgCountsMap.set(org_id, { ...current, users: current.users + 1 });
       });
+      
+      // Contact counts
       contactCounts?.forEach(({ org_id }) => {
-        const current = orgCountsMap.get(org_id) || { users: 0, contacts: 0 };
+        const current = orgCountsMap.get(org_id) || { 
+          users: 0, 
+          contacts: 0,
+          usersActive1Day: 0,
+          usersActive7Days: 0,
+          usersActive30Days: 0,
+          calls: 0,
+          emails: 0
+        };
         orgCountsMap.set(org_id, { ...current, contacts: current.contacts + 1 });
+      });
+
+      // Active user counts
+      profilesData?.forEach(({ org_id, updated_at }) => {
+        const current = orgCountsMap.get(org_id) || { 
+          users: 0, 
+          contacts: 0,
+          usersActive1Day: 0,
+          usersActive7Days: 0,
+          usersActive30Days: 0,
+          calls: 0,
+          emails: 0
+        };
+        
+        const updatedDate = new Date(updated_at);
+        if (updatedDate > oneDayAgo) {
+          current.usersActive1Day++;
+        }
+        if (updatedDate > sevenDaysAgo) {
+          current.usersActive7Days++;
+        }
+        if (updatedDate > thirtyDaysAgo) {
+          current.usersActive30Days++;
+        }
+        
+        orgCountsMap.set(org_id, current);
+      });
+
+      // Call volume per org
+      callActivities?.forEach(({ org_id }) => {
+        const current = orgCountsMap.get(org_id) || { 
+          users: 0, 
+          contacts: 0,
+          usersActive1Day: 0,
+          usersActive7Days: 0,
+          usersActive30Days: 0,
+          calls: 0,
+          emails: 0
+        };
+        orgCountsMap.set(org_id, { ...current, calls: current.calls + 1 });
+      });
+
+      // Email volume per org
+      emailActivities?.forEach(({ org_id }) => {
+        const current = orgCountsMap.get(org_id) || { 
+          users: 0, 
+          contacts: 0,
+          usersActive1Day: 0,
+          usersActive7Days: 0,
+          usersActive30Days: 0,
+          calls: 0,
+          emails: 0
+        };
+        orgCountsMap.set(org_id, { ...current, emails: current.emails + 1 });
       });
 
       const enrichedOrgs = orgs?.map(org => ({
         ...org,
         userCount: orgCountsMap.get(org.id)?.users || 0,
         contactCount: orgCountsMap.get(org.id)?.contacts || 0,
+        usersActive1Day: orgCountsMap.get(org.id)?.usersActive1Day || 0,
+        usersActive7Days: orgCountsMap.get(org.id)?.usersActive7Days || 0,
+        usersActive30Days: orgCountsMap.get(org.id)?.usersActive30Days || 0,
+        callVolume: orgCountsMap.get(org.id)?.calls || 0,
+        emailVolume: orgCountsMap.get(org.id)?.emails || 0,
         is_active: (org.settings as any)?.is_active !== false,
       })) || [];
 
       setOrganizations(enrichedOrgs);
-
-      // Calculate time thresholds
-      const now = new Date();
-      const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
       // Get user login stats - we'll need to query profiles with last activity
       // Since Supabase auth.users is not accessible, we'll use profiles updated_at as a proxy
@@ -412,6 +513,11 @@ export default function PlatformAdmin() {
                     <TableHead>Slug</TableHead>
                     <TableHead>Users</TableHead>
                     <TableHead>Contacts</TableHead>
+                    <TableHead className="text-center">Active 1d</TableHead>
+                    <TableHead className="text-center">Active 7d</TableHead>
+                    <TableHead className="text-center">Active 30d</TableHead>
+                    <TableHead className="text-center">Calls</TableHead>
+                    <TableHead className="text-center">Emails</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Created</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
@@ -424,6 +530,21 @@ export default function PlatformAdmin() {
                       <TableCell className="font-mono text-sm">{org.slug}</TableCell>
                       <TableCell>{org.userCount}</TableCell>
                       <TableCell>{org.contactCount}</TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant="outline">{org.usersActive1Day}</Badge>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant="outline">{org.usersActive7Days}</Badge>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant="outline">{org.usersActive30Days}</Badge>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant="secondary">{org.callVolume}</Badge>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant="secondary">{org.emailVolume}</Badge>
+                      </TableCell>
                       <TableCell>
                         {org.is_active ? (
                           <Badge className="bg-green-500">Active</Badge>
