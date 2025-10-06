@@ -16,16 +16,21 @@ export default function Login() {
 
   useEffect(() => {
     // Check if user is already logged in and redirect
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         navigate("/dashboard", { replace: true });
       }
-    });
+    };
+    checkSession();
 
     // Listen for auth changes and redirect on successful login
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session) {
-        navigate("/dashboard", { replace: true });
+        // Small delay to ensure session is fully established
+        setTimeout(() => {
+          navigate("/dashboard", { replace: true });
+        }, 100);
       }
     });
 
