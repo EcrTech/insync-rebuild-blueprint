@@ -191,6 +191,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                     <Settings size={20} />
                     <span>Call Dispositions</span>
                   </Link>
+                  <Link
+                    to="/admin/approval-matrix"
+                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    <Settings size={20} />
+                    <span>Approval Matrix</span>
+                  </Link>
                 </>
               )}
             </nav>

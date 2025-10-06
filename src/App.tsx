@@ -16,6 +16,7 @@ import Contacts from "./pages/Contacts";
 import ContactDetail from "./pages/ContactDetail";
 import PipelineBoard from "./pages/PipelineBoard";
 import Reports from "./pages/Reports";
+import ApprovalMatrix from "./pages/ApprovalMatrix";
 import ProtectedRoute from "./components/Auth/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -88,6 +89,12 @@ const App = () => (
           <Route path="/admin/call-dispositions" element={
             <ProtectedRoute requiredRole="admin">
               <CallDispositions />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/admin/approval-matrix" element={
+            <ProtectedRoute requiredRole="admin">
+              <ApprovalMatrix />
             </ProtectedRoute>
           } />
           
