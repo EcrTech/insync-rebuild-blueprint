@@ -205,6 +205,7 @@ export type Database = {
           id: string
           job_title: string | null
           last_name: string | null
+          linkedin_url: string | null
           notes: string | null
           org_id: string
           phone: string | null
@@ -230,6 +231,7 @@ export type Database = {
           id?: string
           job_title?: string | null
           last_name?: string | null
+          linkedin_url?: string | null
           notes?: string | null
           org_id: string
           phone?: string | null
@@ -255,6 +257,7 @@ export type Database = {
           id?: string
           job_title?: string | null
           last_name?: string | null
+          linkedin_url?: string | null
           notes?: string | null
           org_id?: string
           phone?: string | null

@@ -18,6 +18,7 @@ interface Contact {
   job_title: string | null;
   status: string;
   source: string | null;
+  linkedin_url: string | null;
   notes: string | null;
 }
 
@@ -45,6 +46,7 @@ export function EditContactDialog({
     job_title: "",
     status: "new",
     source: "",
+    linkedin_url: "",
     notes: "",
   });
 
@@ -59,6 +61,7 @@ export function EditContactDialog({
         job_title: contact.job_title || "",
         status: contact.status,
         source: contact.source || "",
+        linkedin_url: contact.linkedin_url || "",
         notes: contact.notes || "",
       });
     }
@@ -80,6 +83,7 @@ export function EditContactDialog({
           job_title: formData.job_title || null,
           status: formData.status,
           source: formData.source || null,
+          linkedin_url: formData.linkedin_url || null,
           notes: formData.notes || null,
         })
         .eq("id", contact.id);
@@ -196,6 +200,17 @@ export function EditContactDialog({
                 placeholder="e.g., Website, Referral"
               />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="linkedin_url">LinkedIn Profile</Label>
+            <Input
+              id="linkedin_url"
+              type="url"
+              value={formData.linkedin_url}
+              onChange={(e) => setFormData({ ...formData, linkedin_url: e.target.value })}
+              placeholder="https://linkedin.com/in/username"
+            />
           </div>
 
           <div className="space-y-2">

@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { 
   ArrowLeft, Mail, Phone as PhoneIcon, Building, MapPin, Calendar,
-  Edit, Plus, MessageSquare, PhoneCall, Video, FileText
+  Edit, Plus, MessageSquare, PhoneCall, Video, FileText, Linkedin
 } from "lucide-react";
 import { ActivityTimeline } from "@/components/Contact/ActivityTimeline";
 import { CustomerJourney } from "@/components/Contact/CustomerJourney";
@@ -32,6 +32,7 @@ interface Contact {
   country: string | null;
   postal_code: string | null;
   website: string | null;
+  linkedin_url: string | null;
   notes: string | null;
   created_at: string;
   pipeline_stages: { name: string } | null;
@@ -185,6 +186,20 @@ export default function ContactDetail() {
                   <PhoneIcon className="h-4 w-4 text-muted-foreground" />
                   <a href={`tel:${contact.phone}`} className="text-sm hover:underline">
                     {contact.phone}
+                  </a>
+                </div>
+              )}
+
+              {contact.linkedin_url && (
+                <div className="flex items-center gap-2">
+                  <Linkedin className="h-4 w-4 text-muted-foreground" />
+                  <a 
+                    href={contact.linkedin_url} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="text-sm hover:underline"
+                  >
+                    LinkedIn Profile
                   </a>
                 </div>
               )}
