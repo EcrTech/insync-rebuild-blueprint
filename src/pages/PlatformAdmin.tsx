@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import DashboardLayout from "@/components/Layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -397,7 +398,13 @@ export default function PlatformAdmin() {
           <p className="text-muted-foreground">Manage all organizations on the In-Sync platform</p>
         </div>
 
-        {/* Stats Cards */}
+        <Tabs defaultValue="overview" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="error-logs">Error Logs</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview" className="space-y-4">{/* Stats Cards */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -590,8 +597,10 @@ export default function PlatformAdmin() {
               </Table>
             )}
           </CardContent>
-        </Card>
+         </Card>
+          </TabsContent>
 
+          <TabsContent value="error-logs" className="space-y-4">
         {/* Error Logs Section */}
         <Card>
           <CardHeader>
@@ -660,7 +669,9 @@ export default function PlatformAdmin() {
               </Table>
             )}
           </CardContent>
-        </Card>
+         </Card>
+          </TabsContent>
+        </Tabs>
 
         {/* Organization Details Dialog */}
         <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
