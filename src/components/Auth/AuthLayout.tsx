@@ -12,7 +12,7 @@ export function AuthLayout({ children, title, subtitle }: AuthLayoutProps) {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-muted/20 to-primary/5 px-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <img src={logo} alt="In-Sync Logo" className="h-16 mx-auto mb-4 object-contain" />
+          <img src={logo} alt="In-Sync Logo" className="h-20 mx-auto mb-4 object-contain" />
           <h2 className="text-2xl font-bold text-foreground mb-2">{title}</h2>
           {subtitle && <p className="text-muted-foreground">{subtitle}</p>}
         </div>

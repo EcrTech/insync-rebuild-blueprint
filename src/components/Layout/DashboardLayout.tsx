@@ -97,7 +97,7 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* Mobile header */}
       <div className="lg:hidden bg-card border-b border-border px-4 py-3 flex items-center justify-between">
         {orgLogo ? (
-          <img src={orgLogo} alt="Organization Logo" className="h-8 object-contain" />
+          <img src={orgLogo} alt="Organization Logo" className="h-12 object-contain" />
         ) : (
           <h1 className="text-xl font-bold text-primary">In-Sync</h1>
         )}
@@ -122,13 +122,13 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
         >
           <div className="h-full flex flex-col">
             {/* Logo */}
-            <div className="p-6 border-b border-border">
+            <div className="p-6 border-b border-border flex flex-col items-center">
               {orgLogo ? (
-                <img src={orgLogo} alt="Organization Logo" className="h-10 object-contain mb-2" />
+                <img src={orgLogo} alt="Organization Logo" className="h-16 object-contain mb-3" />
               ) : (
                 <h1 className="text-2xl font-bold text-primary">In-Sync</h1>
               )}
-              <p className="text-sm text-muted-foreground mt-1">{userName}</p>
+              <p className="text-sm text-muted-foreground text-center">{userName}</p>
             </div>
 
             {/* Navigation */}
