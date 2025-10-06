@@ -226,6 +226,14 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                     <Award size={20} />
                     <span>Designations</span>
                   </Link>
+                  <Link
+                    to="/admin/custom-fields"
+                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    <Settings size={20} />
+                    <span>Custom Fields</span>
+                  </Link>
                 </>
               )}
             </nav>

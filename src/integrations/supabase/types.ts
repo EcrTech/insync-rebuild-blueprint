@@ -190,6 +190,41 @@ export type Database = {
           },
         ]
       }
+      contact_custom_fields: {
+        Row: {
+          contact_id: string
+          created_at: string
+          custom_field_id: string
+          field_value: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          contact_id: string
+          created_at?: string
+          custom_field_id: string
+          field_value?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          contact_id?: string
+          created_at?: string
+          custom_field_id?: string
+          field_value?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_custom_fields_custom_field_id_fkey"
+            columns: ["custom_field_id"]
+            isOneToOne: false
+            referencedRelation: "custom_fields"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contact_emails: {
         Row: {
           contact_id: string
@@ -388,6 +423,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      custom_fields: {
+        Row: {
+          created_at: string
+          field_label: string
+          field_name: string
+          field_options: Json | null
+          field_order: number
+          field_type: string
+          id: string
+          is_active: boolean | null
+          is_required: boolean | null
+          org_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          field_label: string
+          field_name: string
+          field_options?: Json | null
+          field_order?: number
+          field_type: string
+          id?: string
+          is_active?: boolean | null
+          is_required?: boolean | null
+          org_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          field_label?: string
+          field_name?: string
+          field_options?: Json | null
+          field_order?: number
+          field_type?: string
+          id?: string
+          is_active?: boolean | null
+          is_required?: boolean | null
+          org_id?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       designations: {
         Row: {
