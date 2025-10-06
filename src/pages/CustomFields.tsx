@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, GripVertical } from "lucide-react";
+import { Plus, Pencil, Trash2, GripVertical, Upload, Download } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface CustomField {
@@ -39,7 +39,9 @@ export default function CustomFields() {
   const [fields, setFields] = useState<CustomField[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [editingField, setEditingField] = useState<CustomField | null>(null);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -203,6 +205,104 @@ export default function CustomFields() {
     setIsDialogOpen(true);
   };
 
+  const downloadTemplate = () => {
+    const template = [
+      ["field_name", "field_label", "field_type", "field_options", "is_required", "is_active", "field_order"],
+      ["department", "Department", "select", "Sales,Marketing,Engineering", "true", "true", "1"],
+      ["budget", "Budget", "number", "", "false", "true", "2"],
+      ["notes", "Additional Notes", "textarea", "", "false", "true", "3"],
+    ];
+
+    const csvContent = template.map(row => row.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "custom_fields_template.csv";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+
+    toast({
+      title: "Template downloaded",
+      description: "CSV template has been downloaded successfully",
+    });
+  };
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      if (file.type !== "text/csv" && !file.name.endsWith(".csv")) {
+        toast({
+          variant: "destructive",
+          title: "Invalid file type",
+          description: "Please upload a CSV file",
+        });
+        return;
+      }
+      setUploadFile(file);
+    }
+  };
+
+  const processCSVUpload = async () => {
+    if (!uploadFile) return;
+
+    setLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("org_id")
+        .eq("id", user.id)
+        .single();
+
+      if (!profile?.org_id) throw new Error("Organization not found");
+
+      const text = await uploadFile.text();
+      const rows = text.split("\n").map(row => row.split(","));
+      
+      // Skip header row
+      const dataRows = rows.slice(1).filter(row => row.length >= 7 && row[0].trim());
+
+      const fieldsToInsert = dataRows.map((row, index) => ({
+        field_name: row[0].trim().toLowerCase().replace(/\s+/g, "_"),
+        field_label: row[1].trim(),
+        field_type: row[2].trim(),
+        field_options: row[3].trim() ? row[3].trim().split(";").map(opt => opt.trim()).filter(opt => opt) : null,
+        is_required: row[4].trim().toLowerCase() === "true",
+        is_active: row[5].trim().toLowerCase() === "true",
+        field_order: parseInt(row[6].trim()) || index,
+        org_id: profile.org_id,
+      }));
+
+      const { error } = await supabase
+        .from("custom_fields")
+        .insert(fieldsToInsert);
+
+      if (error) throw error;
+
+      toast({
+        title: "Upload successful",
+        description: `${fieldsToInsert.length} custom field(s) have been imported`,
+      });
+
+      setIsUploadDialogOpen(false);
+      setUploadFile(null);
+      fetchFields();
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Upload failed",
+        description: error.message,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -211,13 +311,78 @@ export default function CustomFields() {
             <h1 className="text-3xl font-bold">Custom Fields</h1>
             <p className="text-muted-foreground">Configure dynamic fields for contact forms</p>
           </div>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={resetForm}>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Field
-              </Button>
-            </DialogTrigger>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={downloadTemplate}>
+              <Download className="mr-2 h-4 w-4" />
+              Download Template
+            </Button>
+            <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline">
+                  <Upload className="mr-2 h-4 w-4" />
+                  Bulk Upload
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Upload Custom Fields CSV</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>CSV File</Label>
+                    <Input
+                      type="file"
+                      accept=".csv"
+                      onChange={handleFileUpload}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Upload a CSV file with custom field definitions. Download the template for the correct format.
+                    </p>
+                  </div>
+
+                  <div className="bg-muted p-4 rounded-lg space-y-2">
+                    <p className="text-sm font-medium">CSV Format:</p>
+                    <ul className="text-xs text-muted-foreground space-y-1">
+                      <li>• field_name: Internal name (lowercase, underscores)</li>
+                      <li>• field_label: Display label</li>
+                      <li>• field_type: text, email, phone, number, date, select, textarea, file, location</li>
+                      <li>• field_options: For select type, separate with semicolons (;)</li>
+                      <li>• is_required: true or false</li>
+                      <li>• is_active: true or false</li>
+                      <li>• field_order: Number for ordering</li>
+                    </ul>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setIsUploadDialogOpen(false);
+                        setUploadFile(null);
+                      }}
+                      className="flex-1"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={processCSVUpload}
+                      disabled={!uploadFile || loading}
+                      className="flex-1"
+                    >
+                      {loading ? "Uploading..." : "Upload"}
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button onClick={resetForm}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Field
+                </Button>
+              </DialogTrigger>
             <DialogContent className="max-w-md">
               <DialogHeader>
                 <DialogTitle>{editingField ? "Edit Field" : "Add New Field"}</DialogTitle>
@@ -322,7 +487,8 @@ export default function CustomFields() {
                 </div>
               </form>
             </DialogContent>
-          </Dialog>
+            </Dialog>
+          </div>
         </div>
 
         <div className="grid gap-4">
