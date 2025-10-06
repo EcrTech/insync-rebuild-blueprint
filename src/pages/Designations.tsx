@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useOrgContext } from "@/hooks/useOrgContext";
 import DashboardLayout from "@/components/Layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,6 +38,7 @@ const ROLES = [
 ];
 
 export default function Designations() {
+  const { effectiveOrgId } = useOrgContext();
   const [designations, setDesignations] = useState<Designation[]>([]);
   const [reporting, setReporting] = useState<ReportingRelation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,37 +53,31 @@ export default function Designations() {
   });
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (effectiveOrgId) {
+      fetchData();
+    }
+  }, [effectiveOrgId]);
 
   const fetchData = async () => {
+    if (!effectiveOrgId) return;
+    
     try {
       setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("org_id")
-        .eq("id", user.id)
-        .single();
-
-      if (!profile?.org_id) return;
 
       const [designationsRes, reportingRes, profilesRes] = await Promise.all([
         supabase
           .from("designations" as any)
           .select("*")
-          .eq("org_id", profile.org_id)
+          .eq("org_id", effectiveOrgId)
           .order("name"),
         supabase
           .from("reporting_hierarchy" as any)
           .select("*")
-          .eq("org_id", profile.org_id),
+          .eq("org_id", effectiveOrgId),
         supabase
           .from("profiles")
           .select("designation_id")
-          .eq("org_id", profile.org_id)
+          .eq("org_id", effectiveOrgId)
           .not("designation_id", "is", null),
       ]);
 
@@ -103,21 +99,11 @@ export default function Designations() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!effectiveOrgId) return;
     
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("org_id")
-        .eq("id", user.id)
-        .single();
-
-      if (!profile?.org_id) return;
-
       const designationPayload = {
-        org_id: profile.org_id,
+        org_id: effectiveOrgId,
         name: formData.name,
         description: formData.description,
         role: formData.role,
@@ -152,7 +138,7 @@ export default function Designations() {
         const { error: hierError } = await supabase
           .from("reporting_hierarchy" as any)
           .upsert({
-            org_id: profile.org_id,
+            org_id: effectiveOrgId,
             designation_id: designationId,
             reports_to_designation_id: formData.reports_to,
           });

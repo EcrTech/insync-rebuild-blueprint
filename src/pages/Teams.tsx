@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useOrgContext } from "@/hooks/useOrgContext";
 import DashboardLayout from "@/components/Layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +29,7 @@ interface Profile {
 }
 
 export default function Teams() {
+  const { effectiveOrgId } = useOrgContext();
   const [teams, setTeams] = useState<Team[]>([]);
   const [managers, setManagers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,11 +44,15 @@ export default function Teams() {
   });
 
   useEffect(() => {
-    fetchTeams();
-    fetchManagers();
-  }, []);
+    if (effectiveOrgId) {
+      fetchTeams();
+      fetchManagers();
+    }
+  }, [effectiveOrgId]);
 
   const fetchTeams = async () => {
+    if (!effectiveOrgId) return;
+    
     try {
       const { data, error } = await supabase
         .from("teams")
@@ -54,6 +60,7 @@ export default function Teams() {
           *,
           team_members (count)
         `)
+        .eq("org_id", effectiveOrgId)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -70,10 +77,13 @@ export default function Teams() {
   };
 
   const fetchManagers = async () => {
+    if (!effectiveOrgId) return;
+    
     try {
       const { data, error } = await supabase
         .from("user_roles")
         .select("user_id")
+        .eq("org_id", effectiveOrgId)
         .in("role", ["sales_manager", "support_manager", "admin", "super_admin"]);
 
       if (error) throw error;
@@ -82,6 +92,7 @@ export default function Teams() {
       const { data: profilesData } = await supabase
         .from("profiles")
         .select("id, first_name, last_name")
+        .eq("org_id", effectiveOrgId)
         .in("id", userIds);
 
       setManagers(profilesData || []);
@@ -92,25 +103,16 @@ export default function Teams() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!effectiveOrgId) return;
+    
     setLoading(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("org_id")
-        .eq("id", user.id)
-        .single();
-
-      if (!profile?.org_id) throw new Error("Organization not found");
-
       const teamData = {
         name: formData.name,
         description: formData.description || null,
         manager_id: formData.manager_id || null,
-        org_id: profile.org_id,
+        org_id: effectiveOrgId,
       };
 
       if (editingTeam) {

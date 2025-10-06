@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useOrgContext } from "@/hooks/useOrgContext";
 import DashboardLayout from "@/components/Layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +37,7 @@ const FIELD_TYPES = [
 ];
 
 export default function CustomFields() {
+  const { effectiveOrgId } = useOrgContext();
   const [fields, setFields] = useState<CustomField[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -55,14 +57,19 @@ export default function CustomFields() {
   });
 
   useEffect(() => {
-    fetchFields();
-  }, []);
+    if (effectiveOrgId) {
+      fetchFields();
+    }
+  }, [effectiveOrgId]);
 
   const fetchFields = async () => {
+    if (!effectiveOrgId) return;
+    
     try {
       const { data, error } = await supabase
         .from("custom_fields")
         .select("*")
+        .eq("org_id", effectiveOrgId)
         .order("field_order");
 
       if (error) throw error;
@@ -80,20 +87,11 @@ export default function CustomFields() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!effectiveOrgId) return;
+    
     setLoading(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("org_id")
-        .eq("id", user.id)
-        .single();
-
-      if (!profile?.org_id) throw new Error("Organization not found");
-
       const fieldData: any = {
         field_name: formData.field_name.toLowerCase().replace(/\s+/g, '_'),
         field_label: formData.field_label,
@@ -101,7 +99,7 @@ export default function CustomFields() {
         is_required: formData.is_required,
         is_active: formData.is_active,
         field_order: formData.field_order,
-        org_id: profile.org_id,
+        org_id: effectiveOrgId,
       };
 
       // Parse options for select type
@@ -246,21 +244,10 @@ export default function CustomFields() {
   };
 
   const processCSVUpload = async () => {
-    if (!uploadFile) return;
+    if (!uploadFile || !effectiveOrgId) return;
 
     setLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("org_id")
-        .eq("id", user.id)
-        .single();
-
-      if (!profile?.org_id) throw new Error("Organization not found");
-
       const text = await uploadFile.text();
       const rows = text.split("\n").map(row => row.split(","));
       
@@ -275,7 +262,7 @@ export default function CustomFields() {
         is_required: row[4].trim().toLowerCase() === "true",
         is_active: row[5].trim().toLowerCase() === "true",
         field_order: parseInt(row[6].trim()) || index,
-        org_id: profile.org_id,
+        org_id: effectiveOrgId,
       }));
 
       const { error } = await supabase

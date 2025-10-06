@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useOrgContext } from "@/hooks/useOrgContext";
 import DashboardLayout from "@/components/Layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,7 @@ interface PipelineStage {
 }
 
 export default function PipelineStages() {
+  const { effectiveOrgId } = useOrgContext();
   const { toast } = useToast();
   const [stages, setStages] = useState<PipelineStage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,14 +33,19 @@ export default function PipelineStages() {
   });
 
   useEffect(() => {
-    fetchStages();
-  }, []);
+    if (effectiveOrgId) {
+      fetchStages();
+    }
+  }, [effectiveOrgId]);
 
   const fetchStages = async () => {
+    if (!effectiveOrgId) return;
+    
     try {
       const { data, error } = await supabase
         .from("pipeline_stages")
         .select("*")
+        .eq("org_id", effectiveOrgId)
         .order("stage_order", { ascending: true });
 
       if (error) throw error;
@@ -64,24 +71,15 @@ export default function PipelineStages() {
       return;
     }
 
+    if (!effectiveOrgId) return;
+
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("org_id")
-        .eq("id", user.id)
-        .single();
-
-      if (!profile?.org_id) throw new Error("No organization found");
-
       const maxOrder = Math.max(...stages.map(s => s.stage_order), 0);
 
       const { error } = await supabase
         .from("pipeline_stages")
         .insert({
-          org_id: profile.org_id,
+          org_id: effectiveOrgId,
           name: newStage.name,
           description: newStage.description,
           stage_order: maxOrder + 1,

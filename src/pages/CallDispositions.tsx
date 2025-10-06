@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useOrgContext } from "@/hooks/useOrgContext";
 import DashboardLayout from "@/components/Layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ interface CallSubDisposition {
 }
 
 export default function CallDispositions() {
+  const { effectiveOrgId } = useOrgContext();
   const { toast } = useToast();
   const [dispositions, setDispositions] = useState<CallDisposition[]>([]);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
@@ -43,14 +45,19 @@ export default function CallDispositions() {
   });
 
   useEffect(() => {
-    fetchDispositions();
-  }, []);
+    if (effectiveOrgId) {
+      fetchDispositions();
+    }
+  }, [effectiveOrgId]);
 
   const fetchDispositions = async () => {
+    if (!effectiveOrgId) return;
+    
     try {
       const { data: dispositionsData, error: dispError } = await supabase
         .from("call_dispositions")
         .select("*")
+        .eq("org_id", effectiveOrgId)
         .order("name");
 
       if (dispError) throw dispError;
@@ -58,6 +65,7 @@ export default function CallDispositions() {
       const { data: subDispositionsData, error: subError } = await supabase
         .from("call_sub_dispositions")
         .select("*")
+        .eq("org_id", effectiveOrgId)
         .order("name");
 
       if (subError) throw subError;
@@ -89,22 +97,13 @@ export default function CallDispositions() {
       return;
     }
 
+    if (!effectiveOrgId) return;
+
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("org_id")
-        .eq("id", user.id)
-        .single();
-
-      if (!profile?.org_id) throw new Error("No organization found");
-
       const { error } = await supabase
         .from("call_dispositions")
         .insert({
-          org_id: profile.org_id,
+          org_id: effectiveOrgId,
           name: newDisposition.name,
           description: newDisposition.description,
           category: newDisposition.category,
@@ -143,22 +142,13 @@ export default function CallDispositions() {
       return;
     }
 
+    if (!effectiveOrgId) return;
+
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("org_id")
-        .eq("id", user.id)
-        .single();
-
-      if (!profile?.org_id) throw new Error("No organization found");
-
       const { error } = await supabase
         .from("call_sub_dispositions")
         .insert({
-          org_id: profile.org_id,
+          org_id: effectiveOrgId,
           disposition_id: newSubDisposition.dispositionId,
           name: newSubDisposition.name,
           description: newSubDisposition.description,

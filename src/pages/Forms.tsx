@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useOrgContext } from "@/hooks/useOrgContext";
 import DashboardLayout from "@/components/Layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +35,7 @@ interface FormWithFields extends Form {
 }
 
 export default function Forms() {
+  const { effectiveOrgId } = useOrgContext();
   const [forms, setForms] = useState<FormWithFields[]>([]);
   const [customFields, setCustomFields] = useState<CustomField[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,15 +51,20 @@ export default function Forms() {
   });
 
   useEffect(() => {
-    fetchForms();
-    fetchCustomFields();
-  }, []);
+    if (effectiveOrgId) {
+      fetchForms();
+      fetchCustomFields();
+    }
+  }, [effectiveOrgId]);
 
   const fetchForms = async () => {
+    if (!effectiveOrgId) return;
+    
     try {
       const { data: formsData, error: formsError } = await supabase
         .from("forms")
         .select("*")
+        .eq("org_id", effectiveOrgId)
         .order("created_at", { ascending: false });
 
       if (formsError) throw formsError;
@@ -90,10 +97,13 @@ export default function Forms() {
   };
 
   const fetchCustomFields = async () => {
+    if (!effectiveOrgId) return;
+    
     try {
       const { data, error } = await supabase
         .from("custom_fields")
         .select("id, field_name, field_label, field_type, is_active")
+        .eq("org_id", effectiveOrgId)
         .eq("is_active", true)
         .order("field_order");
 
@@ -139,20 +149,11 @@ export default function Forms() {
       return;
     }
 
+    if (!effectiveOrgId) return;
+
     setLoading(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("org_id")
-        .eq("id", user.id)
-        .single();
-
-      if (!profile?.org_id) throw new Error("Organization not found");
-
       let formId: string;
 
       if (editingForm) {
@@ -177,7 +178,7 @@ export default function Forms() {
         const { data: newForm, error: insertError } = await supabase
           .from("forms")
           .insert([{
-            org_id: profile.org_id,
+            org_id: effectiveOrgId,
             name: formData.name,
             description: formData.description,
             is_active: formData.is_active,
