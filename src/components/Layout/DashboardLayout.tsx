@@ -109,6 +109,12 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
 
             {/* Navigation */}
             <nav className="flex-1 p-4 space-y-2">
+              {/* Dashboards & Reports Section */}
+              <div className="pb-2">
+                <p className="px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Dashboards & Reports
+                </p>
+              </div>
               <Link
                 to="/dashboard"
                 className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
@@ -116,24 +122,6 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
               >
                 <LayoutDashboard size={20} />
                 <span>Dashboard</span>
-              </Link>
-
-              <Link
-                to="/contacts"
-                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
-                onClick={() => setSidebarOpen(false)}
-              >
-                <Contact size={20} />
-                <span>Contacts</span>
-              </Link>
-
-              <Link
-                to="/pipeline"
-                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
-                onClick={() => setSidebarOpen(false)}
-              >
-                <GitBranch size={20} />
-                <span>Pipeline</span>
               </Link>
 
               <Link
@@ -152,6 +140,30 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
               >
                 <PhoneCall size={20} />
                 <span>Calling Dashboard</span>
+              </Link>
+
+              {/* Operations Section */}
+              <div className="pt-4 pb-2">
+                <p className="px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Operations
+                </p>
+              </div>
+              <Link
+                to="/contacts"
+                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
+                onClick={() => setSidebarOpen(false)}
+              >
+                <Contact size={20} />
+                <span>Contacts</span>
+              </Link>
+
+              <Link
+                to="/pipeline"
+                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
+                onClick={() => setSidebarOpen(false)}
+              >
+                <GitBranch size={20} />
+                <span>Pipeline</span>
               </Link>
 
               <Link
