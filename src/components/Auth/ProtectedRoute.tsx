@@ -36,14 +36,16 @@ export default function ProtectedRoute({ children, requiredRole }: ProtectedRout
 
   useEffect(() => {
     const checkAccess = async () => {
-      if (!user) {
-        console.log("ProtectedRoute - No user, access denied");
+      // Check session instead of user to avoid timing issues
+      if (!session?.user) {
+        console.log("ProtectedRoute - No session user, access denied");
         setHasAccess(false);
         setLoading(false);
         return;
       }
 
-      console.log("ProtectedRoute - User exists:", user.id, "Required role:", requiredRole);
+      const currentUser = session.user;
+      console.log("ProtectedRoute - User exists:", currentUser.id, "Required role:", requiredRole);
 
       if (!requiredRole) {
         console.log("ProtectedRoute - No role required, access granted");
@@ -57,7 +59,7 @@ export default function ProtectedRoute({ children, requiredRole }: ProtectedRout
       const { data, error } = await supabase
         .from("user_roles")
         .select("role")
-        .eq("user_id", user.id)
+        .eq("user_id", currentUser.id)
         .single();
 
       console.log("ProtectedRoute - Role check result:", { data, error });
@@ -80,7 +82,7 @@ export default function ProtectedRoute({ children, requiredRole }: ProtectedRout
     };
 
     checkAccess();
-  }, [user, requiredRole]);
+  }, [session, requiredRole]);
 
   if (loading) {
     return (
