@@ -2,9 +2,15 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Index from "./pages/Index";
-import NotFound from "./pages/NotFound";
+import Login from "./pages/Login";
+import SignUp from "./pages/SignUp";
+import Dashboard from "./pages/Dashboard";
+import TechAdmin from "./pages/TechAdmin";
+import PipelineStages from "./pages/PipelineStages";
+import CallDispositions from "./pages/CallDispositions";
+import ProtectedRoute from "./components/Auth/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
@@ -16,8 +22,34 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<SignUp />} />
+          
+          <Route path="/dashboard" element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/admin" element={
+            <ProtectedRoute requiredRole="admin">
+              <TechAdmin />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/admin/pipeline-stages" element={
+            <ProtectedRoute requiredRole="admin">
+              <PipelineStages />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/admin/call-dispositions" element={
+            <ProtectedRoute requiredRole="admin">
+              <CallDispositions />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
     </TooltipProvider>
