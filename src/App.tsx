@@ -15,6 +15,7 @@ import Teams from "./pages/Teams";
 import Contacts from "./pages/Contacts";
 import ContactDetail from "./pages/ContactDetail";
 import PipelineBoard from "./pages/PipelineBoard";
+import Reports from "./pages/Reports";
 import ProtectedRoute from "./components/Auth/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -51,6 +52,12 @@ const App = () => (
           <Route path="/pipeline" element={
             <ProtectedRoute>
               <PipelineBoard />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/reports" element={
+            <ProtectedRoute>
+              <Reports />
             </ProtectedRoute>
           } />
           
