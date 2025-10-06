@@ -60,12 +60,15 @@ export default function ProtectedRoute({ children, requiredRole }: ProtectedRout
         .from("user_roles")
         .select("role")
         .eq("user_id", currentUser.id)
-        .single();
+        .maybeSingle();
 
       console.log("ProtectedRoute - Role check result:", { data, error });
 
-      if (error || !data) {
-        console.log("ProtectedRoute - No role found or error, access denied");
+      if (error) {
+        console.error("ProtectedRoute - Error checking role:", error);
+        setHasAccess(false);
+      } else if (!data) {
+        console.log("ProtectedRoute - No role found for user, access denied");
         setHasAccess(false);
       } else {
         // Super admin has access to everything
