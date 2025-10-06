@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { leadData } = await req.json();
+    const { searchQuery, contacts } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     
     if (!LOVABLE_API_KEY) {
@@ -21,120 +21,76 @@ serve(async (req) => {
 
     const systemPrompt = `# AI-Driven Lead Filter System
 
-## Role
-You are an expert lead qualification assistant. Your task is to analyze incoming leads and score them based on their likelihood to convert into customers. You will evaluate leads across multiple dimensions and provide actionable recommendations for the sales team.
+You are an expert lead qualification assistant. Your task is to analyze leads and filter them based on search criteria using these qualification dimensions:
 
 ## Lead Qualification Criteria
 
 ### 1. Fit Score (0-40 points)
-Evaluate how well the lead matches our ideal customer profile:
-- **Company Size**: Does their employee count match our target range?
-- **Industry**: Are they in our primary or secondary target industries?
-- **Budget Indicators**: Do they show signs of having adequate budget?
-- **Technology Stack**: Are they using compatible or complementary technologies?
+- Company Size: Employee count match with target range
+- Industry: Primary or secondary target industries
+- Budget Indicators: Signs of adequate budget
+- Technology Stack: Compatible or complementary technologies
 
 ### 2. Intent Score (0-30 points)
-Assess the lead's buying intent and urgency:
-- **Engagement Level**: Website visits, content downloads, demo requests
-- **Pain Points**: Explicitly mentioned challenges we can solve
-- **Timeline**: Stated or implied urgency for solution
-- **Competition**: Are they currently evaluating alternatives?
+- Engagement Level: Website visits, content downloads, demo requests
+- Pain Points: Explicitly mentioned challenges we can solve
+- Timeline: Stated or implied urgency for solution
+- Competition: Currently evaluating alternatives
 
 ### 3. Authority Score (0-20 points)
-Determine decision-making power:
-- **Job Title/Role**: Are they a decision-maker, influencer, or end-user?
-- **Seniority**: C-level, VP, Director, Manager, Individual Contributor
-- **Buying Committee**: Can they introduce us to other stakeholders?
+- Job Title/Role: Decision-maker, influencer, or end-user
+- Seniority: C-level, VP, Director, Manager, Individual Contributor
+- Buying Committee: Can introduce us to other stakeholders
 
 ### 4. Engagement Quality (0-10 points)
-Analyze interaction quality:
-- **Information Provided**: Completeness and accuracy of form data
-- **Communication**: Quality of questions or comments submitted
-- **Channel**: How they discovered us (referral, organic, paid, etc.)
+- Information Provided: Completeness and accuracy of data
+- Communication: Quality of questions or comments
+- Channel: How they discovered us
 
----
+## Scoring Classification
+- 80-100: Hot Lead
+- 60-79: Warm Lead
+- 40-59: Nurture Lead
+- 20-39: Cold Lead
+- 0-19: Disqualified
 
-## Scoring Guide
-
-**Total Score: 0-100 points**
-
-- **80-100**: Hot Lead - Immediate sales contact within 24 hours
-- **60-79**: Warm Lead - Qualify within 48 hours, schedule discovery call
-- **40-59**: Nurture Lead - Add to marketing automation, educate over time
-- **20-39**: Cold Lead - Low priority, periodic touchpoints
-- **0-19**: Disqualified - Does not meet minimum criteria
-
----
-
-## Output Format
-
-For each lead, provide:
-
-\`\`\`
-LEAD ANALYSIS REPORT
-====================
-
-Lead Name: [Name]
-Company: [Company Name]
-Score: [Total]/100
-
-BREAKDOWN:
-- Fit Score: [Score]/40
-- Intent Score: [Score]/30  
-- Authority Score: [Score]/20
-- Engagement Score: [Score]/10
-
-CLASSIFICATION: [Hot/Warm/Nurture/Cold/Disqualified]
-
-KEY INSIGHTS:
-- [Strength 1]
-- [Strength 2]
-- [Concern 1]
-
-RECOMMENDED ACTION:
-[Specific next step with timeline]
-
-PERSONALIZATION NOTES:
-[Talking points or customization suggestions for outreach]
-\`\`\`
-
----
-
-## Analysis Instructions
-
-When analyzing a lead:
-
-1. **Be Objective**: Base scores on data, not assumptions
-2. **Look for Red Flags**: Missing contact info, competitor domains, student emails
-3. **Identify Champions**: Look for signs of internal advocacy
-4. **Consider Context**: Industry seasonality, economic factors, news events
-5. **Prioritize Intent**: A smaller company with high intent may be better than a large company with low intent
-
-## Red Flags (Auto-Disqualify or Score Penalty)
-
+## Red Flags
 - Generic/role email addresses (info@, hello@)
 - Free email domains for B2B leads
 - Competitor company domains
 - Obvious spam patterns
 - Students/academic institutions (unless B2C)
-- Geographic restrictions
-- Blacklisted domains`;
 
-    const userPrompt = `Analyze this lead:
+## Your Task
+When given a search query and a list of leads, return ONLY a JSON array of contact IDs that match the search criteria. Analyze the leads based on the qualification criteria above and filter them according to the user's search intent.
 
-Name: ${leadData.first_name} ${leadData.last_name || ''}
-Email: ${leadData.email || 'Not provided'}
-Phone: ${leadData.phone || 'Not provided'}
-Company: ${leadData.company || 'Not provided'}
-Job Title: ${leadData.job_title || 'Not provided'}
-Source: ${leadData.source || 'Unknown'}
-Status: ${leadData.status || 'new'}
-Notes: ${leadData.notes || 'No notes available'}
-Website: ${leadData.website || 'Not provided'}
-Address: ${leadData.address || 'Not provided'}
-City: ${leadData.city || ''}, State: ${leadData.state || ''}, Country: ${leadData.country || ''}
+Return format:
+{
+  "filteredContactIds": ["id1", "id2", "id3"]
+}`;
 
-Please provide a comprehensive analysis and score.`;
+    const contactsSummary = contacts.map((c: any) => ({
+      id: c.id,
+      name: `${c.first_name} ${c.last_name || ''}`.trim(),
+      email: c.email,
+      company: c.company,
+      job_title: c.job_title,
+      source: c.source,
+      status: c.status,
+      phone: c.phone,
+      website: c.website,
+      notes: c.notes
+    }));
+
+    const userPrompt = `Search Query: "${searchQuery}"
+
+Analyze these leads and return the IDs of leads that match the search criteria:
+
+${JSON.stringify(contactsSummary, null, 2)}
+
+Return only the JSON response with filteredContactIds array.`;
+
+    console.log('Processing AI search with query:', searchQuery);
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -148,6 +104,7 @@ Please provide a comprehensive analysis and score.`;
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
         ],
+        response_format: { type: "json_object" }
       }),
     });
 
@@ -166,14 +123,25 @@ Please provide a comprehensive analysis and score.`;
       }
       const errorText = await response.text();
       console.error('AI Gateway error:', response.status, errorText);
-      throw new Error('Failed to analyze lead');
+      throw new Error('Failed to analyze leads');
     }
 
     const data = await response.json();
-    const analysis = data.choices[0].message.content;
+    const aiResponse = data.choices[0].message.content;
+    
+    console.log('AI Response:', aiResponse);
+    
+    let filteredContactIds = [];
+    try {
+      const parsed = JSON.parse(aiResponse);
+      filteredContactIds = parsed.filteredContactIds || [];
+    } catch (e) {
+      console.error('Failed to parse AI response:', e);
+      filteredContactIds = [];
+    }
 
     return new Response(
-      JSON.stringify({ analysis }),
+      JSON.stringify({ filteredContactIds }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {

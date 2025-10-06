@@ -5,12 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Mail, Phone as PhoneIcon, Building, DollarSign, LayoutGrid, Table as TableIcon, Sparkles, X } from "lucide-react";
+import { Mail, Phone as PhoneIcon, Building, LayoutGrid, Table as TableIcon, Search, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Input } from "@/components/ui/input";
 
 interface PipelineStage {
   id: string;
@@ -42,12 +41,11 @@ interface Contact {
 export default function PipelineBoard() {
   const [stages, setStages] = useState<PipelineStage[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const [allContacts, setAllContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [draggedContact, setDraggedContact] = useState<string | null>(null);
-  const [analyzingLead, setAnalyzingLead] = useState(false);
-  const [selectedLead, setSelectedLead] = useState<Contact | null>(null);
-  const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
-  const [showAnalysisDialog, setShowAnalysisDialog] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -73,6 +71,7 @@ export default function PipelineBoard() {
       if (contactsRes.error) throw contactsRes.error;
 
       setStages(stagesRes.data || []);
+      setAllContacts(contactsRes.data || []);
       setContacts(contactsRes.data || []);
     } catch (error: any) {
       toast({
@@ -136,15 +135,19 @@ export default function PipelineBoard() {
     return contacts.filter(contact => !contact.pipeline_stage_id);
   };
 
-  const handleAnalyzeLead = async (contact: Contact) => {
-    setSelectedLead(contact);
-    setAnalyzingLead(true);
-    setShowAnalysisDialog(true);
-    setAiAnalysis(null);
+  const handleAiSearch = async () => {
+    if (!searchQuery.trim()) {
+      setContacts(allContacts);
+      return;
+    }
 
+    setIsSearching(true);
     try {
       const { data, error } = await supabase.functions.invoke('analyze-lead', {
-        body: { leadData: contact }
+        body: { 
+          searchQuery: searchQuery,
+          contacts: allContacts 
+        }
       });
 
       if (error) throw error;
@@ -153,17 +156,35 @@ export default function PipelineBoard() {
         throw new Error(data.error);
       }
 
-      setAiAnalysis(data.analysis);
+      // Filter contacts based on AI response
+      const filteredIds = data.filteredContactIds || [];
+      const filtered = allContacts.filter(c => filteredIds.includes(c.id));
+      setContacts(filtered);
+
+      toast({
+        title: "Search completed",
+        description: `Found ${filtered.length} matching leads`,
+      });
     } catch (error: any) {
       toast({
         variant: "destructive",
-        title: "Analysis failed",
+        title: "Search failed",
         description: error.message,
       });
-      setShowAnalysisDialog(false);
     } finally {
-      setAnalyzingLead(false);
+      setIsSearching(false);
     }
+  };
+
+  const handleSearchKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleAiSearch();
+    }
+  };
+
+  const handleClearSearch = () => {
+    setSearchQuery("");
+    setContacts(allContacts);
   };
 
   if (loading) {
@@ -186,7 +207,48 @@ export default function PipelineBoard() {
           </div>
         </div>
 
-        <Tabs defaultValue="board" className="w-full">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="AI-powered search: e.g., 'Hot leads from tech companies' or 'High authority decision makers'"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyPress={handleSearchKeyPress}
+                  className="pl-10"
+                />
+              </div>
+              <Button 
+                onClick={handleAiSearch}
+                disabled={isSearching || !searchQuery.trim()}
+              >
+                {isSearching ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Searching
+                  </>
+                ) : (
+                  'Search'
+                )}
+              </Button>
+              {searchQuery && (
+                <Button 
+                  variant="outline"
+                  onClick={handleClearSearch}
+                >
+                  Clear
+                </Button>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              Use natural language to filter leads based on fit score, intent, authority, and engagement quality
+            </p>
+          </CardContent>
+        </Card>
+
+        <Tabs defaultValue="table" className="w-full">
           <TabsList>
             <TabsTrigger value="board">
               <LayoutGrid className="h-4 w-4 mr-2" />
@@ -219,43 +281,26 @@ export default function PipelineBoard() {
                     key={contact.id}
                     draggable
                      onDragStart={() => handleDragStart(contact.id)}
-                     className="cursor-move hover:shadow-md transition-shadow animate-fade-in group"
+                     className="cursor-move hover:shadow-md transition-shadow animate-fade-in"
+                     onClick={() => navigate(`/contacts/${contact.id}`)}
                    >
                      <CardContent className="p-3">
-                       <div className="flex items-start justify-between">
-                         <div 
-                           className="flex-1 cursor-pointer"
-                           onClick={() => navigate(`/contacts/${contact.id}`)}
-                         >
-                           <p className="font-medium text-sm">
-                             {contact.first_name} {contact.last_name}
-                           </p>
-                           {contact.company && (
-                             <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-                               <Building className="h-3 w-3" />
-                               {contact.company}
-                             </div>
-                           )}
-                           <div className="flex gap-2 mt-2">
-                             {contact.email && (
-                               <Mail className="h-3 w-3 text-muted-foreground" />
-                             )}
-                             {contact.phone && (
-                               <PhoneIcon className="h-3 w-3 text-muted-foreground" />
-                             )}
-                           </div>
+                       <p className="font-medium text-sm">
+                         {contact.first_name} {contact.last_name}
+                       </p>
+                       {contact.company && (
+                         <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                           <Building className="h-3 w-3" />
+                           {contact.company}
                          </div>
-                         <Button
-                           size="sm"
-                           variant="ghost"
-                           className="opacity-0 group-hover:opacity-100 transition-opacity h-7 w-7 p-0"
-                           onClick={(e) => {
-                             e.stopPropagation();
-                             handleAnalyzeLead(contact);
-                           }}
-                         >
-                           <Sparkles className="h-3 w-3" />
-                         </Button>
+                       )}
+                       <div className="flex gap-2 mt-2">
+                         {contact.email && (
+                           <Mail className="h-3 w-3 text-muted-foreground" />
+                         )}
+                         {contact.phone && (
+                           <PhoneIcon className="h-3 w-3 text-muted-foreground" />
+                         )}
                        </div>
                      </CardContent>
                    </Card>
@@ -288,43 +333,26 @@ export default function PipelineBoard() {
                        key={contact.id}
                        draggable
                        onDragStart={() => handleDragStart(contact.id)}
-                       className="cursor-move hover:shadow-md transition-shadow animate-fade-in group"
+                       className="cursor-move hover:shadow-md transition-shadow animate-fade-in"
+                       onClick={() => navigate(`/contacts/${contact.id}`)}
                      >
                        <CardContent className="p-3">
-                         <div className="flex items-start justify-between">
-                           <div 
-                             className="flex-1 cursor-pointer"
-                             onClick={() => navigate(`/contacts/${contact.id}`)}
-                           >
-                             <p className="font-medium text-sm">
-                               {contact.first_name} {contact.last_name}
-                             </p>
-                             {contact.company && (
-                               <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-                                 <Building className="h-3 w-3" />
-                                 {contact.company}
-                               </div>
-                             )}
-                             <div className="flex gap-2 mt-2">
-                               {contact.email && (
-                                 <Mail className="h-3 w-3 text-muted-foreground" />
-                               )}
-                               {contact.phone && (
-                                 <PhoneIcon className="h-3 w-3 text-muted-foreground" />
-                               )}
-                             </div>
+                         <p className="font-medium text-sm">
+                           {contact.first_name} {contact.last_name}
+                         </p>
+                         {contact.company && (
+                           <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                             <Building className="h-3 w-3" />
+                             {contact.company}
                            </div>
-                           <Button
-                             size="sm"
-                             variant="ghost"
-                             className="opacity-0 group-hover:opacity-100 transition-opacity h-7 w-7 p-0"
-                             onClick={(e) => {
-                               e.stopPropagation();
-                               handleAnalyzeLead(contact);
-                             }}
-                           >
-                             <Sparkles className="h-3 w-3" />
-                           </Button>
+                         )}
+                         <div className="flex gap-2 mt-2">
+                           {contact.email && (
+                             <Mail className="h-3 w-3 text-muted-foreground" />
+                           )}
+                           {contact.phone && (
+                             <PhoneIcon className="h-3 w-3 text-muted-foreground" />
+                           )}
                          </div>
                        </CardContent>
                      </Card>
@@ -409,47 +437,6 @@ export default function PipelineBoard() {
             </Card>
           </TabsContent>
         </Tabs>
-
-        <Dialog open={showAnalysisDialog} onOpenChange={setShowAnalysisDialog}>
-          <DialogContent className="max-w-3xl max-h-[80vh]">
-            <DialogHeader>
-              <DialogTitle className="flex items-center justify-between">
-                <span className="flex items-center gap-2">
-                  <Sparkles className="h-5 w-5" />
-                  AI Lead Analysis
-                </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowAnalysisDialog(false)}
-                  className="h-8 w-8 p-0"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </DialogTitle>
-            </DialogHeader>
-            <ScrollArea className="max-h-[60vh] pr-4">
-              {analyzingLead ? (
-                <div className="flex flex-col items-center justify-center py-12 space-y-4">
-                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
-                  <p className="text-muted-foreground">Analyzing lead with AI...</p>
-                </div>
-              ) : aiAnalysis ? (
-                <div className="space-y-4">
-                  <div className="bg-muted/50 rounded-lg p-4">
-                    <p className="text-sm font-medium mb-2">
-                      Lead: {selectedLead?.first_name} {selectedLead?.last_name}
-                      {selectedLead?.company && ` - ${selectedLead.company}`}
-                    </p>
-                  </div>
-                  <pre className="whitespace-pre-wrap text-sm font-mono bg-muted/30 p-4 rounded-lg">
-                    {aiAnalysis}
-                  </pre>
-                </div>
-              ) : null}
-            </ScrollArea>
-          </DialogContent>
-        </Dialog>
       </div>
     </DashboardLayout>
   );
