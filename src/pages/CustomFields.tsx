@@ -31,6 +31,8 @@ const FIELD_TYPES = [
   { value: "date", label: "Date" },
   { value: "select", label: "Dropdown" },
   { value: "textarea", label: "Text Area" },
+  { value: "file", label: "File Upload (Image/PDF)" },
+  { value: "location", label: "Location (Lat/Long)" },
 ];
 
 export default function CustomFields() {
