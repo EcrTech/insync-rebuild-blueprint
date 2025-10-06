@@ -16,7 +16,7 @@ interface DashboardLayoutProps {
   children: ReactNode;
 }
 
-export default function DashboardLayout({ children }: DashboardLayoutProps) {
+function DashboardLayout({ children }: DashboardLayoutProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -251,5 +251,5 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   );
 }
 
-// Also export as named export for compatibility
+export default DashboardLayout;
 export { DashboardLayout };
