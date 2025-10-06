@@ -199,25 +199,9 @@ export default function Users() {
 
         if (roleError) throw roleError;
 
-        // Send welcome email
-        try {
-          await supabase.functions.invoke("send-welcome-email", {
-            body: {
-              email: formData.email,
-              firstName: formData.first_name,
-              lastName: formData.last_name,
-              password: formData.password,
-              role: formData.role,
-            },
-          });
-        } catch (emailError) {
-          console.error("Failed to send welcome email:", emailError);
-          // Don't fail the user creation if email fails
-        }
-
         toast({
           title: "User created",
-          description: "User has been created and a welcome email has been sent",
+          description: "User has been created successfully",
         });
       }
 
