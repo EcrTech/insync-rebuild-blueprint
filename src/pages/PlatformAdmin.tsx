@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Building2, Users, Activity, MoreVertical, Eye, Ban, CheckCircle, LogIn } from "lucide-react";
+import { Building2, Users, Activity, MoreVertical, Eye, Ban, CheckCircle, LogIn, PhoneCall, Mail, UserCheck } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,6 +34,11 @@ interface OrgStats {
   activeOrgs: number;
   totalUsers: number;
   totalContacts: number;
+  usersLast1Day: number;
+  usersLast7Days: number;
+  usersLast30Days: number;
+  callVolume: number;
+  emailVolume: number;
 }
 
 export default function PlatformAdmin() {
@@ -43,6 +48,11 @@ export default function PlatformAdmin() {
     activeOrgs: 0,
     totalUsers: 0,
     totalContacts: 0,
+    usersLast1Day: 0,
+    usersLast7Days: 0,
+    usersLast30Days: 0,
+    callVolume: 0,
+    emailVolume: 0,
   });
   const [loading, setLoading] = useState(true);
   const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null);
@@ -131,12 +141,53 @@ export default function PlatformAdmin() {
 
       setOrganizations(enrichedOrgs);
 
+      // Calculate time thresholds
+      const now = new Date();
+      const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+      // Get user login stats - we'll need to query profiles with last activity
+      // Since Supabase auth.users is not accessible, we'll use profiles updated_at as a proxy
+      const { data: recentProfiles } = await supabase
+        .from("profiles")
+        .select("updated_at");
+
+      const usersLast1Day = recentProfiles?.filter(
+        p => new Date(p.updated_at) > oneDayAgo
+      ).length || 0;
+
+      const usersLast7Days = recentProfiles?.filter(
+        p => new Date(p.updated_at) > sevenDaysAgo
+      ).length || 0;
+
+      const usersLast30Days = recentProfiles?.filter(
+        p => new Date(p.updated_at) > thirtyDaysAgo
+      ).length || 0;
+
+      // Get call volume
+      const { data: calls } = await supabase
+        .from("contact_activities")
+        .select("id")
+        .eq("activity_type", "call");
+
+      // Get email volume
+      const { data: emails } = await supabase
+        .from("contact_activities")
+        .select("id")
+        .eq("activity_type", "email");
+
       // Calculate stats
       setStats({
         totalOrgs: enrichedOrgs.length,
         activeOrgs: enrichedOrgs.filter(o => o.is_active).length,
         totalUsers: userCounts?.length || 0,
         totalContacts: contactCounts?.length || 0,
+        usersLast1Day,
+        usersLast7Days,
+        usersLast30Days,
+        callVolume: calls?.length || 0,
+        emailVolume: emails?.length || 0,
       });
     } catch (error: any) {
       toast({
@@ -256,16 +307,9 @@ export default function PlatformAdmin() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.totalOrgs}</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Organizations</CardTitle>
-              <Activity className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.activeOrgs}</div>
+              <p className="text-xs text-muted-foreground">
+                {stats.activeOrgs} active
+              </p>
             </CardContent>
           </Card>
 
@@ -276,16 +320,77 @@ export default function PlatformAdmin() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.totalUsers}</div>
+              <p className="text-xs text-muted-foreground">
+                Across all organizations
+              </p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Contacts</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">Call Volume</CardTitle>
+              <PhoneCall className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.totalContacts}</div>
+              <div className="text-2xl font-bold">{stats.callVolume}</div>
+              <p className="text-xs text-muted-foreground">
+                Total calls logged
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Email Volume</CardTitle>
+              <Mail className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.emailVolume}</div>
+              <p className="text-xs text-muted-foreground">
+                Total emails sent
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* User Activity Stats */}
+        <div className="grid gap-4 md:grid-cols-3">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Active Last 24 Hours</CardTitle>
+              <UserCheck className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.usersLast1Day}</div>
+              <p className="text-xs text-muted-foreground">
+                Users active today
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Active Last 7 Days</CardTitle>
+              <Activity className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.usersLast7Days}</div>
+              <p className="text-xs text-muted-foreground">
+                Users this week
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Active Last 30 Days</CardTitle>
+              <Activity className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.usersLast30Days}</div>
+              <p className="text-xs text-muted-foreground">
+                Users this month
+              </p>
             </CardContent>
           </Card>
         </div>
