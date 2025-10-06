@@ -5,8 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Mail, Phone as PhoneIcon, Building, DollarSign } from "lucide-react";
+import { Mail, Phone as PhoneIcon, Building, DollarSign, LayoutGrid, Table as TableIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface PipelineStage {
   id: string;
@@ -134,10 +136,23 @@ export default function PipelineBoard() {
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold">Pipeline Board</h1>
-          <p className="text-muted-foreground">Drag and drop contacts between stages</p>
+          <p className="text-muted-foreground">View and manage your sales pipeline</p>
         </div>
 
-        <div className="flex gap-4 overflow-x-auto pb-4">
+        <Tabs defaultValue="board" className="w-full">
+          <TabsList>
+            <TabsTrigger value="board">
+              <LayoutGrid className="h-4 w-4 mr-2" />
+              Board View
+            </TabsTrigger>
+            <TabsTrigger value="table">
+              <TableIcon className="h-4 w-4 mr-2" />
+              Table View
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="board" className="mt-6">
+            <div className="flex gap-4 overflow-x-auto pb-4">
           {/* Unassigned column */}
           <div
             className="flex-shrink-0 w-80"
@@ -236,8 +251,83 @@ export default function PipelineBoard() {
                 </CardContent>
               </Card>
             </div>
-          ))}
-        </div>
+            ))}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="table" className="mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>All Pipeline Contacts</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Company</TableHead>
+                      <TableHead>Contact Info</TableHead>
+                      <TableHead>Pipeline Stage</TableHead>
+                      <TableHead>Probability</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {contacts.map(contact => {
+                      const stage = stages.find(s => s.id === contact.pipeline_stage_id);
+                      return (
+                        <TableRow
+                          key={contact.id}
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => navigate(`/contacts/${contact.id}`)}
+                        >
+                          <TableCell className="font-medium">
+                            {contact.first_name} {contact.last_name}
+                          </TableCell>
+                          <TableCell>
+                            {contact.company && (
+                              <div className="flex items-center gap-1">
+                                <Building className="h-3 w-3" />
+                                {contact.company}
+                              </div>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col gap-1 text-sm">
+                              {contact.email && (
+                                <span className="flex items-center gap-1">
+                                  <Mail className="h-3 w-3" />
+                                  {contact.email}
+                                </span>
+                              )}
+                              {contact.phone && (
+                                <span className="flex items-center gap-1">
+                                  <PhoneIcon className="h-3 w-3" />
+                                  {contact.phone}
+                                </span>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {stage ? (
+                              <Badge style={{ backgroundColor: stage.color }}>
+                                {stage.name}
+                              </Badge>
+                            ) : (
+                              <Badge variant="secondary">Unassigned</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {stage ? `${stage.probability}%` : '-'}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </DashboardLayout>
   );
