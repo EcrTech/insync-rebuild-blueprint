@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/Layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,6 +47,7 @@ export default function Contacts() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
     first_name: "",
@@ -478,7 +480,7 @@ export default function Contacts() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => openEditDialog(contact)}
+                            onClick={() => navigate(`/contacts/${contact.id}`)}
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>

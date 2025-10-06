@@ -13,6 +13,8 @@ import CallDispositions from "./pages/CallDispositions";
 import Users from "./pages/Users";
 import Teams from "./pages/Teams";
 import Contacts from "./pages/Contacts";
+import ContactDetail from "./pages/ContactDetail";
+import PipelineBoard from "./pages/PipelineBoard";
 import ProtectedRoute from "./components/Auth/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -37,6 +39,18 @@ const App = () => (
           <Route path="/contacts" element={
             <ProtectedRoute>
               <Contacts />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/contacts/:id" element={
+            <ProtectedRoute>
+              <ContactDetail />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/pipeline" element={
+            <ProtectedRoute>
+              <PipelineBoard />
             </ProtectedRoute>
           } />
           
