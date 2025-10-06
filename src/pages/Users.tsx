@@ -305,7 +305,7 @@ export default function Users() {
 
       if (error) throw error;
 
-      const link = `${window.location.origin}/signup?invite=${inviteCode}`;
+      const link = `https://in-sync.co.in/signup?invite=${inviteCode}`;
       setInviteLink(link);
       setIsInviteDialogOpen(true);
 
