@@ -10,7 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, Mail, Phone } from "lucide-react";
+import { Plus, Pencil, Trash2, Mail, Phone, MessageSquare, PhoneCall } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface Profile {
   id: string;
@@ -18,6 +19,10 @@ interface Profile {
   last_name: string;
   phone: string | null;
   avatar_url: string | null;
+  calling_enabled: boolean;
+  whatsapp_enabled: boolean;
+  email_enabled: boolean;
+  sms_enabled: boolean;
 }
 
 interface UserRole {
@@ -41,6 +46,10 @@ export default function Users() {
     last_name: string;
     phone: string;
     role: "admin" | "analyst" | "sales_agent" | "sales_manager" | "super_admin" | "support_agent" | "support_manager";
+    calling_enabled: boolean;
+    whatsapp_enabled: boolean;
+    email_enabled: boolean;
+    sms_enabled: boolean;
   }>({
     email: "",
     password: "",
@@ -48,6 +57,10 @@ export default function Users() {
     last_name: "",
     phone: "",
     role: "sales_agent",
+    calling_enabled: false,
+    whatsapp_enabled: false,
+    email_enabled: false,
+    sms_enabled: false,
   });
 
   useEffect(() => {
@@ -71,7 +84,7 @@ export default function Users() {
       const userIds = data?.map(ur => ur.user_id) || [];
       const { data: profilesData } = await supabase
         .from("profiles")
-        .select("id, first_name, last_name, phone, avatar_url")
+        .select("id, first_name, last_name, phone, avatar_url, calling_enabled, whatsapp_enabled, email_enabled, sms_enabled")
         .in("id", userIds);
 
       // Combine the data
@@ -82,7 +95,11 @@ export default function Users() {
           first_name: "",
           last_name: "",
           phone: null,
-          avatar_url: null
+          avatar_url: null,
+          calling_enabled: false,
+          whatsapp_enabled: false,
+          email_enabled: false,
+          sms_enabled: false
         }
       })) || [];
 
@@ -119,6 +136,10 @@ export default function Users() {
             first_name: formData.first_name,
             last_name: formData.last_name,
             phone: formData.phone,
+            calling_enabled: formData.calling_enabled,
+            whatsapp_enabled: formData.whatsapp_enabled,
+            email_enabled: formData.email_enabled,
+            sms_enabled: formData.sms_enabled,
           })
           .eq("id", editingUser.user_id);
 
@@ -129,13 +150,75 @@ export default function Users() {
           description: "User has been updated successfully",
         });
       } else {
-        toast({
-          variant: "destructive",
-          title: "Feature not available",
-          description: "User creation must be done through signup flow",
+        // Create new user
+        const { data: { user }, error: signUpError } = await supabase.auth.signUp({
+          email: formData.email,
+          password: formData.password,
+          options: {
+            data: {
+              first_name: formData.first_name,
+              last_name: formData.last_name,
+            },
+          },
         });
-        setLoading(false);
-        return;
+
+        if (signUpError) throw signUpError;
+        if (!user) throw new Error("User creation failed");
+
+        // Get current user's org_id
+        const { data: { user: currentUser } } = await supabase.auth.getUser();
+        const { data: currentProfile } = await supabase
+          .from("profiles")
+          .select("org_id")
+          .eq("id", currentUser?.id)
+          .single();
+
+        // Update new user's profile with org_id and communication settings
+        const { error: profileError } = await supabase
+          .from("profiles")
+          .update({
+            org_id: currentProfile?.org_id,
+            phone: formData.phone,
+            calling_enabled: formData.calling_enabled,
+            whatsapp_enabled: formData.whatsapp_enabled,
+            email_enabled: formData.email_enabled,
+            sms_enabled: formData.sms_enabled,
+          })
+          .eq("id", user.id);
+
+        if (profileError) throw profileError;
+
+        // Create user role
+        const { error: roleError } = await supabase
+          .from("user_roles")
+          .insert({
+            user_id: user.id,
+            org_id: currentProfile?.org_id,
+            role: formData.role,
+          });
+
+        if (roleError) throw roleError;
+
+        // Send welcome email
+        try {
+          await supabase.functions.invoke("send-welcome-email", {
+            body: {
+              email: formData.email,
+              firstName: formData.first_name,
+              lastName: formData.last_name,
+              password: formData.password,
+              role: formData.role,
+            },
+          });
+        } catch (emailError) {
+          console.error("Failed to send welcome email:", emailError);
+          // Don't fail the user creation if email fails
+        }
+
+        toast({
+          title: "User created",
+          description: "User has been created and a welcome email has been sent",
+        });
       }
 
       setIsDialogOpen(false);
@@ -185,6 +268,10 @@ export default function Users() {
       last_name: "",
       phone: "",
       role: "sales_agent",
+      calling_enabled: false,
+      whatsapp_enabled: false,
+      email_enabled: false,
+      sms_enabled: false,
     });
     setEditingUser(null);
   };
@@ -198,6 +285,10 @@ export default function Users() {
       last_name: user.profiles.last_name || "",
       phone: user.profiles.phone || "",
       role: user.role as any,
+      calling_enabled: user.profiles.calling_enabled || false,
+      whatsapp_enabled: user.profiles.whatsapp_enabled || false,
+      email_enabled: user.profiles.email_enabled || false,
+      sms_enabled: user.profiles.sms_enabled || false,
     });
     setIsDialogOpen(true);
   };
@@ -306,6 +397,79 @@ export default function Users() {
                   </Select>
                 </div>
 
+                <div className="space-y-3">
+                  <Label>Communication Enablement</Label>
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="calling_enabled"
+                        checked={formData.calling_enabled}
+                        onCheckedChange={(checked) => 
+                          setFormData({ ...formData, calling_enabled: checked as boolean })
+                        }
+                      />
+                      <label
+                        htmlFor="calling_enabled"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-2"
+                      >
+                        <PhoneCall className="h-4 w-4" />
+                        Calling
+                      </label>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="whatsapp_enabled"
+                        checked={formData.whatsapp_enabled}
+                        onCheckedChange={(checked) => 
+                          setFormData({ ...formData, whatsapp_enabled: checked as boolean })
+                        }
+                      />
+                      <label
+                        htmlFor="whatsapp_enabled"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-2"
+                      >
+                        <MessageSquare className="h-4 w-4" />
+                        WhatsApp
+                      </label>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="email_enabled"
+                        checked={formData.email_enabled}
+                        onCheckedChange={(checked) => 
+                          setFormData({ ...formData, email_enabled: checked as boolean })
+                        }
+                      />
+                      <label
+                        htmlFor="email_enabled"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-2"
+                      >
+                        <Mail className="h-4 w-4" />
+                        Email
+                      </label>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="sms_enabled"
+                        checked={formData.sms_enabled}
+                        onCheckedChange={(checked) => 
+                          setFormData({ ...formData, sms_enabled: checked as boolean })
+                        }
+                      />
+                      <label
+                        htmlFor="sms_enabled"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-2"
+                      >
+                        <MessageSquare className="h-4 w-4" />
+                        SMS
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
                 <Button type="submit" className="w-full" disabled={loading}>
                   {editingUser ? "Update User" : "Create User"}
                 </Button>
@@ -328,6 +492,7 @@ export default function Users() {
                   <TableRow>
                     <TableHead>Name</TableHead>
                     <TableHead>Contact</TableHead>
+                    <TableHead>Communication</TableHead>
                     <TableHead>Role</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -345,6 +510,34 @@ export default function Users() {
                               <Phone className="h-3 w-3" />
                               {user.profiles.phone}
                             </span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-1">
+                          {user.profiles.calling_enabled && (
+                            <Badge variant="outline" className="text-xs">
+                              <PhoneCall className="h-3 w-3 mr-1" />
+                              Call
+                            </Badge>
+                          )}
+                          {user.profiles.whatsapp_enabled && (
+                            <Badge variant="outline" className="text-xs">
+                              <MessageSquare className="h-3 w-3 mr-1" />
+                              WA
+                            </Badge>
+                          )}
+                          {user.profiles.email_enabled && (
+                            <Badge variant="outline" className="text-xs">
+                              <Mail className="h-3 w-3 mr-1" />
+                              Email
+                            </Badge>
+                          )}
+                          {user.profiles.sms_enabled && (
+                            <Badge variant="outline" className="text-xs">
+                              <MessageSquare className="h-3 w-3 mr-1" />
+                              SMS
+                            </Badge>
                           )}
                         </div>
                       </TableCell>

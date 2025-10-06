@@ -390,33 +390,45 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          calling_enabled: boolean | null
           created_at: string | null
+          email_enabled: boolean | null
           first_name: string | null
           id: string
           last_name: string | null
           org_id: string | null
           phone: string | null
+          sms_enabled: boolean | null
           updated_at: string | null
+          whatsapp_enabled: boolean | null
         }
         Insert: {
           avatar_url?: string | null
+          calling_enabled?: boolean | null
           created_at?: string | null
+          email_enabled?: boolean | null
           first_name?: string | null
           id: string
           last_name?: string | null
           org_id?: string | null
           phone?: string | null
+          sms_enabled?: boolean | null
           updated_at?: string | null
+          whatsapp_enabled?: boolean | null
         }
         Update: {
           avatar_url?: string | null
+          calling_enabled?: boolean | null
           created_at?: string | null
+          email_enabled?: boolean | null
           first_name?: string | null
           id?: string
           last_name?: string | null
           org_id?: string | null
           phone?: string | null
+          sms_enabled?: boolean | null
           updated_at?: string | null
+          whatsapp_enabled?: boolean | null
         }
         Relationships: [
           {
