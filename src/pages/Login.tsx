@@ -18,7 +18,9 @@ export default function Login() {
     // Check if user is already logged in and redirect
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
+      console.log("Login - Initial session check:", session ? "Session exists" : "No session");
       if (session) {
+        console.log("Login - Redirecting to dashboard");
         navigate("/dashboard", { replace: true });
       }
     };
@@ -26,7 +28,9 @@ export default function Login() {
 
     // Listen for auth changes and redirect on successful login
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log("Login - Auth state change:", event, session ? "Session exists" : "No session");
       if (event === 'SIGNED_IN' && session) {
+        console.log("Login - User signed in, redirecting to dashboard");
         // Small delay to ensure session is fully established
         setTimeout(() => {
           navigate("/dashboard", { replace: true });
