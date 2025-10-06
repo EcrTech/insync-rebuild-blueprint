@@ -54,7 +54,7 @@
     --shadow-accent: 0 8px 30px hsl(1 98% 69% / 0.2);
     
     /* Design Tokens */
-    --background: 0 0% 100%;
+    --background: 60 33% 99%;
     --foreground: var(--deep-slate);
     
     --card: 0 0% 100%;
