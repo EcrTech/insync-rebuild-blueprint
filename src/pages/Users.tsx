@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, Mail, Phone, MessageSquare, PhoneCall, Link as LinkIcon, Copy } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useOrgContext } from "@/hooks/useOrgContext";
 
 interface Profile {
   id: string;
@@ -40,6 +41,7 @@ export default function Users() {
   const [editingUser, setEditingUser] = useState<UserRole | null>(null);
   const [inviteLink, setInviteLink] = useState("");
   const { toast } = useToast();
+  const { effectiveOrgId, isPlatformAdmin, isImpersonating } = useOrgContext();
 
   const [formData, setFormData] = useState<{
     email: string;
@@ -66,11 +68,15 @@ export default function Users() {
   });
 
   useEffect(() => {
-    fetchUsers();
-  }, []);
+    if (effectiveOrgId) {
+      fetchUsers();
+    }
+  }, [effectiveOrgId]);
 
   const fetchUsers = async () => {
-    console.log("🔍 FETCH USERS STARTED");
+    if (!effectiveOrgId) return;
+    
+    console.log("🔍 FETCH USERS STARTED for org:", effectiveOrgId);
     try {
       const { data, error } = await supabase
         .from("user_roles")
@@ -79,6 +85,7 @@ export default function Users() {
           user_id,
           role
         `)
+        .eq("org_id", effectiveOrgId)
         .order("created_at", { ascending: false });
 
       console.log("📊 User roles fetched:", { count: data?.length, data, error });
@@ -183,19 +190,11 @@ export default function Users() {
         if (signUpError) throw signUpError;
         if (!user) throw new Error("User creation failed");
 
-        // Get current user's org_id
-        const { data: { user: currentUser } } = await supabase.auth.getUser();
-        const { data: currentProfile } = await supabase
-          .from("profiles")
-          .select("org_id")
-          .eq("id", currentUser?.id)
-          .single();
-
         // Update new user's profile with org_id and communication settings
         const { error: profileError } = await supabase
           .from("profiles")
           .update({
-            org_id: currentProfile?.org_id,
+            org_id: effectiveOrgId,
             phone: formData.phone,
             calling_enabled: formData.calling_enabled,
             whatsapp_enabled: formData.whatsapp_enabled,
@@ -211,7 +210,7 @@ export default function Users() {
           .from("user_roles")
           .insert({
             user_id: user.id,
-            org_id: currentProfile?.org_id,
+            org_id: effectiveOrgId,
             role: formData.role,
           });
 
@@ -332,13 +331,17 @@ export default function Users() {
   };
 
   const generateInviteLink = async (role: string, email?: string) => {
+    if (!effectiveOrgId) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Organization context not available",
+      });
+      return;
+    }
+
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("org_id")
-        .eq("id", user?.id)
-        .single();
 
       const inviteCode = crypto.randomUUID();
       const expiresAt = new Date();
@@ -347,7 +350,7 @@ export default function Users() {
       const { error } = await supabase
         .from("org_invites")
         .insert([{
-          org_id: profile?.org_id,
+          org_id: effectiveOrgId,
           invited_by: user?.id,
           invite_code: inviteCode,
           email: email || null,
