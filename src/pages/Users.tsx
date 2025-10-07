@@ -40,6 +40,7 @@ export default function Users() {
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserRole | null>(null);
   const [inviteLink, setInviteLink] = useState("");
+  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
   const { toast } = useToast();
   const { effectiveOrgId, isPlatformAdmin, isImpersonating } = useOrgContext();
 
@@ -70,8 +71,32 @@ export default function Users() {
   useEffect(() => {
     if (effectiveOrgId) {
       fetchUsers();
+      fetchCurrentUserRole();
     }
   }, [effectiveOrgId]);
+
+  const fetchCurrentUserRole = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("org_id", effectiveOrgId)
+        .single();
+
+      if (error) throw error;
+      setCurrentUserRole(data?.role || null);
+    } catch (error) {
+      console.error("Error fetching current user role:", error);
+    }
+  };
+
+  const canManageUsers = () => {
+    return isPlatformAdmin || currentUserRole === "admin" || currentUserRole === "super_admin";
+  };
 
   const fetchUsers = async () => {
     if (!effectiveOrgId) return;
@@ -406,14 +431,15 @@ export default function Users() {
             <h1 className="text-3xl font-bold">User Management</h1>
             <p className="text-muted-foreground">Manage your organization's users and roles</p>
           </div>
-          <div className="flex gap-2">
-            <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline">
-                  <LinkIcon className="mr-2 h-4 w-4" />
-                  Generate Invite Link
-                </Button>
-              </DialogTrigger>
+          {canManageUsers() && (
+            <div className="flex gap-2">
+              <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline">
+                    <LinkIcon className="mr-2 h-4 w-4" />
+                    Generate Invite Link
+                  </Button>
+                </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Generate Invite Link</DialogTitle>
@@ -454,13 +480,13 @@ export default function Users() {
               </DialogContent>
             </Dialog>
 
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
-                <Button onClick={resetForm}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add User
-                </Button>
-              </DialogTrigger>
+              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button onClick={resetForm}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add User
+                  </Button>
+                </DialogTrigger>
               <DialogContent>
               <DialogHeader>
                 <DialogTitle>{editingUser ? "Edit User" : "Add New User"}</DialogTitle>
@@ -616,7 +642,8 @@ export default function Users() {
               </form>
             </DialogContent>
           </Dialog>
-          </div>
+            </div>
+          )}
         </div>
 
         <Card>
@@ -635,7 +662,7 @@ export default function Users() {
                     <TableHead>Contact</TableHead>
                     <TableHead>Communication</TableHead>
                     <TableHead>Role</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    {canManageUsers() && <TableHead className="text-right">Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -687,24 +714,26 @@ export default function Users() {
                           {user.role.replace("_", " ")}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => openEditDialog(user)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDelete(user.user_id, user.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
+                      {canManageUsers() && (
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openEditDialog(user)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDelete(user.user_id, user.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))}
                 </TableBody>
