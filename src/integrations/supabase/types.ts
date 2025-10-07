@@ -1016,6 +1016,10 @@ export type Database = {
         Args: { _org_id: string }
         Returns: undefined
       }
+      delete_user_data: {
+        Args: { user_email: string }
+        Returns: undefined
+      }
       get_reporting_chain: {
         Args: { p_designation_id: string }
         Returns: {
