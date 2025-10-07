@@ -277,41 +277,70 @@ export default function Users() {
     }
   };
 
-  const handleDelete = async (userId: string, roleId: string) => {
-    if (!confirm("Are you sure you want to delete this user?")) return;
+  const handleDelete = async (userId: string, roleId: string, hardDelete: boolean = false) => {
+    const confirmMessage = hardDelete 
+      ? "Are you sure you want to PERMANENTLY delete this user from ALL organizations? This action cannot be undone."
+      : "Are you sure you want to deactivate this user?";
+      
+    if (!confirm(confirmMessage)) return;
 
-    console.log("🗑️ SOFT DELETE STARTED:", { userId, roleId });
+    console.log(hardDelete ? "🗑️ HARD DELETE STARTED:" : "🗑️ SOFT DELETE STARTED:", { userId, roleId });
     setLoading(true);
     
     try {
-      // Soft delete - set is_active to false
-      const { error: roleError } = await supabase
-        .from("user_roles")
-        .update({ is_active: false })
-        .eq("id", roleId);
+      if (hardDelete) {
+        // Hard delete - completely remove user from all orgs and auth
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-user`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session?.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ userId }),
+        });
 
-      if (roleError) throw roleError;
+        const result = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(result.error || 'Failed to delete user');
+        }
 
-      // Also soft delete the profile
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .update({ is_active: false })
-        .eq("id", userId);
+        toast({
+          title: "User deleted permanently",
+          description: "User has been removed from all organizations",
+        });
+      } else {
+        // Soft delete - set is_active to false
+        const { error: roleError } = await supabase
+          .from("user_roles")
+          .update({ is_active: false })
+          .eq("id", roleId);
 
-      if (profileError) throw profileError;
+        if (roleError) throw roleError;
 
-      toast({
-        title: "User deactivated",
-        description: "User has been deactivated successfully",
-      });
+        // Also soft delete the profile
+        const { error: profileError } = await supabase
+          .from("profiles")
+          .update({ is_active: false })
+          .eq("id", userId);
+
+        if (profileError) throw profileError;
+
+        toast({
+          title: "User deactivated",
+          description: "User has been deactivated in this organization",
+        });
+      }
 
       // Refresh the list
       await fetchUsers();
     } catch (error: any) {
-      console.error("💥 Soft delete error:", error);
+      console.error(hardDelete ? "💥 Hard delete error:" : "💥 Soft delete error:", error);
       toast({
         variant: "destructive",
-        title: "Error deactivating user",
+        title: `Error ${hardDelete ? 'deleting' : 'deactivating'} user`,
         description: error.message,
       });
     } finally {
@@ -779,10 +808,22 @@ export default function Users() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleDelete(user.user_id, user.id)}
+                              onClick={() => handleDelete(user.user_id, user.id, false)}
+                              title="Deactivate user in this organization"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
+                            {(isPlatformAdmin || currentUserRole === 'super_admin') && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDelete(user.user_id, user.id, true)}
+                                className="text-destructive hover:text-destructive"
+                                title="Permanently delete user from all organizations"
+                              >
+                                <Trash2 className="h-4 w-4 fill-current" />
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       )}
