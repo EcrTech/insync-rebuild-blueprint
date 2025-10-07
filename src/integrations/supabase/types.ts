@@ -802,6 +802,7 @@ export type Database = {
           is_active: boolean
           is_platform_admin: boolean | null
           last_name: string | null
+          onboarding_completed: boolean | null
           org_id: string | null
           phone: string | null
           sms_enabled: boolean | null
@@ -819,6 +820,7 @@ export type Database = {
           is_active?: boolean
           is_platform_admin?: boolean | null
           last_name?: string | null
+          onboarding_completed?: boolean | null
           org_id?: string | null
           phone?: string | null
           sms_enabled?: boolean | null
@@ -836,6 +838,7 @@ export type Database = {
           is_active?: boolean
           is_platform_admin?: boolean | null
           last_name?: string | null
+          onboarding_completed?: boolean | null
           org_id?: string | null
           phone?: string | null
           sms_enabled?: boolean | null

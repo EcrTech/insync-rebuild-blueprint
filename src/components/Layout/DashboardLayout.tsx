@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { PlatformAdminBanner } from "@/components/PlatformAdminBanner";
+import { OnboardingDialog } from "@/components/Onboarding/OnboardingDialog";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -40,6 +41,8 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
   const [userName, setUserName] = useState<string>("");
   const [orgLogo, setOrgLogo] = useState<string>("");
   const [isPlatformAdmin, setIsPlatformAdmin] = useState<boolean>(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardingChecked, setOnboardingChecked] = useState(false);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -60,13 +63,19 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
       // Get user profile and organization
       const { data: profileData } = await supabase
         .from("profiles")
-        .select("first_name, last_name, org_id, is_platform_admin")
+        .select("first_name, last_name, org_id, is_platform_admin, onboarding_completed")
         .eq("id", user.id)
         .single();
 
       if (profileData) {
         setUserName(`${profileData.first_name} ${profileData.last_name}`);
         setIsPlatformAdmin(profileData.is_platform_admin || false);
+        
+        // Check if user needs onboarding
+        if (!profileData.onboarding_completed && roleData?.role) {
+          setShowOnboarding(true);
+        }
+        setOnboardingChecked(true);
         
         // Get organization logo
         if (profileData.org_id) {
@@ -348,6 +357,15 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
         </main>
       </div>
+      
+      {/* Onboarding Dialog */}
+      {onboardingChecked && showOnboarding && userRole && (
+        <OnboardingDialog
+          open={showOnboarding}
+          userRole={userRole}
+          onComplete={() => setShowOnboarding(false)}
+        />
+      )}
     </div>
   );
 }
