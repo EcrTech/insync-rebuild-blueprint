@@ -799,6 +799,7 @@ export type Database = {
           email_enabled: boolean | null
           first_name: string | null
           id: string
+          is_active: boolean
           is_platform_admin: boolean | null
           last_name: string | null
           org_id: string | null
@@ -815,6 +816,7 @@ export type Database = {
           email_enabled?: boolean | null
           first_name?: string | null
           id: string
+          is_active?: boolean
           is_platform_admin?: boolean | null
           last_name?: string | null
           org_id?: string | null
@@ -831,6 +833,7 @@ export type Database = {
           email_enabled?: boolean | null
           first_name?: string | null
           id?: string
+          is_active?: boolean
           is_platform_admin?: boolean | null
           last_name?: string | null
           org_id?: string | null
@@ -969,6 +972,7 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
+          is_active: boolean
           org_id: string
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
@@ -976,6 +980,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           id?: string
+          is_active?: boolean
           org_id: string
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
@@ -983,6 +988,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           id?: string
+          is_active?: boolean
           org_id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string

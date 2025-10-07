@@ -108,9 +108,11 @@ export default function Users() {
         .select(`
           id,
           user_id,
-          role
+          role,
+          is_active
         `)
         .eq("org_id", effectiveOrgId)
+        .eq("is_active", true)
         .order("created_at", { ascending: false });
 
       console.log("📊 User roles fetched:", { count: data?.length, data, error });
@@ -212,7 +214,20 @@ export default function Users() {
           },
         });
 
-        if (signUpError) throw signUpError;
+        if (signUpError) {
+          // If user already exists, check if they're soft-deleted in this org
+          if (signUpError.message.includes("already registered")) {
+            // Try to find and restore the user
+            // This is a best-effort attempt - we can't easily get the user ID from email
+            toast({
+              variant: "destructive",
+              title: "User already registered",
+              description: "This email is already in use. If the user was previously deleted, please contact support.",
+            });
+            throw signUpError;
+          }
+          throw signUpError;
+        }
         if (!user) throw new Error("User creation failed");
 
         // Update new user's profile with org_id and communication settings
@@ -264,61 +279,97 @@ export default function Users() {
   const handleDelete = async (userId: string, roleId: string) => {
     if (!confirm("Are you sure you want to delete this user?")) return;
 
-    console.log("🗑️ DELETE STARTED:", { userId, roleId });
+    console.log("🗑️ SOFT DELETE STARTED:", { userId, roleId });
     setLoading(true);
     
     try {
-      // Log current users before delete
-      console.log("📋 Users before delete:", users.length, users.map(u => ({ id: u.id, name: `${u.profiles.first_name} ${u.profiles.last_name}` })));
-      
-      // First, optimistically update the UI
-      setUsers(prevUsers => {
-        const filtered = prevUsers.filter(u => u.id !== roleId);
-        console.log("✂️ Optimistically removed. New count:", filtered.length);
-        return filtered;
-      });
-
-      // Then perform the delete
-      console.log("🔄 Executing delete query...");
-      const { data, error } = await supabase
+      // Soft delete - set is_active to false
+      const { error: roleError } = await supabase
         .from("user_roles")
-        .delete()
-        .eq("id", roleId)
-        .select();
+        .update({ is_active: false })
+        .eq("id", roleId);
 
-      console.log("📡 Delete response:", { data, error, roleId });
+      if (roleError) throw roleError;
 
-      if (error) {
-        console.error("❌ Delete failed:", error);
-        // If delete fails, revert by fetching fresh data
-        await fetchUsers();
-        throw error;
-      }
+      // Also soft delete the profile
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .update({ is_active: false })
+        .eq("id", userId);
 
-      console.log("✅ Delete successful, refreshing list...");
-      
-      // Wait a moment before fetching to ensure DB is updated
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      // Refresh the list to ensure consistency
-      await fetchUsers();
-      
-      console.log("📋 Users after refresh:", users.length);
+      if (profileError) throw profileError;
 
       toast({
-        title: "User deleted",
-        description: "User has been removed successfully",
+        title: "User deactivated",
+        description: "User has been deactivated successfully",
       });
+
+      // Refresh the list
+      await fetchUsers();
     } catch (error: any) {
-      console.error("💥 Delete error:", error);
+      console.error("💥 Soft delete error:", error);
       toast({
         variant: "destructive",
-        title: "Error deleting user",
+        title: "Error deactivating user",
         description: error.message,
       });
     } finally {
       setLoading(false);
-      console.log("🏁 DELETE COMPLETED");
+    }
+  };
+
+  const handleRestore = async (userId: string) => {
+    setLoading(true);
+    
+    try {
+      // Check if user exists but is inactive
+      const { data: existingRole, error: checkError } = await supabase
+        .from("user_roles")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("org_id", effectiveOrgId)
+        .eq("is_active", false)
+        .single();
+
+      if (checkError && checkError.code !== 'PGRST116') throw checkError;
+
+      if (existingRole) {
+        // Restore the user_role
+        const { error: roleError } = await supabase
+          .from("user_roles")
+          .update({ is_active: true })
+          .eq("id", existingRole.id);
+
+        if (roleError) throw roleError;
+
+        // Restore the profile
+        const { error: profileError } = await supabase
+          .from("profiles")
+          .update({ is_active: true })
+          .eq("id", userId);
+
+        if (profileError) throw profileError;
+
+        toast({
+          title: "User restored",
+          description: "User has been restored successfully",
+        });
+
+        await fetchUsers();
+        return true;
+      }
+      
+      return false;
+    } catch (error: any) {
+      console.error("Error restoring user:", error);
+      toast({
+        variant: "destructive",
+        title: "Error restoring user",
+        description: error.message,
+      });
+      return false;
+    } finally {
+      setLoading(false);
     }
   };
 
