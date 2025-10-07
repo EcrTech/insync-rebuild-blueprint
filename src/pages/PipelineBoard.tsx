@@ -187,6 +187,9 @@ export default function PipelineBoard() {
 
     setIsSearching(true);
     try {
+      console.log('Starting AI search with query:', searchQuery);
+      console.log('Total contacts to search:', allContacts.length);
+      
       const { data, error } = await supabase.functions.invoke('analyze-lead', {
         body: { 
           searchQuery: searchQuery.trim(),
@@ -194,15 +197,24 @@ export default function PipelineBoard() {
         }
       });
 
-      if (error) throw error;
+      console.log('AI search response:', { data, error });
+
+      if (error) {
+        console.error('Edge function error:', error);
+        throw error;
+      }
 
       if (data.error) {
+        console.error('Data error:', data.error);
         throw new Error(data.error);
       }
 
       // Filter contacts based on AI response
       const filteredContactIds = data.filteredContactIds || [];
+      console.log('Filtered contact IDs:', filteredContactIds);
+      
       const filtered = allContacts.filter(c => filteredContactIds.includes(c.id));
+      console.log('Filtered contacts:', filtered.length);
       
       setContacts(filtered);
       
@@ -211,10 +223,11 @@ export default function PipelineBoard() {
         description: `Found ${filtered.length} matching contacts`,
       });
     } catch (error: any) {
+      console.error('Search error:', error);
       toast({
         variant: "destructive",
         title: "Search failed",
-        description: error.message,
+        description: error.message || 'Unknown error occurred',
       });
       setContacts(allContacts);
     } finally {
