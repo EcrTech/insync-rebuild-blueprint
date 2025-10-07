@@ -210,6 +210,7 @@ export default function Users() {
             data: {
               first_name: formData.first_name,
               last_name: formData.last_name,
+              org_id: effectiveOrgId,
             },
           },
         });
