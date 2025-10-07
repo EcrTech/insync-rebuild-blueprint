@@ -306,6 +306,23 @@ export default function PipelineBoard() {
                 </Button>
               )}
             </div>
+            
+            {/* Active Filter Indicator */}
+            {searchQuery && contacts.length !== allContacts.length && (
+              <div className="mt-3 flex items-center gap-2">
+                <Badge variant="secondary" className="text-sm">
+                  Showing {contacts.length} of {allContacts.length} contacts
+                </Badge>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleClearSearch}
+                  className="h-6 text-xs"
+                >
+                  Remove filter
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
 
