@@ -33,8 +33,15 @@ interface FormWithConfig {
 }
 
 Deno.serve(async (req) => {
+  const startTime = Date.now();
+  console.log('=== WEBHOOK REQUEST START ===');
+  console.log('Method:', req.method);
+  console.log('URL:', req.url);
+  console.log('Headers:', Object.fromEntries(req.headers.entries()));
+  
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
+    console.log('CORS preflight - returning 200');
     return new Response(null, { headers: corsHeaders });
   }
 
@@ -42,29 +49,41 @@ Deno.serve(async (req) => {
     // Extract webhook token from URL path
     const url = new URL(req.url);
     const webhookToken = url.pathname.split('/').pop();
+    console.log('Extracted webhook token:', webhookToken);
 
     if (!webhookToken) {
+      console.error('ERROR: Missing webhook token in URL');
       return errorResponse(400, 'Missing webhook token in URL');
     }
 
     // Create Supabase admin client
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
+    console.log('Creating Supabase client...');
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    console.log('SUPABASE_URL exists:', !!supabaseUrl);
+    console.log('SUPABASE_SERVICE_ROLE_KEY exists:', !!supabaseKey);
+    
+    const supabase = createClient(supabaseUrl!, supabaseKey!);
 
     const requestId = `req_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
     const clientIp = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
+    console.log('Request ID:', requestId);
+    console.log('Client IP:', clientIp);
     
     // Parse request body
     let payload: WebhookPayload;
     try {
-      payload = await req.json();
+      const rawBody = await req.text();
+      console.log('Raw request body:', rawBody);
+      payload = JSON.parse(rawBody);
+      console.log('Parsed payload:', payload);
     } catch (e) {
+      console.error('ERROR: Failed to parse JSON:', e);
       return errorResponse(400, 'Invalid JSON payload', requestId);
     }
 
     // Step 1: Get form/connector by webhook token
+    console.log('STEP 1: Fetching form by webhook token...');
     const { data: form, error: formError } = await supabase
       .from('forms')
       .select(`
@@ -84,42 +103,60 @@ Deno.serve(async (req) => {
       .eq('is_active', true)
       .single();
 
+    console.log('Form query result:', { data: form, error: formError });
+
     if (formError || !form) {
+      console.error('ERROR: Form not found or query error:', formError);
       await logWebhook(supabase, null, null, requestId, 'error', 404, payload, 'Webhook endpoint not found', clientIp);
       return errorResponse(404, 'Webhook endpoint not found', requestId);
     }
 
+    console.log('Form found:', { id: form.id, name: form.name, org_id: form.org_id });
+
     const typedForm = form as unknown as FormWithConfig;
 
     // Step 2: Check rate limit
-    const { data: rateLimitOk } = await supabase
+    console.log('STEP 2: Checking rate limit...');
+    const { data: rateLimitOk, error: rateLimitError } = await supabase
       .rpc('check_connector_rate_limit', {
         _form_id: typedForm.id,
         _limit: typedForm.rate_limit_per_minute || 60
       });
 
+    console.log('Rate limit check:', { rateLimitOk, error: rateLimitError });
+
     if (!rateLimitOk) {
+      console.warn('WARN: Rate limit exceeded');
       await logWebhook(supabase, typedForm.id, typedForm.org_id, requestId, 'error', 429, payload, 'Rate limit exceeded', clientIp);
       return errorResponse(429, 'Rate limit exceeded. Maximum ' + (typedForm.rate_limit_per_minute || 60) + ' requests per minute', requestId);
     }
 
     // Step 3: Map fields using webhook_config
+    console.log('STEP 3: Mapping fields...');
+    console.log('Field mappings:', typedForm.webhook_config?.field_mappings);
     const mappedContact = mapFields(payload, typedForm.webhook_config?.field_mappings || {});
+    console.log('Mapped contact:', mappedContact);
 
     // Step 4: Validate required fields
+    console.log('STEP 4: Validating contact...');
     const errors = validateContact(mappedContact);
     if (errors.length > 0) {
+      console.error('ERROR: Validation failed:', errors);
       await logWebhook(supabase, typedForm.id, typedForm.org_id, requestId, 'error', 400, payload, `Validation failed: ${errors.join(', ')}`, clientIp);
       return errorResponse(400, 'Validation failed', requestId, errors);
     }
+    console.log('Validation passed');
 
     // Step 5: Check for duplicate by phone
-    const { data: existingContact } = await supabase
+    console.log('STEP 5: Checking for duplicate contact...');
+    const { data: existingContact, error: duplicateCheckError } = await supabase
       .from('contacts')
       .select('id, first_name, last_name, email')
       .eq('org_id', typedForm.org_id)
       .eq('phone', mappedContact.phone)
       .maybeSingle();
+
+    console.log('Duplicate check result:', { existingContact, error: duplicateCheckError });
 
     let contactId: string;
     let isDuplicate = false;
@@ -127,6 +164,7 @@ Deno.serve(async (req) => {
 
     if (existingContact) {
       // Update existing contact
+      console.log('Duplicate found - updating existing contact:', existingContact.id);
       isDuplicate = true;
       contactId = existingContact.id;
 
@@ -143,8 +181,10 @@ Deno.serve(async (req) => {
         .eq('id', contactId);
 
       if (updateError) {
+        console.error('ERROR: Failed to update contact:', updateError);
         throw updateError;
       }
+      console.log('Contact updated successfully');
 
       responseData = {
         success: true,
@@ -159,13 +199,16 @@ Deno.serve(async (req) => {
 
     } else {
       // Get default pipeline stage
-      const { data: defaultStage } = await supabase
+      console.log('Creating new contact...');
+      const { data: defaultStage, error: stageError } = await supabase
         .from('pipeline_stages')
         .select('id')
         .eq('org_id', typedForm.org_id)
         .eq('name', 'New')
         .eq('is_active', true)
         .maybeSingle();
+
+      console.log('Default stage:', { defaultStage, error: stageError });
 
       // Create new contact
       const { data: newContact, error: insertError } = await supabase
@@ -186,13 +229,16 @@ Deno.serve(async (req) => {
         .single();
 
       if (insertError) {
+        console.error('ERROR: Failed to insert contact:', insertError);
         throw insertError;
       }
 
       contactId = newContact.id;
+      console.log('Contact created:', contactId);
 
       // Insert custom field values if any
       if (mappedContact.custom_fields && Object.keys(mappedContact.custom_fields).length > 0) {
+        console.log('Inserting custom field values...');
         const customFieldInserts = [];
         
         for (const [fieldName, fieldValue] of Object.entries(mappedContact.custom_fields)) {
@@ -211,14 +257,22 @@ Deno.serve(async (req) => {
         }
 
         if (customFieldInserts.length > 0) {
-          await supabase
+          console.log('Custom field inserts:', customFieldInserts);
+          const { error: customFieldError } = await supabase
             .from('contact_custom_fields')
             .insert(customFieldInserts);
+          
+          if (customFieldError) {
+            console.error('ERROR: Failed to insert custom fields:', customFieldError);
+          } else {
+            console.log('Custom fields inserted successfully');
+          }
         }
       }
 
       // Log activity
-      await supabase
+      console.log('Logging contact activity...');
+      const { error: activityError } = await supabase
         .from('contact_activities')
         .insert({
           contact_id: contactId,
@@ -228,6 +282,12 @@ Deno.serve(async (req) => {
           description: `Lead received from ${typedForm.webhook_config?.source_name || typedForm.name} via webhook\n\nOriginal payload:\n${JSON.stringify(payload, null, 2)}`,
           completed_at: new Date().toISOString()
         });
+
+      if (activityError) {
+        console.error('WARN: Failed to log activity:', activityError);
+      } else {
+        console.log('Activity logged successfully');
+      }
 
       responseData = {
         success: true,
@@ -240,6 +300,7 @@ Deno.serve(async (req) => {
     }
 
     // Step 6: Log success
+    console.log('STEP 6: Logging webhook success...');
     await logWebhook(
       supabase,
       typedForm.id,
@@ -254,6 +315,13 @@ Deno.serve(async (req) => {
       responseData
     );
 
+    const elapsedTime = Date.now() - startTime;
+    console.log('=== WEBHOOK REQUEST SUCCESS ===');
+    console.log('Request ID:', requestId);
+    console.log('Contact ID:', contactId);
+    console.log('Status:', isDuplicate ? 'duplicate' : 'created');
+    console.log('Elapsed time:', elapsedTime, 'ms');
+
     return new Response(
       JSON.stringify(responseData),
       { 
@@ -263,7 +331,15 @@ Deno.serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Webhook error:', error);
+    const elapsedTime = Date.now() - startTime;
+    console.error('=== WEBHOOK REQUEST ERROR ===');
+    console.error('Error:', error);
+    console.error('Error type:', typeof error);
+    console.error('Error name:', error instanceof Error ? error.name : 'unknown');
+    console.error('Error message:', error instanceof Error ? error.message : 'unknown');
+    console.error('Error stack:', error instanceof Error ? error.stack : 'none');
+    console.error('Elapsed time:', elapsedTime, 'ms');
+    
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return errorResponse(500, 'Internal server error: ' + errorMessage);
   }
