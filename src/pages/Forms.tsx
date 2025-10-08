@@ -10,13 +10,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, FileText, Link2, Copy, Webhook, Activity } from "lucide-react";
+import { Plus, Pencil, Trash2, FileText, Link2, Copy } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { WebhookConfig } from "@/components/Forms/WebhookConfig";
-import { ConnectorLogs } from "@/components/Forms/ConnectorLogs";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface CustomField {
   id: string;
@@ -33,19 +30,10 @@ interface Form {
   is_active: boolean;
   created_at: string;
   connector_type: string;
-  webhook_token?: string;
-  webhook_config?: {
-    source_name?: string;
-    field_mappings?: Record<string, string>;
-  };
-  rate_limit_per_minute: number;
 }
 
 interface FormWithFields extends Form {
   field_count: number;
-  log_count?: number;
-  success_count?: number;
-  error_count?: number;
 }
 
 export default function Forms() {
@@ -56,7 +44,6 @@ export default function Forms() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingForm, setEditingForm] = useState<Form | null>(null);
   const [selectedFields, setSelectedFields] = useState<string[]>([]);
-  const [selectedFormLogs, setSelectedFormLogs] = useState<Form | null>(null);
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -64,11 +51,6 @@ export default function Forms() {
     description: "",
     is_active: true,
     connector_type: "manual",
-    webhook_config: {
-      source_name: "" as string | undefined,
-      field_mappings: {} as Record<string, string> | undefined,
-    },
-    rate_limit_per_minute: 60,
   });
 
   useEffect(() => {
@@ -86,6 +68,7 @@ export default function Forms() {
         .from("forms")
         .select("*")
         .eq("org_id", effectiveOrgId)
+        .neq("connector_type", "webhook")
         .order("created_at", { ascending: false });
 
       if (formsError) throw formsError;
@@ -98,37 +81,9 @@ export default function Forms() {
             .select("*", { count: "exact", head: true })
             .eq("form_id", form.id);
 
-          let logStats = { log_count: 0, success_count: 0, error_count: 0 };
-          
-          if (form.connector_type === "webhook") {
-            const { count: totalLogs } = await supabase
-              .from("connector_logs")
-              .select("*", { count: "exact", head: true })
-              .eq("form_id", form.id);
-
-            const { count: successCount } = await supabase
-              .from("connector_logs")
-              .select("*", { count: "exact", head: true })
-              .eq("form_id", form.id)
-              .eq("status", "success");
-
-            const { count: errorCount } = await supabase
-              .from("connector_logs")
-              .select("*", { count: "exact", head: true })
-              .eq("form_id", form.id)
-              .eq("status", "error");
-
-            logStats = {
-              log_count: totalLogs || 0,
-              success_count: successCount || 0,
-              error_count: errorCount || 0,
-            };
-          }
-
           return {
             ...form,
             field_count: count || 0,
-            ...logStats,
           };
         })
       );
@@ -189,8 +144,7 @@ export default function Forms() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Only require fields for non-webhook connectors
-    if (formData.connector_type !== "webhook" && selectedFields.length === 0) {
+    if (selectedFields.length === 0) {
       toast({
         variant: "destructive",
         title: "No fields selected",
@@ -214,8 +168,6 @@ export default function Forms() {
             description: formData.description,
             is_active: formData.is_active,
             connector_type: formData.connector_type,
-            webhook_config: formData.connector_type === "webhook" ? formData.webhook_config : null,
-            rate_limit_per_minute: formData.connector_type === "webhook" ? formData.rate_limit_per_minute : null,
           })
           .eq("id", editingForm.id);
 
@@ -236,8 +188,6 @@ export default function Forms() {
             description: formData.description,
             is_active: formData.is_active,
             connector_type: formData.connector_type,
-            webhook_config: formData.connector_type === "webhook" ? formData.webhook_config : null,
-            rate_limit_per_minute: formData.connector_type === "webhook" ? formData.rate_limit_per_minute : null,
           }])
           .select()
           .single();
@@ -309,11 +259,6 @@ export default function Forms() {
       description: "",
       is_active: true,
       connector_type: "manual",
-      webhook_config: {
-        source_name: "",
-        field_mappings: {},
-      },
-      rate_limit_per_minute: 60,
     });
     setSelectedFields([]);
     setEditingForm(null);
@@ -326,11 +271,6 @@ export default function Forms() {
       description: form.description || "",
       is_active: form.is_active,
       connector_type: form.connector_type || "manual",
-      webhook_config: {
-        source_name: form.webhook_config?.source_name || "",
-        field_mappings: form.webhook_config?.field_mappings || {},
-      },
-      rate_limit_per_minute: form.rate_limit_per_minute || 60,
     });
     
     const fields = await fetchFormFields(form.id);
@@ -355,23 +295,15 @@ export default function Forms() {
     });
   };
 
-  const getWebhookUrl = (token?: string) => {
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-    return `${supabaseUrl}/functions/v1/webhook-receiver/${token || '{webhook_token}'}`;
-  };
-
   const getConnectorTypeBadge = (type: string) => {
     const badges = {
       manual: { label: "Manual", variant: "secondary" as const },
       public_form: { label: "Public Form", variant: "default" as const },
-      webhook: { label: "Webhook", variant: "outline" as const, icon: Webhook },
     };
     const config = badges[type as keyof typeof badges] || badges.manual;
-    const Icon = 'icon' in config ? config.icon : null;
     
     return (
       <Badge variant={config.variant} className="flex items-center gap-1 w-fit">
-        {Icon && <Icon className="h-3 w-3" />}
         {config.label}
       </Badge>
     );
@@ -420,7 +352,7 @@ export default function Forms() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="connector_type">Connector Type</Label>
+                  <Label htmlFor="connector_type">Form Type</Label>
                   <Select
                     value={formData.connector_type}
                     onValueChange={(value) => setFormData({ ...formData, connector_type: value })}
@@ -431,38 +363,13 @@ export default function Forms() {
                     <SelectContent className="bg-popover z-50">
                       <SelectItem value="manual">Manual Entry</SelectItem>
                       <SelectItem value="public_form">Public Form</SelectItem>
-                      <SelectItem value="webhook">Webhook Connector</SelectItem>
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
                     {formData.connector_type === "manual" && "Form for manual data entry"}
                     {formData.connector_type === "public_form" && "Public form that anyone can submit"}
-                    {formData.connector_type === "webhook" && "Receive leads via webhook API"}
                   </p>
                 </div>
-
-                {formData.connector_type === "webhook" && (
-                  <WebhookConfig
-                    webhookToken={editingForm?.webhook_token}
-                    webhookUrl={getWebhookUrl(editingForm?.webhook_token)}
-                    sourceName={formData.webhook_config.source_name || ""}
-                    rateLimit={formData.rate_limit_per_minute}
-                    fieldMappings={formData.webhook_config.field_mappings || {}}
-                    onSourceNameChange={(value) => setFormData({
-                      ...formData,
-                      webhook_config: { ...formData.webhook_config, source_name: value }
-                    })}
-                    onRateLimitChange={(value) => setFormData({
-                      ...formData,
-                      rate_limit_per_minute: value
-                    })}
-                    onFieldMappingChange={(mappings) => setFormData({
-                      ...formData,
-                      webhook_config: { ...formData.webhook_config, field_mappings: mappings }
-                    })}
-                    customFields={customFields}
-                  />
-                )}
 
                 <div className="flex items-center justify-between">
                   <Label htmlFor="is_active">Active</Label>
@@ -554,28 +461,10 @@ export default function Forms() {
                             <Badge variant="outline" className="text-xs">Inactive</Badge>
                           )}
                         </CardTitle>
-                        <CardDescription className="space-y-2">
+                          <CardDescription className="space-y-2">
                           <div>{form.description || "No description"}</div>
                           <div className="flex items-center gap-2 text-xs flex-wrap">
                             <span>{form.field_count} field{form.field_count !== 1 ? 's' : ''}</span>
-                            {form.connector_type === "webhook" && form.log_count !== undefined && (
-                              <>
-                                <span>•</span>
-                                <span className="text-primary">{form.log_count} requests</span>
-                                {form.success_count !== undefined && (
-                                  <>
-                                    <span>•</span>
-                                    <span className="text-green-600">{form.success_count} success</span>
-                                  </>
-                                )}
-                                {form.error_count !== undefined && form.error_count > 0 && (
-                                  <>
-                                    <span>•</span>
-                                    <span className="text-destructive">{form.error_count} errors</span>
-                                  </>
-                                )}
-                              </>
-                            )}
                             {form.connector_type === "public_form" && (
                               <>
                                 <span>•</span>
@@ -596,16 +485,6 @@ export default function Forms() {
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      {form.connector_type === "webhook" && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setSelectedFormLogs(form)}
-                          title="View webhook logs"
-                        >
-                          <Activity className="h-4 w-4" />
-                        </Button>
-                      )}
                       {form.connector_type === "public_form" && (
                         <Button
                           variant="ghost"
@@ -638,20 +517,6 @@ export default function Forms() {
           )}
         </div>
 
-        {/* Webhook Logs Dialog */}
-        <Dialog open={!!selectedFormLogs} onOpenChange={() => setSelectedFormLogs(null)}>
-          <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden">
-            <DialogHeader>
-              <DialogTitle>Webhook Logs - {selectedFormLogs?.name}</DialogTitle>
-            </DialogHeader>
-            {selectedFormLogs && (
-              <ConnectorLogs
-                formId={selectedFormLogs.id}
-                formName={selectedFormLogs.name}
-              />
-            )}
-          </DialogContent>
-        </Dialog>
       </div>
     </DashboardLayout>
   );

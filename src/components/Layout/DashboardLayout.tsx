@@ -24,6 +24,7 @@ import {
   Sliders,
   ShieldCheck,
   Building2,
+  Webhook,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { PlatformAdminBanner } from "@/components/PlatformAdminBanner";
@@ -322,6 +323,20 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                   >
                     <FileText size={20} />
                     <span>Forms</span>
+                  </Link>
+                  
+                  <div className="pt-4 pb-2">
+                    <p className="px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Connectors
+                    </p>
+                  </div>
+                  <Link
+                    to="/admin/connectors"
+                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    <Webhook size={20} />
+                    <span>Webhook Connectors</span>
                   </Link>
                 </>
               )}

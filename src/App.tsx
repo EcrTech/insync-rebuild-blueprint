@@ -22,6 +22,7 @@ import Designations from "./pages/Designations";
 import OrgChart from "./pages/OrgChart";
 import CustomFields from "./pages/CustomFields";
 import Forms from "./pages/Forms";
+import Connectors from "./pages/Connectors";
 import CallingDashboard from "./pages/CallingDashboard";
 import CallLogs from "./pages/CallLogs";
 import PublicForm from "./pages/PublicForm";
@@ -136,6 +137,12 @@ const App = () => (
           <Route path="/admin/forms" element={
             <ProtectedRoute requiredRole="admin">
               <Forms />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/admin/connectors" element={
+            <ProtectedRoute requiredRole="admin">
+              <Connectors />
             </ProtectedRoute>
           } />
           
