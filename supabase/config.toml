@@ -3,6 +3,9 @@ project_id = "aizgpxaqvtvvqarzjmze"
 [functions.submit-public-form]
 verify_jwt = false
 
+[functions.webhook-receiver]
+verify_jwt = false
+
 [functions.queue-manager]
 verify_jwt = true
 

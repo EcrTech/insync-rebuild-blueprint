@@ -103,6 +103,73 @@ export type Database = {
           },
         ]
       }
+      connector_logs: {
+        Row: {
+          contact_id: string | null
+          created_at: string | null
+          error_message: string | null
+          form_id: string | null
+          http_status_code: number
+          id: string
+          ip_address: unknown | null
+          org_id: string
+          request_id: string
+          request_payload: Json
+          response_payload: Json | null
+          status: string
+        }
+        Insert: {
+          contact_id?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          form_id?: string | null
+          http_status_code: number
+          id?: string
+          ip_address?: unknown | null
+          org_id: string
+          request_id: string
+          request_payload?: Json
+          response_payload?: Json | null
+          status: string
+        }
+        Update: {
+          contact_id?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          form_id?: string | null
+          http_status_code?: number
+          id?: string
+          ip_address?: unknown | null
+          org_id?: string
+          request_id?: string
+          request_payload?: Json
+          response_payload?: Json | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "connector_logs_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "connector_logs_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "forms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "connector_logs_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contact_activities: {
         Row: {
           activity_type: string
@@ -591,31 +658,43 @@ export type Database = {
       }
       forms: {
         Row: {
+          connector_type: string | null
           created_at: string | null
           description: string | null
           id: string
           is_active: boolean | null
           name: string
           org_id: string
+          rate_limit_per_minute: number | null
           updated_at: string | null
+          webhook_config: Json | null
+          webhook_token: string | null
         }
         Insert: {
+          connector_type?: string | null
           created_at?: string | null
           description?: string | null
           id?: string
           is_active?: boolean | null
           name: string
           org_id: string
+          rate_limit_per_minute?: number | null
           updated_at?: string | null
+          webhook_config?: Json | null
+          webhook_token?: string | null
         }
         Update: {
+          connector_type?: string | null
           created_at?: string | null
           description?: string | null
           id?: string
           is_active?: boolean | null
           name?: string
           org_id?: string
+          rate_limit_per_minute?: number | null
           updated_at?: string | null
+          webhook_config?: Json | null
+          webhook_token?: string | null
         }
         Relationships: []
       }
@@ -1011,6 +1090,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_connector_rate_limit: {
+        Args: { _form_id: string; _limit: number }
+        Returns: boolean
+      }
       create_default_call_dispositions: {
         Args: { _org_id: string }
         Returns: undefined
@@ -1022,6 +1105,10 @@ export type Database = {
       delete_user_data: {
         Args: { user_email: string }
         Returns: undefined
+      }
+      generate_webhook_token: {
+        Args: Record<PropertyKey, never>
+        Returns: string
       }
       get_reporting_chain: {
         Args: { p_designation_id: string }
