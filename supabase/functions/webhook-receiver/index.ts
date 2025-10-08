@@ -66,7 +66,9 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl!, supabaseKey!);
 
     const requestId = `req_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
-    const clientIp = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
+    const forwardedFor = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
+    // Extract first IP from X-Forwarded-For chain (format: "client, proxy1, proxy2")
+    const clientIp = forwardedFor.split(',')[0].trim();
     console.log('Request ID:', requestId);
     console.log('Client IP:', clientIp);
     
