@@ -38,18 +38,24 @@ export function useOrgContext() {
 
     loadOrgContext();
 
-    // Listen for storage changes (when impersonation changes)
-    const handleStorageChange = () => {
+    // Listen for custom events for org context changes
+    const handleOrgContextChange = () => {
       loadOrgContext();
     };
 
+    // Listen for storage changes (cross-tab)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "platform_admin_impersonation") {
+        loadOrgContext();
+      }
+    };
+
+    window.addEventListener("orgContextChange", handleOrgContextChange);
     window.addEventListener("storage", handleStorageChange);
-    // Also check periodically for same-tab changes
-    const interval = setInterval(loadOrgContext, 2000);
 
     return () => {
+      window.removeEventListener("orgContextChange", handleOrgContextChange);
       window.removeEventListener("storage", handleStorageChange);
-      clearInterval(interval);
     };
   }, []);
 

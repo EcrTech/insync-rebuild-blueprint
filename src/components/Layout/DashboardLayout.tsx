@@ -49,40 +49,40 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Get user role
-      const { data: roleData } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .single();
+      // PERFORMANCE: Batch all queries together
+      const [roleRes, profileRes] = await Promise.all([
+        supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id)
+          .single(),
+        supabase
+          .from("profiles")
+          .select("first_name, last_name, org_id, is_platform_admin, onboarding_completed")
+          .eq("id", user.id)
+          .single()
+      ]);
 
-      if (roleData) {
-        setUserRole(roleData.role);
+      if (roleRes.data) {
+        setUserRole(roleRes.data.role);
       }
 
-      // Get user profile and organization
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("first_name, last_name, org_id, is_platform_admin, onboarding_completed")
-        .eq("id", user.id)
-        .single();
-
-      if (profileData) {
-        setUserName(`${profileData.first_name} ${profileData.last_name}`);
-        setIsPlatformAdmin(profileData.is_platform_admin || false);
+      if (profileRes.data) {
+        setUserName(`${profileRes.data.first_name} ${profileRes.data.last_name}`);
+        setIsPlatformAdmin(profileRes.data.is_platform_admin || false);
         
         // Check if user needs onboarding
-        if (!profileData.onboarding_completed && roleData?.role) {
+        if (!profileRes.data.onboarding_completed && roleRes.data?.role) {
           setShowOnboarding(true);
         }
         setOnboardingChecked(true);
         
-        // Get organization logo
-        if (profileData.org_id) {
+        // Get organization logo (only if org_id exists)
+        if (profileRes.data.org_id) {
           const { data: orgData } = await supabase
             .from("organizations")
             .select("logo_url")
-            .eq("id", profileData.org_id)
+            .eq("id", profileRes.data.org_id)
             .single();
           
           if (orgData?.logo_url) {

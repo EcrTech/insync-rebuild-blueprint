@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { setImpersonation } from "@/utils/orgContextEvents";
 
 interface Organization {
   id: string;
@@ -295,12 +296,8 @@ export default function PlatformAdmin() {
   };
 
   const accessOrganization = (org: Organization) => {
-    // Store impersonation data in session storage
-    sessionStorage.setItem("platform_admin_impersonation", JSON.stringify({
-      org_id: org.id,
-      org_name: org.name,
-      timestamp: new Date().toISOString(),
-    }));
+    // Use utility function to set impersonation
+    setImpersonation(org.id, org.name);
 
     toast({
       title: "Switched to organization",

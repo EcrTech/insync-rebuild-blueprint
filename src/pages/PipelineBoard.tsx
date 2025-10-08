@@ -60,6 +60,7 @@ export default function PipelineBoard() {
 
   const fetchData = async () => {
     try {
+      // PERFORMANCE: Limit contacts to prevent loading thousands of records
       const [stagesRes, contactsRes] = await Promise.all([
         supabase
           .from("pipeline_stages")
@@ -69,7 +70,8 @@ export default function PipelineBoard() {
         supabase
           .from("contacts")
           .select("id, first_name, last_name, email, phone, company, pipeline_stage_id, job_title, source, status, notes, website, address, city, state, country, created_at")
-          .order("created_at", { ascending: false }),
+          .order("created_at", { ascending: false })
+          .limit(500), // Limit to 500 most recent contacts
       ]);
 
       if (stagesRes.error) throw stagesRes.error;

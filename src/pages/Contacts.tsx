@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, Mail, Phone as PhoneIcon, Building, Upload, Download } from "lucide-react";
+import { Plus, Pencil, Trash2, Mail, Phone as PhoneIcon, Building, Upload, Download, Loader2 } from "lucide-react";
 import { useOrgContext } from "@/hooks/useOrgContext";
 
 interface Contact {
@@ -50,6 +50,8 @@ export default function Contacts() {
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const { toast} = useToast();
   const navigate = useNavigate();
 
@@ -75,20 +77,31 @@ export default function Contacts() {
     }
   }, [effectiveOrgId]);
 
-  const fetchContacts = async () => {
+  const fetchContacts = async (reset = false) => {
     if (!effectiveOrgId) return;
     
     try {
-      // PERFORMANCE: Add pagination with limit to prevent loading thousands of records
-      const { data, error } = await supabase
+      const offset = reset ? 0 : contacts.length;
+      const limit = 100; // Load 100 at a time
+      
+      // PERFORMANCE: Paginated loading with cursor
+      const { data, error, count } = await supabase
         .from("contacts")
-        .select("*")
+        .select("*", { count: 'exact' })
         .eq("org_id", effectiveOrgId)
         .order("created_at", { ascending: false })
-        .limit(500); // Limit to 500 most recent contacts
+        .range(offset, offset + limit - 1);
 
       if (error) throw error;
-      setContacts(data || []);
+      
+      if (reset) {
+        setContacts(data || []);
+      } else {
+        setContacts(prev => [...prev, ...(data || [])]);
+      }
+      
+      // Check if there are more contacts to load
+      setHasMore((data?.length || 0) === limit && (offset + limit) < (count || 0));
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -97,7 +110,13 @@ export default function Contacts() {
       });
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
+  };
+
+  const loadMoreContacts = () => {
+    setLoadingMore(true);
+    fetchContacts(false);
   };
 
   const fetchPipelineStages = async () => {
@@ -193,7 +212,7 @@ export default function Contacts() {
 
       setIsDialogOpen(false);
       resetForm();
-      fetchContacts();
+      fetchContacts(true);
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -220,7 +239,7 @@ export default function Contacts() {
         title: "Contact deleted",
         description: "Contact has been removed successfully",
       });
-      fetchContacts();
+      fetchContacts(true);
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -386,7 +405,7 @@ Jane,Smith,jane.smith@example.com,+0987654321,Tech Inc,CEO,contacted,Referral`;
       });
 
       setIsUploadDialogOpen(false);
-      fetchContacts();
+      fetchContacts(true);
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -693,6 +712,26 @@ Jane,Smith,jane.smith@example.com,+0987654321,Tech Inc,CEO,contacted,Referral`;
                   ))}
                 </TableBody>
               </Table>
+            )}
+            
+            {/* Load More Button */}
+            {!loading && hasMore && (
+              <div className="flex justify-center mt-4">
+                <Button 
+                  onClick={loadMoreContacts} 
+                  disabled={loadingMore}
+                  variant="outline"
+                >
+                  {loadingMore ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Loading...
+                    </>
+                  ) : (
+                    `Load More (${contacts.length} loaded)`
+                  )}
+                </Button>
+              </div>
             )}
           </CardContent>
         </Card>

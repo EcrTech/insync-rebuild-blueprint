@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { AlertCircle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { clearImpersonation } from "@/utils/orgContextEvents";
 
 export function PlatformAdminBanner() {
   const [impersonation, setImpersonation] = useState<any>(null);
@@ -13,17 +14,24 @@ export function PlatformAdminBanner() {
       const data = sessionStorage.getItem("platform_admin_impersonation");
       if (data) {
         setImpersonation(JSON.parse(data));
+      } else {
+        setImpersonation(null);
       }
     };
 
     checkImpersonation();
-    // Check every second in case it changes
-    const interval = setInterval(checkImpersonation, 1000);
-    return () => clearInterval(interval);
+    
+    // Listen to custom event instead of polling
+    const handleOrgContextChange = () => {
+      checkImpersonation();
+    };
+    
+    window.addEventListener("orgContextChange", handleOrgContextChange);
+    return () => window.removeEventListener("orgContextChange", handleOrgContextChange);
   }, []);
 
   const exitImpersonation = () => {
-    sessionStorage.removeItem("platform_admin_impersonation");
+    clearImpersonation();
     setImpersonation(null);
     navigate("/platform-admin");
   };
