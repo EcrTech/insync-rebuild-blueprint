@@ -166,7 +166,7 @@ export default function Connectors() {
 
         if (updateError) throw updateError;
       } else {
-        const { error: insertError } = await supabase
+        const { data, error: insertError } = await supabase
           .from("forms")
           .insert([{
             org_id: effectiveOrgId,
@@ -176,9 +176,13 @@ export default function Connectors() {
             connector_type: "webhook",
             webhook_config: formData.webhook_config,
             rate_limit_per_minute: formData.rate_limit_per_minute,
-          }]);
+          }])
+          .select()
+          .single();
 
         if (insertError) throw insertError;
+        
+        console.log("Created webhook connector:", data);
       }
 
       toast({
