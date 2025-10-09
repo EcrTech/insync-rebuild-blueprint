@@ -41,6 +41,8 @@ import Communications from "./pages/Communications";
 import BulkEmailSender from "./pages/BulkEmailSender";
 import EmailCampaigns from "./pages/EmailCampaigns";
 import EmailCampaignDetail from "./pages/EmailCampaignDetail";
+import CampaignOverview from "./pages/Campaigns/CampaignOverview";
+import AIInsightsDashboard from "./pages/Campaigns/AIInsightsDashboard";
 import ProtectedRoute from "./components/Auth/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -259,6 +261,18 @@ const App = () => (
           <Route path="/email-campaigns/:id" element={
             <ProtectedRoute>
               <EmailCampaignDetail />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/campaigns/overview" element={
+            <ProtectedRoute>
+              <CampaignOverview />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/campaigns/insights" element={
+            <ProtectedRoute>
+              <AIInsightsDashboard />
             </ProtectedRoute>
           } />
           

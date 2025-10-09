@@ -14,6 +14,8 @@ import {
   BarChart3,
   Network,
   UserCog,
+  TrendingUp,
+  Lightbulb,
   UsersRound,
   Layers,
   PhoneCall,
@@ -182,6 +184,24 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
               >
                 <PhoneCall size={20} />
                 <span>Calling Dashboard</span>
+              </Link>
+
+              <Link
+                to="/campaigns/overview"
+                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
+                onClick={() => setSidebarOpen(false)}
+              >
+                <TrendingUp size={20} />
+                <span>Campaign Overview</span>
+              </Link>
+
+              <Link
+                to="/campaigns/insights"
+                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
+                onClick={() => setSidebarOpen(false)}
+              >
+                <Lightbulb size={20} />
+                <span>AI Insights</span>
               </Link>
 
               {isPlatformAdmin && (
