@@ -1168,6 +1168,141 @@ export type Database = {
           },
         ]
       }
+      whatsapp_bulk_campaigns: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          failed_count: number
+          id: string
+          message_content: string
+          name: string
+          org_id: string
+          pending_count: number
+          scheduled_at: string | null
+          sent_count: number
+          started_at: string | null
+          status: string
+          template_id: string | null
+          total_recipients: number
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          failed_count?: number
+          id?: string
+          message_content: string
+          name: string
+          org_id: string
+          pending_count?: number
+          scheduled_at?: string | null
+          sent_count?: number
+          started_at?: string | null
+          status?: string
+          template_id?: string | null
+          total_recipients?: number
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          failed_count?: number
+          id?: string
+          message_content?: string
+          name?: string
+          org_id?: string
+          pending_count?: number
+          scheduled_at?: string | null
+          sent_count?: number
+          started_at?: string | null
+          status?: string
+          template_id?: string | null
+          total_recipients?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_bulk_campaigns_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "communication_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_campaign_recipients: {
+        Row: {
+          campaign_id: string
+          contact_id: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          last_retry_at: string | null
+          max_retries: number
+          message_id: string | null
+          next_retry_at: string | null
+          phone_number: string
+          retry_count: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          campaign_id: string
+          contact_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          last_retry_at?: string | null
+          max_retries?: number
+          message_id?: string | null
+          next_retry_at?: string | null
+          phone_number: string
+          retry_count?: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          campaign_id?: string
+          contact_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          last_retry_at?: string | null
+          max_retries?: number
+          message_id?: string | null
+          next_retry_at?: string | null
+          phone_number?: string
+          retry_count?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_campaign_recipients_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_bulk_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_campaign_recipients_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_campaign_recipients_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_messages: {
         Row: {
           contact_id: string

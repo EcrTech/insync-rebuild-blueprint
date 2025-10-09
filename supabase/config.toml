@@ -26,3 +26,9 @@ verify_jwt = false
 
 [functions.create-gupshup-template]
 verify_jwt = true
+
+[functions.bulk-whatsapp-sender]
+verify_jwt = true
+
+[functions.retry-failed-whatsapp]
+verify_jwt = false

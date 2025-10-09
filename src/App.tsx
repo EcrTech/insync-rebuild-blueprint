@@ -31,6 +31,9 @@ import WhatsAppSettings from "./pages/WhatsAppSettings";
 import Templates from "./pages/Templates";
 import TemplateBuilder from "./pages/TemplateBuilder";
 import WhatsAppDashboard from "./pages/WhatsAppDashboard";
+import BulkWhatsAppSender from "./pages/BulkWhatsAppSender";
+import WhatsAppCampaigns from "./pages/WhatsAppCampaigns";
+import WhatsAppCampaignDetail from "./pages/WhatsAppCampaignDetail";
 import ProtectedRoute from "./components/Auth/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -189,6 +192,24 @@ const App = () => (
           <Route path="/whatsapp-messages" element={
             <ProtectedRoute>
               <WhatsAppDashboard />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/whatsapp/bulk-send" element={
+            <ProtectedRoute>
+              <BulkWhatsAppSender />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/whatsapp/campaigns" element={
+            <ProtectedRoute>
+              <WhatsAppCampaigns />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/whatsapp/campaigns/:id" element={
+            <ProtectedRoute>
+              <WhatsAppCampaignDetail />
             </ProtectedRoute>
           } />
           
