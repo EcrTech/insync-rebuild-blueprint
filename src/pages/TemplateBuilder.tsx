@@ -422,11 +422,40 @@ export default function TemplateBuilder() {
                         />
                       )}
                       {btn.type === "PHONE_NUMBER" && (
-                        <Input
-                          placeholder="+1234567890"
-                          value={btn.phone_number || ""}
-                          onChange={(e) => updateButton(idx, 'phone_number', e.target.value)}
-                        />
+                        <div className="flex gap-2">
+                          <Select 
+                            value={btn.phone_number?.match(/^\+\d+/)?.[0] || "+1"}
+                            onValueChange={(code) => {
+                              const number = btn.phone_number?.replace(/^\+\d+/, '') || '';
+                              updateButton(idx, 'phone_number', code + number);
+                            }}
+                          >
+                            <SelectTrigger className="w-32">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="+1">🇺🇸 +1</SelectItem>
+                              <SelectItem value="+44">🇬🇧 +44</SelectItem>
+                              <SelectItem value="+91">🇮🇳 +91</SelectItem>
+                              <SelectItem value="+86">🇨🇳 +86</SelectItem>
+                              <SelectItem value="+81">🇯🇵 +81</SelectItem>
+                              <SelectItem value="+49">🇩🇪 +49</SelectItem>
+                              <SelectItem value="+33">🇫🇷 +33</SelectItem>
+                              <SelectItem value="+61">🇦🇺 +61</SelectItem>
+                              <SelectItem value="+55">🇧🇷 +55</SelectItem>
+                              <SelectItem value="+971">🇦🇪 +971</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Input
+                            placeholder="1234567890"
+                            value={btn.phone_number?.replace(/^\+\d+/, '') || ""}
+                            onChange={(e) => {
+                              const code = btn.phone_number?.match(/^\+\d+/)?.[0] || "+1";
+                              updateButton(idx, 'phone_number', code + e.target.value);
+                            }}
+                            className="flex-1"
+                          />
+                        </div>
                       )}
                     </CardContent>
                   </Card>
