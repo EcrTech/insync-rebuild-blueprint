@@ -103,6 +103,62 @@ export type Database = {
           },
         ]
       }
+      communication_templates: {
+        Row: {
+          category: string | null
+          content: string
+          created_at: string | null
+          id: string
+          language: string | null
+          last_synced_at: string | null
+          org_id: string
+          status: string | null
+          template_id: string
+          template_name: string
+          template_type: string
+          updated_at: string | null
+          variables: Json | null
+        }
+        Insert: {
+          category?: string | null
+          content: string
+          created_at?: string | null
+          id?: string
+          language?: string | null
+          last_synced_at?: string | null
+          org_id: string
+          status?: string | null
+          template_id: string
+          template_name: string
+          template_type: string
+          updated_at?: string | null
+          variables?: Json | null
+        }
+        Update: {
+          category?: string | null
+          content?: string
+          created_at?: string | null
+          id?: string
+          language?: string | null
+          last_synced_at?: string | null
+          org_id?: string
+          status?: string | null
+          template_id?: string
+          template_name?: string
+          template_type?: string
+          updated_at?: string | null
+          variables?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "communication_templates_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       connector_logs: {
         Row: {
           contact_id: string | null
@@ -1080,6 +1136,123 @@ export type Database = {
             foreignKeyName: "user_roles_org_id_fkey"
             columns: ["org_id"]
             isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_messages: {
+        Row: {
+          contact_id: string
+          created_at: string | null
+          delivered_at: string | null
+          error_message: string | null
+          gupshup_message_id: string | null
+          id: string
+          message_content: string
+          org_id: string
+          phone_number: string
+          read_at: string | null
+          sent_at: string | null
+          sent_by: string | null
+          status: string | null
+          template_id: string | null
+          template_variables: Json | null
+        }
+        Insert: {
+          contact_id: string
+          created_at?: string | null
+          delivered_at?: string | null
+          error_message?: string | null
+          gupshup_message_id?: string | null
+          id?: string
+          message_content: string
+          org_id: string
+          phone_number: string
+          read_at?: string | null
+          sent_at?: string | null
+          sent_by?: string | null
+          status?: string | null
+          template_id?: string | null
+          template_variables?: Json | null
+        }
+        Update: {
+          contact_id?: string
+          created_at?: string | null
+          delivered_at?: string | null
+          error_message?: string | null
+          gupshup_message_id?: string | null
+          id?: string
+          message_content?: string
+          org_id?: string
+          phone_number?: string
+          read_at?: string | null
+          sent_at?: string | null
+          sent_by?: string | null
+          status?: string | null
+          template_id?: string | null
+          template_variables?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_messages_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_messages_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_messages_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "communication_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_settings: {
+        Row: {
+          app_name: string
+          created_at: string | null
+          gupshup_api_key: string
+          id: string
+          is_active: boolean | null
+          org_id: string
+          updated_at: string | null
+          whatsapp_source_number: string
+        }
+        Insert: {
+          app_name: string
+          created_at?: string | null
+          gupshup_api_key: string
+          id?: string
+          is_active?: boolean | null
+          org_id: string
+          updated_at?: string | null
+          whatsapp_source_number: string
+        }
+        Update: {
+          app_name?: string
+          created_at?: string | null
+          gupshup_api_key?: string
+          id?: string
+          is_active?: boolean | null
+          org_id?: string
+          updated_at?: string | null
+          whatsapp_source_number?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_settings_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: true
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },

@@ -27,6 +27,8 @@ import CallingDashboard from "./pages/CallingDashboard";
 import CallLogs from "./pages/CallLogs";
 import PublicForm from "./pages/PublicForm";
 import PlatformAdmin from "./pages/PlatformAdmin";
+import WhatsAppSettings from "./pages/WhatsAppSettings";
+import Templates from "./pages/Templates";
 import ProtectedRoute from "./components/Auth/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -155,6 +157,18 @@ const App = () => (
           <Route path="/platform-admin" element={
             <ProtectedRoute>
               <PlatformAdmin />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/admin/whatsapp-settings" element={
+            <ProtectedRoute requiredRole="admin">
+              <WhatsAppSettings />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/templates" element={
+            <ProtectedRoute>
+              <Templates />
             </ProtectedRoute>
           } />
           

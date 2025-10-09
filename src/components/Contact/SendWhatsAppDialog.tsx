@@ -1,0 +1,259 @@
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useOrgContext } from "@/hooks/useOrgContext";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
+import { Loader2 } from "lucide-react";
+
+interface Template {
+  id: string;
+  template_name: string;
+  content: string;
+  variables: Array<{ index: number; name: string }> | null;
+}
+
+interface SendWhatsAppDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  contactId: string;
+  contactName: string;
+  phoneNumber: string;
+  onMessageSent?: () => void;
+}
+
+export function SendWhatsAppDialog({
+  open,
+  onOpenChange,
+  contactId,
+  contactName,
+  phoneNumber,
+  onMessageSent,
+}: SendWhatsAppDialogProps) {
+  const { effectiveOrgId } = useOrgContext();
+  const { toast } = useToast();
+  const [sending, setSending] = useState(false);
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
+  const [templateVariables, setTemplateVariables] = useState<Record<string, string>>({});
+  const [customMessage, setCustomMessage] = useState("");
+  const [messageType, setMessageType] = useState<"template" | "custom">("template");
+
+  useEffect(() => {
+    if (open && effectiveOrgId) {
+      fetchTemplates();
+    }
+  }, [open, effectiveOrgId]);
+
+  const fetchTemplates = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("communication_templates")
+        .select("id, template_name, content, variables")
+        .eq("org_id", effectiveOrgId)
+        .eq("template_type", "whatsapp")
+        .eq("status", "approved")
+        .order("template_name");
+
+      if (error) throw error;
+      setTemplates((data || []) as Template[]);
+    } catch (error: any) {
+      console.error("Error fetching templates:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load templates",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleTemplateChange = (templateId: string) => {
+    setSelectedTemplateId(templateId);
+    const template = templates.find((t) => t.id === templateId);
+    if (template?.variables) {
+      const vars: Record<string, string> = {};
+      template.variables.forEach((v: any) => {
+        vars[v.index] = "";
+      });
+      setTemplateVariables(vars);
+    }
+  };
+
+  const handleSend = async () => {
+    if (messageType === "template" && !selectedTemplateId) {
+      toast({
+        title: "Validation Error",
+        description: "Please select a template",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (messageType === "custom" && !customMessage.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter a message",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSending(true);
+    try {
+      const payload: any = {
+        contactId,
+        phoneNumber: phoneNumber.replace(/[^\d]/g, ""),
+      };
+
+      if (messageType === "template") {
+        payload.templateId = selectedTemplateId;
+        payload.templateVariables = templateVariables;
+      } else {
+        payload.message = customMessage;
+      }
+
+      const { error } = await supabase.functions.invoke("send-whatsapp-message", {
+        body: payload,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "WhatsApp message sent successfully",
+      });
+
+      onOpenChange(false);
+      onMessageSent?.();
+    } catch (error: any) {
+      console.error("Error sending message:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to send message",
+        variant: "destructive",
+      });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const selectedTemplate = templates.find((t) => t.id === selectedTemplateId);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>Send WhatsApp Message</DialogTitle>
+          <DialogDescription>
+            Send a WhatsApp message to {contactName} ({phoneNumber})
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label>Message Type</Label>
+            <Select
+              value={messageType}
+              onValueChange={(value: "template" | "custom") => setMessageType(value)}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="template">Use Template</SelectItem>
+                <SelectItem value="custom">Custom Message</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {messageType === "template" ? (
+            <>
+              <div className="space-y-2">
+                <Label>Select Template</Label>
+                <Select value={selectedTemplateId} onValueChange={handleTemplateChange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose a template" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {templates.map((template) => (
+                      <SelectItem key={template.id} value={template.id}>
+                        {template.template_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {selectedTemplate && (
+                <>
+                  <div className="p-3 bg-muted rounded-md text-sm">
+                    <Label className="text-xs text-muted-foreground">Preview:</Label>
+                    <p className="mt-1">{selectedTemplate.content}</p>
+                  </div>
+
+                  {selectedTemplate.variables && selectedTemplate.variables.length > 0 && (
+                    <div className="space-y-3">
+                      <Label>Template Variables</Label>
+                      {selectedTemplate.variables.map((variable: any) => (
+                        <div key={variable.index} className="space-y-2">
+                          <Label htmlFor={`var-${variable.index}`}>
+                            Variable {variable.index}
+                          </Label>
+                          <Input
+                            id={`var-${variable.index}`}
+                            value={templateVariables[variable.index] || ""}
+                            onChange={(e) =>
+                              setTemplateVariables({
+                                ...templateVariables,
+                                [variable.index]: e.target.value,
+                              })
+                            }
+                            placeholder={`Enter value for {{${variable.index}}}`}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </>
+          ) : (
+            <div className="space-y-2">
+              <Label htmlFor="custom-message">Message</Label>
+              <Textarea
+                id="custom-message"
+                value={customMessage}
+                onChange={(e) => setCustomMessage(e.target.value)}
+                placeholder="Type your message here..."
+                rows={5}
+              />
+              <p className="text-xs text-muted-foreground">
+                Note: Custom messages may require prior approval from WhatsApp
+              </p>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={sending}>
+            Cancel
+          </Button>
+          <Button onClick={handleSend} disabled={sending}>
+            {sending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Sending...
+              </>
+            ) : (
+              "Send Message"
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
