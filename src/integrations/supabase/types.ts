@@ -737,6 +737,63 @@ export type Database = {
         }
         Relationships: []
       }
+      designation_feature_access: {
+        Row: {
+          can_create: boolean | null
+          can_delete: boolean | null
+          can_edit: boolean | null
+          can_view: boolean | null
+          created_at: string | null
+          custom_permissions: Json | null
+          designation_id: string
+          feature_key: string
+          id: string
+          org_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          can_create?: boolean | null
+          can_delete?: boolean | null
+          can_edit?: boolean | null
+          can_view?: boolean | null
+          created_at?: string | null
+          custom_permissions?: Json | null
+          designation_id: string
+          feature_key: string
+          id?: string
+          org_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          can_create?: boolean | null
+          can_delete?: boolean | null
+          can_edit?: boolean | null
+          can_view?: boolean | null
+          created_at?: string | null
+          custom_permissions?: Json | null
+          designation_id?: string
+          feature_key?: string
+          id?: string
+          org_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "designation_feature_access_designation_id_fkey"
+            columns: ["designation_id"]
+            isOneToOne: false
+            referencedRelation: "designations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "designation_feature_access_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       designations: {
         Row: {
           created_at: string | null
@@ -1162,6 +1219,36 @@ export type Database = {
           },
         ]
       }
+      feature_permissions: {
+        Row: {
+          category: string
+          created_at: string | null
+          feature_description: string | null
+          feature_key: string
+          feature_name: string
+          id: string
+          is_premium: boolean | null
+        }
+        Insert: {
+          category: string
+          created_at?: string | null
+          feature_description?: string | null
+          feature_key: string
+          feature_name: string
+          id?: string
+          is_premium?: boolean | null
+        }
+        Update: {
+          category?: string
+          created_at?: string | null
+          feature_description?: string | null
+          feature_key?: string
+          feature_name?: string
+          id?: string
+          is_premium?: boolean | null
+        }
+        Relationships: []
+      }
       form_fields: {
         Row: {
           created_at: string | null
@@ -1242,6 +1329,53 @@ export type Database = {
           webhook_token?: string | null
         }
         Relationships: []
+      }
+      org_feature_access: {
+        Row: {
+          created_at: string | null
+          disabled_at: string | null
+          enabled_at: string | null
+          feature_key: string
+          id: string
+          is_enabled: boolean | null
+          modified_by: string | null
+          notes: string | null
+          org_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          disabled_at?: string | null
+          enabled_at?: string | null
+          feature_key: string
+          id?: string
+          is_enabled?: boolean | null
+          modified_by?: string | null
+          notes?: string | null
+          org_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          disabled_at?: string | null
+          enabled_at?: string | null
+          feature_key?: string
+          id?: string
+          is_enabled?: boolean | null
+          modified_by?: string | null
+          notes?: string | null
+          org_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_feature_access_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       org_invites: {
         Row: {
@@ -1958,6 +2092,14 @@ export type Database = {
         Args: { user_email: string }
         Returns: undefined
       }
+      designation_has_feature_access: {
+        Args: {
+          _designation_id: string
+          _feature_key: string
+          _permission?: string
+        }
+        Returns: boolean
+      }
       generate_webhook_token: {
         Args: Record<PropertyKey, never>
         Returns: string
@@ -2021,6 +2163,10 @@ export type Database = {
           p_sent_increment?: number
         }
         Returns: undefined
+      }
+      is_feature_enabled_for_org: {
+        Args: { _feature_key: string; _org_id: string }
+        Returns: boolean
       }
       is_platform_admin: {
         Args: { _user_id: string }

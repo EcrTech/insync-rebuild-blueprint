@@ -3,6 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import DashboardLayout from "@/components/Layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { OrgFeatureMatrix } from "@/components/PlatformAdmin/OrgFeatureMatrix";
+import { DesignationPermissions } from "@/components/PlatformAdmin/DesignationPermissions";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -397,8 +399,10 @@ export default function PlatformAdmin() {
         </div>
 
         <Tabs defaultValue="overview" className="space-y-4">
-          <TabsList>
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="feature-access">Feature Access</TabsTrigger>
+            <TabsTrigger value="permissions">Permissions</TabsTrigger>
             <TabsTrigger value="error-logs">Error Logs</TabsTrigger>
           </TabsList>
 
@@ -596,6 +600,34 @@ export default function PlatformAdmin() {
             )}
           </CardContent>
          </Card>
+          </TabsContent>
+
+          <TabsContent value="feature-access" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Organization Feature Access Control</CardTitle>
+                <CardDescription>
+                  Enable or disable features for each organization
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <OrgFeatureMatrix />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="permissions" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Designation-Level Permissions</CardTitle>
+                <CardDescription>
+                  Configure granular permissions for each designation within organizations
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <DesignationPermissions />
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="error-logs" className="space-y-4">
