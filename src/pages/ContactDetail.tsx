@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { 
   ArrowLeft, Mail, Phone as PhoneIcon, Building, MapPin, Calendar,
-  Edit, Plus, MessageSquare, PhoneCall, Video, FileText, Linkedin
+  Edit, Plus, MessageSquare, PhoneCall, Video, FileText, Linkedin, MessageCircle
 } from "lucide-react";
 import { ActivityTimeline } from "@/components/Contact/ActivityTimeline";
 import { CustomerJourney } from "@/components/Contact/CustomerJourney";
@@ -166,12 +166,6 @@ export default function ContactDetail() {
               <FileText className="mr-2 h-4 w-4" />
               Fill Form
             </Button>
-            {contact.phone && (
-              <Button variant="outline" onClick={() => setIsWhatsAppOpen(true)}>
-                <MessageSquare className="mr-2 h-4 w-4" />
-                WhatsApp
-              </Button>
-            )}
             <Button onClick={() => { setActivityType("note"); setIsLogActivityOpen(true); }}>
               <Plus className="mr-2 h-4 w-4" />
               Log Activity
@@ -288,9 +282,9 @@ export default function ContactDetail() {
                   <Button 
                     size="sm" 
                     variant="outline"
-                    onClick={() => { setActivityType("note"); setIsLogActivityOpen(true); }}
+                    onClick={() => setIsWhatsAppOpen(true)}
                   >
-                    <MessageSquare className="h-4 w-4" />
+                    <MessageCircle className="h-4 w-4" />
                   </Button>
                 </div>
               </div>
