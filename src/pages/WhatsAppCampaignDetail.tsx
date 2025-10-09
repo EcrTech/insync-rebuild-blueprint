@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, RefreshCw, Download } from "lucide-react";
+import { ArrowLeft, RefreshCw, Download, XCircle } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 export default function WhatsAppCampaignDetail() {
@@ -100,6 +100,7 @@ export default function WhatsAppCampaignDetail() {
       failed: { variant: "destructive", label: "Failed" },
       retrying: { variant: "outline", label: "Retrying" },
       permanently_failed: { variant: "destructive", label: "Permanently Failed" },
+      cancelled: { variant: "outline", label: "Cancelled" },
     };
     
     const config = variants[status] || variants.pending;
@@ -145,6 +146,48 @@ export default function WhatsAppCampaignDetail() {
     a.click();
   };
 
+  const handleCancelCampaign = async () => {
+    if (!confirm("Are you sure you want to cancel this campaign? Pending messages will not be sent.")) {
+      return;
+    }
+
+    try {
+      // Update all pending recipients to cancelled
+      const { error: recipientsError } = await supabase
+        .from("whatsapp_campaign_recipients")
+        .update({ status: "cancelled" })
+        .eq("campaign_id", id)
+        .in("status", ["pending", "retrying"]);
+
+      if (recipientsError) throw recipientsError;
+
+      // Update campaign status to cancelled
+      const { error: campaignError } = await supabase
+        .from("whatsapp_bulk_campaigns")
+        .update({ 
+          status: "cancelled",
+          completed_at: new Date().toISOString(),
+          pending_count: 0,
+        })
+        .eq("id", id);
+
+      if (campaignError) throw campaignError;
+
+      toast({
+        title: "Campaign Cancelled",
+        description: "The campaign has been cancelled successfully",
+      });
+
+      fetchCampaignDetails();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   if (loading || !campaign) {
     return <div className="container mx-auto p-6">Loading...</div>;
   }
@@ -160,7 +203,27 @@ export default function WhatsAppCampaignDetail() {
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Campaigns
         </Button>
-        <h1 className="text-3xl font-bold">{campaign.name}</h1>
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold">{campaign.name}</h1>
+            <div className="flex gap-2 items-center mt-2">
+              <Badge variant={campaign.status === "completed" ? "default" : campaign.status === "processing" ? "secondary" : "outline"}>
+                {campaign.status}
+              </Badge>
+              {campaign.started_at && (
+                <span className="text-sm text-muted-foreground">
+                  Started {formatDistanceToNow(new Date(campaign.started_at), { addSuffix: true })}
+                </span>
+              )}
+            </div>
+          </div>
+          {campaign.status === "processing" && (
+            <Button variant="destructive" onClick={handleCancelCampaign}>
+              <XCircle className="mr-2 h-4 w-4" />
+              Cancel Campaign
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
@@ -231,7 +294,7 @@ export default function WhatsAppCampaignDetail() {
             </div>
           </div>
           <div className="flex gap-2 mt-4">
-            {["all", "sent", "failed", "pending", "retrying"].map((status) => (
+            {["all", "sent", "failed", "pending", "retrying", "cancelled"].map((status) => (
               <Button
                 key={status}
                 variant={filter === status ? "default" : "outline"}
