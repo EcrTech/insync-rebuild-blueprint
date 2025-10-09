@@ -16,6 +16,7 @@ import Teams from "./pages/Teams";
 import Contacts from "./pages/Contacts";
 import ContactDetail from "./pages/ContactDetail";
 import PipelineBoard from "./pages/PipelineBoard";
+import PipelineAdvancedSearch from "./pages/PipelineAdvancedSearch";
 import Reports from "./pages/Reports";
 import ApprovalMatrix from "./pages/ApprovalMatrix";
 import Designations from "./pages/Designations";
@@ -78,6 +79,12 @@ const App = () => (
           <Route path="/pipeline" element={
             <ProtectedRoute>
               <PipelineBoard />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/pipeline/advanced-search" element={
+            <ProtectedRoute>
+              <PipelineAdvancedSearch />
             </ProtectedRoute>
           } />
           

@@ -260,6 +260,10 @@ export default function PipelineBoard() {
             <h1 className="text-3xl font-bold">Pipeline Board</h1>
             <p className="text-muted-foreground">View and manage your sales pipeline</p>
           </div>
+          <Button onClick={() => navigate('/pipeline/advanced-search')} variant="outline">
+            <Search className="h-4 w-4 mr-2" />
+            Advanced Search
+          </Button>
         </div>
 
         {/* AI Search Bar */}
