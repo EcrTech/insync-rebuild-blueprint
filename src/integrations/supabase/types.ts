@@ -1013,6 +1013,9 @@ export type Database = {
           created_at: string | null
           dns_records: Json | null
           id: string
+          inbound_route_id: string | null
+          inbound_routing_enabled: boolean | null
+          inbound_webhook_url: string | null
           is_active: boolean | null
           org_id: string
           resend_domain_id: string | null
@@ -1025,6 +1028,9 @@ export type Database = {
           created_at?: string | null
           dns_records?: Json | null
           id?: string
+          inbound_route_id?: string | null
+          inbound_routing_enabled?: boolean | null
+          inbound_webhook_url?: string | null
           is_active?: boolean | null
           org_id: string
           resend_domain_id?: string | null
@@ -1037,6 +1043,9 @@ export type Database = {
           created_at?: string | null
           dns_records?: Json | null
           id?: string
+          inbound_route_id?: string | null
+          inbound_routing_enabled?: boolean | null
+          inbound_webhook_url?: string | null
           is_active?: boolean | null
           org_id?: string
           resend_domain_id?: string | null

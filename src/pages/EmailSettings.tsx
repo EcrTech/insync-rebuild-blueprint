@@ -30,6 +30,8 @@ interface EmailSettings {
   dns_records: DnsRecord[];
   verified_at: string;
   is_active: boolean;
+  inbound_routing_enabled: boolean;
+  inbound_webhook_url: string;
 }
 
 const EmailSettings = () => {
@@ -370,6 +372,59 @@ const EmailSettings = () => {
                     ) : null}
                     Verify DNS Records
                   </Button>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Inbound Email Routing Status */}
+          {settings?.verification_status === 'verified' && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Inbound Email Routing</CardTitle>
+                <CardDescription>
+                  Receive email replies directly in Customer Journey
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex items-center gap-2">
+                    {settings.inbound_routing_enabled ? (
+                      <CheckCircle2 className="h-5 w-5 text-green-500" />
+                    ) : (
+                      <AlertCircle className="h-5 w-5 text-yellow-500" />
+                    )}
+                    <div>
+                      <p className="font-medium">Routing Status</p>
+                      <p className="text-sm text-muted-foreground">
+                        {settings.inbound_routing_enabled ? 'Active' : 'Not configured'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {settings.inbound_webhook_url && (
+                  <div className="space-y-2">
+                    <Label>Webhook Endpoint</Label>
+                    <code className="block bg-muted p-2 rounded text-xs break-all">
+                      {settings.inbound_webhook_url}
+                    </code>
+                  </div>
+                )}
+
+                {settings.inbound_routing_enabled ? (
+                  <Alert>
+                    <CheckCircle2 className="h-4 w-4" />
+                    <AlertDescription>
+                      Inbound routing is active. Email replies will automatically appear in Customer Journey timeline.
+                    </AlertDescription>
+                  </Alert>
+                ) : (
+                  <Alert>
+                    <AlertDescription>
+                      Inbound routing will be automatically configured when you verify your domain.
+                    </AlertDescription>
+                  </Alert>
                 )}
               </CardContent>
             </Card>

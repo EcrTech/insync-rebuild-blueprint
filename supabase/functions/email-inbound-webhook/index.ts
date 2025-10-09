@@ -34,11 +34,25 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
 
-    const payload: ResendInboundPayload = await req.json();
-    console.log('Received inbound email:', JSON.stringify(payload, null, 2));
+    const payload = await req.json();
+    console.log('Received payload:', JSON.stringify(payload, null, 2));
 
-    // Extract domain from recipient email (payload.to)
-    const recipientEmail = payload.to;
+    // Check if this is a Resend webhook event (has 'type' field)
+    if (payload.type) {
+      console.log(`Received Resend webhook event: ${payload.type}`);
+      // These are delivery status events, not inbound emails - acknowledge and ignore
+      return new Response(
+        JSON.stringify({ success: true, message: 'Webhook event acknowledged' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // If no 'type' field, this is an inbound email forwarding event
+    const inboundEmail: ResendInboundPayload = payload;
+    console.log('Processing inbound email from:', inboundEmail.from);
+
+    // Extract domain from recipient email (inboundEmail.to)
+    const recipientEmail = inboundEmail.to;
     const recipientDomain = recipientEmail.split('@')[1];
     console.log('Recipient domain:', recipientDomain);
 
@@ -65,7 +79,7 @@ Deno.serve(async (req) => {
     const { data: contacts } = await supabaseClient
       .from('contacts')
       .select('id')
-      .eq('email', payload.from)
+      .eq('email', inboundEmail.from)
       .eq('org_id', orgId)
       .limit(1);
 
@@ -73,19 +87,19 @@ Deno.serve(async (req) => {
 
     // If contact doesn't exist, create new contact
     if (!contactId) {
-      console.log('Contact not found, creating new contact for:', payload.from);
+      console.log('Contact not found, creating new contact for:', inboundEmail.from);
       
-      // Parse name from payload
+      // Parse name from inboundEmail
       let firstName = '';
       let lastName = '';
       
-      if (payload.fromName) {
-        const nameParts = payload.fromName.trim().split(' ');
+      if (inboundEmail.fromName) {
+        const nameParts = inboundEmail.fromName.trim().split(' ');
         firstName = nameParts[0] || '';
         lastName = nameParts.slice(1).join(' ') || '';
       } else {
         // Extract name from email (before @)
-        firstName = payload.from.split('@')[0];
+        firstName = inboundEmail.from.split('@')[0];
       }
 
       // Create new contact
@@ -93,7 +107,7 @@ Deno.serve(async (req) => {
         .from('contacts')
         .insert({
           org_id: orgId,
-          email: payload.from,
+          email: inboundEmail.from,
           first_name: firstName,
           last_name: lastName || null,
           source: 'email_inbound',
@@ -115,7 +129,7 @@ Deno.serve(async (req) => {
     }
 
     // Generate conversation ID from thread or create new
-    const conversationId = payload.threadId || crypto.randomUUID();
+    const conversationId = inboundEmail.threadId || crypto.randomUUID();
 
     // Store inbound email
     const { error: insertError } = await supabaseClient
@@ -124,17 +138,17 @@ Deno.serve(async (req) => {
         org_id: orgId,
         contact_id: contactId,
         conversation_id: conversationId,
-        thread_id: payload.threadId,
+        thread_id: inboundEmail.threadId,
         direction: 'inbound',
-        from_email: payload.from,
-        from_name: payload.fromName,
-        to_email: payload.to,
-        subject: payload.subject,
-        email_content: payload.text,
-        html_content: payload.html,
-        has_attachments: (payload.attachments?.length ?? 0) > 0,
-        attachments: payload.attachments ? JSON.stringify(payload.attachments) : null,
-        provider_message_id: payload.messageId,
+        from_email: inboundEmail.from,
+        from_name: inboundEmail.fromName,
+        to_email: inboundEmail.to,
+        subject: inboundEmail.subject,
+        email_content: inboundEmail.text,
+        html_content: inboundEmail.html,
+        has_attachments: (inboundEmail.attachments?.length ?? 0) > 0,
+        attachments: inboundEmail.attachments ? JSON.stringify(inboundEmail.attachments) : null,
+        provider_message_id: inboundEmail.messageId,
         status: 'received',
         is_read: false,
         received_at: new Date().toISOString(),
@@ -148,7 +162,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log('Stored inbound email from:', payload.from);
+    console.log('Stored inbound email from:', inboundEmail.from);
 
     return new Response(
       JSON.stringify({ success: true, message: 'Inbound email stored' }),

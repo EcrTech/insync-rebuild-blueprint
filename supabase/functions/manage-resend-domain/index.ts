@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface DomainRequest {
-  action: 'create-domain' | 'verify-domain' | 'get-domain' | 'delete-domain';
+  action: 'create-domain' | 'verify-domain' | 'get-domain' | 'delete-domain' | 'setup-inbound-route';
   domain?: string;
   domainId?: string;
 }
@@ -225,7 +225,109 @@ serve(async (req) => {
 
         if (updateError) throw updateError;
 
+        // Auto-setup inbound routing if domain is verified
+        if (newStatus === 'verified') {
+          console.log('Domain verified, setting up inbound routing automatically...');
+          try {
+            const webhookUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/email-inbound-webhook`;
+            
+            const inboundResponse = await fetch(
+              `https://api.resend.com/domains/${settings.resend_domain_id}/inbound-routes`,
+              {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${resendApiKey}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  destination_url: webhookUrl,
+                  enabled: true,
+                }),
+              }
+            );
+
+            if (inboundResponse.ok) {
+              const inboundData = await inboundResponse.json();
+              console.log('Inbound route created:', inboundData);
+              
+              await supabaseClient
+                .from('email_settings')
+                .update({
+                  inbound_route_id: inboundData.id,
+                  inbound_routing_enabled: true,
+                  inbound_webhook_url: webhookUrl,
+                })
+                .eq('org_id', profile.org_id);
+              
+              console.log('✓ Inbound routing enabled automatically');
+            } else {
+              console.log('Inbound route setup skipped or failed:', await inboundResponse.text());
+            }
+          } catch (inboundError) {
+            console.error('Failed to auto-setup inbound routing:', inboundError);
+            // Don't fail the verification if inbound setup fails
+          }
+        }
+
         result = verifyData;
+        break;
+      }
+
+      case 'setup-inbound-route': {
+        const { data: settings } = await supabaseClient
+          .from('email_settings')
+          .select('resend_domain_id, verification_status')
+          .eq('org_id', profile.org_id)
+          .single();
+
+        if (!settings?.resend_domain_id) {
+          throw new Error('No domain configured');
+        }
+
+        if (settings.verification_status !== 'verified') {
+          throw new Error('Domain must be verified before setting up inbound routing');
+        }
+
+        const webhookUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/email-inbound-webhook`;
+        
+        console.log('Setting up inbound route for domain:', settings.resend_domain_id);
+        const inboundResponse = await fetch(
+          `https://api.resend.com/domains/${settings.resend_domain_id}/inbound-routes`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${resendApiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              destination_url: webhookUrl,
+              enabled: true,
+            }),
+          }
+        );
+
+        if (!inboundResponse.ok) {
+          const error = await inboundResponse.text();
+          console.error('Resend inbound route error:', error);
+          throw new Error(`Failed to setup inbound routing: ${error}`);
+        }
+
+        const inboundData = await inboundResponse.json();
+        console.log('Inbound route created:', inboundData);
+
+        // Update database
+        const { error: updateError } = await supabaseClient
+          .from('email_settings')
+          .update({
+            inbound_route_id: inboundData.id,
+            inbound_routing_enabled: true,
+            inbound_webhook_url: webhookUrl,
+          })
+          .eq('org_id', profile.org_id);
+
+        if (updateError) throw updateError;
+
+        result = inboundData;
         break;
       }
 
