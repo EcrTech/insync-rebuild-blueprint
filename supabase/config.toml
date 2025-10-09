@@ -3,6 +3,12 @@ project_id = "aizgpxaqvtvvqarzjmze"
 [functions.submit-public-form]
 verify_jwt = false
 
+[functions.send-bulk-email]
+verify_jwt = true
+
+[functions.send-email]
+verify_jwt = true
+
 [functions.webhook-receiver]
 verify_jwt = false
 

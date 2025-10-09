@@ -26,6 +26,8 @@ import {
   Building2,
   Webhook,
   MessageSquare,
+  Mail,
+  Send,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { PlatformAdminBanner } from "@/components/PlatformAdminBanner";
@@ -206,6 +208,22 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
               >
                 <MessageSquare size={20} />
                 <span>Communications</span>
+              </Link>
+              <Link
+                to="/bulk-email"
+                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
+                onClick={() => setSidebarOpen(false)}
+              >
+                <Send size={20} />
+                <span>Bulk Email</span>
+              </Link>
+              <Link
+                to="/email-campaigns"
+                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
+                onClick={() => setSidebarOpen(false)}
+              >
+                <Mail size={20} />
+                <span>Email Campaigns</span>
               </Link>
               <Link
                 to="/contacts"

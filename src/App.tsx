@@ -36,6 +36,10 @@ import WhatsAppCampaigns from "./pages/WhatsAppCampaigns";
 import WhatsAppCampaignDetail from "./pages/WhatsAppCampaignDetail";
 import QueueStatus from "./pages/QueueStatus";
 import Communications from "./pages/Communications";
+import EmailTemplateBuilder from "./pages/EmailTemplateBuilder";
+import BulkEmailSender from "./pages/BulkEmailSender";
+import EmailCampaigns from "./pages/EmailCampaigns";
+import EmailCampaignDetail from "./pages/EmailCampaignDetail";
 import ProtectedRoute from "./components/Auth/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -224,6 +228,36 @@ const App = () => (
           <Route path="/communications" element={
             <ProtectedRoute>
               <Communications />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/email-templates/create" element={
+            <ProtectedRoute>
+              <EmailTemplateBuilder />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/email-templates/:id" element={
+            <ProtectedRoute>
+              <EmailTemplateBuilder />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/bulk-email" element={
+            <ProtectedRoute>
+              <BulkEmailSender />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/email-campaigns" element={
+            <ProtectedRoute>
+              <EmailCampaigns />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/email-campaigns/:id" element={
+            <ProtectedRoute>
+              <EmailCampaignDetail />
             </ProtectedRoute>
           } />
           
