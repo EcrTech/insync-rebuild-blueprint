@@ -109,7 +109,7 @@ Deno.serve(async (req) => {
     if (type === 'message' && webhookData.text) {
       console.log('Received inbound message:', webhookData);
       
-      // Find or create contact by phone number
+      // Find existing contact by phone number
       const { data: contacts } = await supabaseClient
         .from('contacts')
         .select('id, org_id')
@@ -119,12 +119,65 @@ Deno.serve(async (req) => {
       let contactId = contacts?.[0]?.id;
       let orgId = contacts?.[0]?.org_id;
       
+      // If contact doesn't exist, try to auto-create
       if (!contactId || !orgId) {
         console.log('Contact not found for phone:', webhookData.mobile);
-        return new Response(
-          JSON.stringify({ success: true, message: 'Contact not found, message ignored' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        
+        // Get active WhatsApp settings to determine org
+        const { data: whatsappSettings } = await supabaseClient
+          .from('whatsapp_settings')
+          .select('org_id')
+          .eq('is_active', true)
+          .limit(1);
+        
+        if (!whatsappSettings || whatsappSettings.length === 0) {
+          console.log('No active WhatsApp settings found');
+          return new Response(
+            JSON.stringify({ success: true, message: 'No active WhatsApp org found, message ignored' }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        orgId = whatsappSettings[0].org_id;
+        console.log('Creating new contact for phone:', webhookData.mobile, 'in org:', orgId);
+        
+        // Parse name from webhook
+        let firstName = '';
+        let lastName = '';
+        
+        if (webhookData.name) {
+          const nameParts = webhookData.name.trim().split(' ');
+          firstName = nameParts[0] || '';
+          lastName = nameParts.slice(1).join(' ') || '';
+        } else {
+          // Use phone number as name if no name provided
+          firstName = webhookData.mobile;
+        }
+        
+        // Create new contact
+        const { data: newContact, error: createError } = await supabaseClient
+          .from('contacts')
+          .insert({
+            org_id: orgId,
+            phone: webhookData.mobile,
+            first_name: firstName,
+            last_name: lastName || null,
+            source: 'whatsapp_inbound',
+            status: 'new',
+          })
+          .select('id')
+          .single();
+        
+        if (createError) {
+          console.error('Error creating contact:', createError);
+          return new Response(
+            JSON.stringify({ error: 'Failed to create contact: ' + createError.message }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        contactId = newContact.id;
+        console.log('Created new contact:', contactId);
       }
       
       // Store inbound message
