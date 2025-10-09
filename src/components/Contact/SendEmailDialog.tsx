@@ -28,12 +28,37 @@ export function SendEmailDialog({
   const [recipientEmail, setRecipientEmail] = useState("");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
+  const [userInfo, setUserInfo] = useState<{ firstName: string; lastName: string; email: string } | null>(null);
 
   useEffect(() => {
     if (open) {
       fetchPrimaryEmail();
+      fetchUserInfo();
     }
   }, [open, contactId]);
+
+  const fetchUserInfo = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("first_name, last_name")
+        .eq("id", user.id)
+        .single();
+
+      if (profile) {
+        setUserInfo({
+          firstName: profile.first_name || "",
+          lastName: profile.last_name || "",
+          email: user.email || "",
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching user info:", error);
+    }
+  };
 
   const fetchPrimaryEmail = async () => {
     try {
@@ -143,6 +168,11 @@ export function SendEmailDialog({
               placeholder="recipient@example.com"
               type="email"
             />
+            {userInfo && (
+              <p className="text-sm text-muted-foreground">
+                Sending as: {userInfo.firstName} {userInfo.lastName} (replies will go to {userInfo.email})
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">

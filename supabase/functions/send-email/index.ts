@@ -9,19 +9,26 @@ const corsHeaders = {
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
-const sendEmail = async (to: string, subject: string, html: string, fromEmail: string, fromName: string) => {
+const sendEmail = async (to: string, subject: string, html: string, fromEmail: string, fromName: string, replyToEmail?: string) => {
+  const emailPayload: any = {
+    from: `${fromName} <${fromEmail}>`,
+    to: [to],
+    subject: subject,
+    html: html,
+  };
+  
+  // Add reply_to if provided and different from sender
+  if (replyToEmail && replyToEmail !== fromEmail) {
+    emailPayload.reply_to = [replyToEmail];
+  }
+
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${RESEND_API_KEY}`,
     },
-    body: JSON.stringify({
-      from: `${fromName} <${fromEmail}>`,
-      to: [to],
-      subject: subject,
-      html: html,
-    }),
+    body: JSON.stringify(emailPayload),
   });
 
   if (!response.ok) {
@@ -154,16 +161,17 @@ serve(async (req) => {
       throw new Error("Email domain is not verified. Please verify your domain in Email Settings before sending emails.");
     }
 
-    // Use the logged-in user's email as the sender
-    const fromEmail = user.email || `noreply@${emailSettings.sending_domain}`;
+    // Use verified domain as sender, user's email as reply-to
+    const fromEmail = `noreply@${emailSettings.sending_domain}`;
+    const replyToEmail = user.email || fromEmail;
     const fromName = profile.first_name 
       ? `${profile.first_name} ${profile.last_name || ''}`.trim()
       : (user.email || "User");
 
-    console.log("Sending email to:", to, "from:", fromEmail);
+    console.log("Sending email to:", to, "from:", fromEmail, "reply-to:", replyToEmail);
 
     // Send email via Resend
-    const emailData = await sendEmail(to, subject, htmlContent, fromEmail, fromName);
+    const emailData = await sendEmail(to, subject, htmlContent, fromEmail, fromName, replyToEmail);
 
     console.log("Email sent successfully:", emailData);
 
@@ -177,6 +185,7 @@ serve(async (req) => {
         from_email: fromEmail,
         from_name: fromName,
         to_email: to,
+        reply_to_email: replyToEmail,
         subject: subject,
         email_content: htmlContent,
         html_content: htmlContent,
