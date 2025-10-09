@@ -268,16 +268,16 @@ export default function ContactDetail() {
                   <Button 
                     size="sm" 
                     variant="outline"
-                    onClick={() => { setActivityType("email"); setIsLogActivityOpen(true); }}
+                    onClick={() => { setActivityType("meeting"); setIsLogActivityOpen(true); }}
                   >
-                    <Mail className="h-4 w-4" />
+                    <Video className="h-4 w-4" />
                   </Button>
                   <Button 
                     size="sm" 
                     variant="outline"
-                    onClick={() => { setActivityType("meeting"); setIsLogActivityOpen(true); }}
+                    onClick={() => { setActivityType("email"); setIsLogActivityOpen(true); }}
                   >
-                    <Video className="h-4 w-4" />
+                    <Mail className="h-4 w-4" />
                   </Button>
                   <Button 
                     size="sm" 
