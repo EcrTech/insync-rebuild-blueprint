@@ -1,13 +1,16 @@
-import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgContext } from "@/hooks/useOrgContext";
 import { DashboardLayout } from "@/components/Layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, MessageSquare, CheckCircle2, XCircle, Clock, Send } from "lucide-react";
+import { Loader2, MessageSquare, CheckCircle2, XCircle, Clock, Send, RefreshCw, Download } from "lucide-react";
 import { format } from "date-fns";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useAutoRefresh } from "@/hooks/useAutoRefresh";
+import { exportToCSV, ExportColumn, formatDateForExport } from "@/utils/exportUtils";
 
 interface WhatsAppMessage {
   id: string;
@@ -40,90 +43,103 @@ interface MessageStats {
 const WhatsAppDashboard = () => {
   const { effectiveOrgId } = useOrgContext();
   const { toast } = useToast();
-  const [loading, setLoading] = useState(true);
-  const [messages, setMessages] = useState<WhatsAppMessage[]>([]);
-  const [stats, setStats] = useState<MessageStats>({
-    total: 0,
-    sent: 0,
-    delivered: 0,
-    read: 0,
-    failed: 0,
-  });
-
-  useEffect(() => {
-    if (effectiveOrgId) {
-      fetchMessages();
-      fetchStats();
-    }
-  }, [effectiveOrgId]);
 
   const fetchMessages = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("whatsapp_messages")
-        .select(`
-          *,
-          contacts (first_name, last_name),
-          sent_by_profile:profiles!sent_by (first_name, last_name)
-        `)
-        .eq("org_id", effectiveOrgId)
-        .order("sent_at", { ascending: false })
-        .limit(100);
+    const { data, error } = await supabase
+      .from("whatsapp_messages")
+      .select(`
+        *,
+        contacts (first_name, last_name),
+        sent_by_profile:profiles!sent_by (first_name, last_name)
+      `)
+      .eq("org_id", effectiveOrgId)
+      .order("sent_at", { ascending: false })
+      .limit(100);
 
-      if (error) throw error;
-      setMessages((data || []) as unknown as WhatsAppMessage[]);
-    } catch (error: any) {
-      console.error("Error fetching messages:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load WhatsApp messages",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
+    if (error) throw error;
+    return (data || []) as unknown as WhatsAppMessage[];
   };
 
   const fetchStats = async () => {
+    const [
+      { count: total },
+      { count: sent },
+      { count: delivered },
+      { count: read },
+      { count: failed }
+    ] = await Promise.all([
+      supabase.from("whatsapp_messages").select("*", { count: "exact", head: true }).eq("org_id", effectiveOrgId),
+      supabase.from("whatsapp_messages").select("*", { count: "exact", head: true }).eq("org_id", effectiveOrgId).eq("status", "sent"),
+      supabase.from("whatsapp_messages").select("*", { count: "exact", head: true }).eq("org_id", effectiveOrgId).eq("status", "delivered"),
+      supabase.from("whatsapp_messages").select("*", { count: "exact", head: true }).eq("org_id", effectiveOrgId).eq("status", "read"),
+      supabase.from("whatsapp_messages").select("*", { count: "exact", head: true }).eq("org_id", effectiveOrgId).eq("status", "failed"),
+    ]);
+
+    return {
+      total: total || 0,
+      sent: sent || 0,
+      delivered: delivered || 0,
+      read: read || 0,
+      failed: failed || 0,
+    };
+  };
+
+  const { data: messages = [], isLoading: messagesLoading, refetch: refetchMessages } = useQuery({
+    queryKey: ['whatsapp-messages', effectiveOrgId],
+    queryFn: fetchMessages,
+    enabled: !!effectiveOrgId,
+  });
+
+  const { data: stats, isLoading: statsLoading } = useQuery({
+    queryKey: ['whatsapp-stats', effectiveOrgId],
+    queryFn: fetchStats,
+    enabled: !!effectiveOrgId,
+  });
+
+  const { lastRefresh, manualRefresh } = useAutoRefresh({
+    onRefresh: () => {
+      refetchMessages();
+    },
+    intervalMs: 900000, // 15 minutes
+  });
+
+  const handleExport = () => {
     try {
-      const { count: total } = await supabase
-        .from("whatsapp_messages")
-        .select("*", { count: "exact", head: true })
-        .eq("org_id", effectiveOrgId);
+      const columns: ExportColumn[] = [
+        { 
+          key: 'contact_name',
+          label: 'Contact',
+          format: (value: any, row: any) => {
+            return `${row.contacts?.first_name || ''} ${row.contacts?.last_name || ''}`.trim();
+          }
+        },
+        { key: 'phone_number', label: 'Phone' },
+        { key: 'message_content', label: 'Message' },
+        { key: 'status', label: 'Status' },
+        { 
+          key: 'sent_by',
+          label: 'Sent By',
+          format: (value: any, row: any) => {
+            return row.sent_by_profile 
+              ? `${row.sent_by_profile.first_name} ${row.sent_by_profile.last_name}`
+              : 'System';
+          }
+        },
+        { key: 'sent_at', label: 'Sent At', format: formatDateForExport },
+      ];
 
-      const { count: sent } = await supabase
-        .from("whatsapp_messages")
-        .select("*", { count: "exact", head: true })
-        .eq("org_id", effectiveOrgId)
-        .eq("status", "sent");
-
-      const { count: delivered } = await supabase
-        .from("whatsapp_messages")
-        .select("*", { count: "exact", head: true })
-        .eq("org_id", effectiveOrgId)
-        .eq("status", "delivered");
-
-      const { count: read } = await supabase
-        .from("whatsapp_messages")
-        .select("*", { count: "exact", head: true })
-        .eq("org_id", effectiveOrgId)
-        .eq("status", "read");
-
-      const { count: failed } = await supabase
-        .from("whatsapp_messages")
-        .select("*", { count: "exact", head: true })
-        .eq("org_id", effectiveOrgId)
-        .eq("status", "failed");
-
-      setStats({
-        total: total || 0,
-        sent: sent || 0,
-        delivered: delivered || 0,
-        read: read || 0,
-        failed: failed || 0,
+      exportToCSV(messages, columns, `whatsapp-messages-${new Date().toISOString().split('T')[0]}`);
+      
+      toast({
+        title: "Success",
+        description: "Messages exported successfully",
       });
     } catch (error) {
-      console.error("Error fetching stats:", error);
+      toast({
+        title: "Error",
+        description: "Failed to export messages",
+        variant: "destructive",
+      });
     }
   };
 
@@ -144,7 +160,7 @@ const WhatsAppDashboard = () => {
     }
   };
 
-  if (loading) {
+  if (messagesLoading || statsLoading) {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-64">
@@ -157,11 +173,26 @@ const WhatsAppDashboard = () => {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">WhatsApp Messages</h1>
-          <p className="text-muted-foreground mt-2">
-            Track and monitor your WhatsApp message delivery
-          </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">WhatsApp Messages</h1>
+            <p className="text-muted-foreground mt-2">
+              Track and monitor your WhatsApp message delivery
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Last updated: {lastRefresh.toLocaleTimeString()}
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={manualRefresh}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Refresh
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleExport} disabled={messages.length === 0}>
+              <Download className="mr-2 h-4 w-4" />
+              Export
+            </Button>
+          </div>
         </div>
 
         <div className="grid gap-4 md:grid-cols-5">
@@ -171,7 +202,7 @@ const WhatsAppDashboard = () => {
               <MessageSquare className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.total}</div>
+              <div className="text-2xl font-bold">{stats?.total || 0}</div>
             </CardContent>
           </Card>
 
@@ -181,7 +212,7 @@ const WhatsAppDashboard = () => {
               <Send className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.sent}</div>
+              <div className="text-2xl font-bold">{stats?.sent || 0}</div>
             </CardContent>
           </Card>
 
@@ -191,7 +222,7 @@ const WhatsAppDashboard = () => {
               <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.delivered}</div>
+              <div className="text-2xl font-bold">{stats?.delivered || 0}</div>
             </CardContent>
           </Card>
 
@@ -201,7 +232,7 @@ const WhatsAppDashboard = () => {
               <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.read}</div>
+              <div className="text-2xl font-bold">{stats?.read || 0}</div>
             </CardContent>
           </Card>
 
@@ -211,7 +242,7 @@ const WhatsAppDashboard = () => {
               <XCircle className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.failed}</div>
+              <div className="text-2xl font-bold">{stats?.failed || 0}</div>
             </CardContent>
           </Card>
         </div>

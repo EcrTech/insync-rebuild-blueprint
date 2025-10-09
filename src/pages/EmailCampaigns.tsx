@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import DashboardLayout from "@/components/Layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,9 +8,11 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Plus, Mail } from "lucide-react";
+import { Loader2, Plus, Mail, Download, RefreshCw } from "lucide-react";
 import { useOrgContext } from "@/hooks/useOrgContext";
 import { format } from "date-fns";
+import { useAutoRefresh } from "@/hooks/useAutoRefresh";
+import { exportToCSV, ExportColumn, formatDateForExport } from "@/utils/exportUtils";
 
 interface Campaign {
   id: string;
@@ -28,32 +31,53 @@ const EmailCampaigns = () => {
   const { toast } = useToast();
   const { effectiveOrgId } = useOrgContext();
 
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchCampaigns();
-  }, [effectiveOrgId]);
-
   const fetchCampaigns = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("email_bulk_campaigns")
-        .select("*")
-        .eq("org_id", effectiveOrgId)
-        .order("created_at", { ascending: false });
+    const { data, error } = await supabase
+      .from("email_bulk_campaigns")
+      .select("*")
+      .eq("org_id", effectiveOrgId)
+      .order("created_at", { ascending: false });
 
-      if (error) throw error;
-      setCampaigns(data || []);
-    } catch (error: any) {
-      console.error("Error fetching campaigns:", error);
+    if (error) throw error;
+    return data || [];
+  };
+
+  const { data: campaigns = [], isLoading, refetch } = useQuery({
+    queryKey: ['email-campaigns', effectiveOrgId],
+    queryFn: fetchCampaigns,
+    enabled: !!effectiveOrgId,
+  });
+
+  const { lastRefresh, manualRefresh } = useAutoRefresh({
+    onRefresh: () => refetch(),
+    intervalMs: 900000, // 15 minutes
+  });
+
+  const handleExport = () => {
+    try {
+      const columns: ExportColumn[] = [
+        { key: 'name', label: 'Campaign Name' },
+        { key: 'subject', label: 'Subject' },
+        { key: 'status', label: 'Status' },
+        { key: 'total_recipients', label: 'Total Recipients' },
+        { key: 'sent_count', label: 'Sent' },
+        { key: 'failed_count', label: 'Failed' },
+        { key: 'pending_count', label: 'Pending' },
+        { key: 'created_at', label: 'Created', format: formatDateForExport },
+      ];
+
+      exportToCSV(campaigns, columns, `email-campaigns-${new Date().toISOString().split('T')[0]}`);
+      
+      toast({
+        title: "Success",
+        description: "Campaigns exported successfully",
+      });
+    } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to load campaigns",
+        description: "Failed to export campaigns",
         variant: "destructive",
       });
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -67,7 +91,7 @@ const EmailCampaigns = () => {
     return <Badge variant={variants[status] || "secondary"}>{status}</Badge>;
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-[calc(100vh-200px)]">
@@ -86,11 +110,24 @@ const EmailCampaigns = () => {
             <p className="text-muted-foreground">
               View and manage your email campaigns
             </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Last updated: {lastRefresh.toLocaleTimeString()}
+            </p>
           </div>
-          <Button onClick={() => navigate("/bulk-email")}>
-            <Plus className="mr-2 h-4 w-4" />
-            New Campaign
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={manualRefresh}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Refresh
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleExport} disabled={campaigns.length === 0}>
+              <Download className="mr-2 h-4 w-4" />
+              Export
+            </Button>
+            <Button onClick={() => navigate("/bulk-email")}>
+              <Plus className="mr-2 h-4 w-4" />
+              New Campaign
+            </Button>
+          </div>
         </div>
 
         {campaigns.length === 0 ? (

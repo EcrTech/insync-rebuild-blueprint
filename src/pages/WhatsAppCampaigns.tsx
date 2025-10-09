@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { useOrgContext } from "@/hooks/useOrgContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -8,55 +8,36 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, RefreshCw, Eye, Trash2 } from "lucide-react";
+import { Plus, RefreshCw, Eye, Trash2, Download } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { useAutoRefresh } from "@/hooks/useAutoRefresh";
+import { exportToCSV, ExportColumn, formatDateForExport, formatNumberForExport } from "@/utils/exportUtils";
 
 export default function WhatsAppCampaigns() {
   const navigate = useNavigate();
   const { effectiveOrgId } = useOrgContext();
   const { toast } = useToast();
-  
-  const [campaigns, setCampaigns] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (effectiveOrgId) {
-      fetchCampaigns();
-      
-      // Subscribe to realtime updates
-      const channel = supabase
-        .channel('campaigns-changes')
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'whatsapp_bulk_campaigns',
-            filter: `org_id=eq.${effectiveOrgId}`,
-          },
-          () => {
-            fetchCampaigns();
-          }
-        )
-        .subscribe();
-
-      return () => {
-        supabase.removeChannel(channel);
-      };
-    }
-  }, [effectiveOrgId]);
 
   const fetchCampaigns = async () => {
-    setLoading(true);
     const { data } = await supabase
       .from("whatsapp_bulk_campaigns")
       .select("*")
       .eq("org_id", effectiveOrgId)
       .order("created_at", { ascending: false });
     
-    setCampaigns(data || []);
-    setLoading(false);
+    return data || [];
   };
+
+  const { data: campaigns = [], isLoading, refetch } = useQuery({
+    queryKey: ['whatsapp-campaigns', effectiveOrgId],
+    queryFn: fetchCampaigns,
+    enabled: !!effectiveOrgId,
+  });
+
+  const { lastRefresh, manualRefresh } = useAutoRefresh({
+    onRefresh: () => refetch(),
+    intervalMs: 900000, // 15 minutes
+  });
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, any> = {
@@ -90,7 +71,42 @@ export default function WhatsAppCampaigns() {
         title: "Success",
         description: "Campaign deleted",
       });
-      fetchCampaigns();
+      refetch();
+    }
+  };
+
+  const handleExport = () => {
+    try {
+      const columns: ExportColumn[] = [
+        { key: 'name', label: 'Campaign Name' },
+        { key: 'status', label: 'Status' },
+        { key: 'total_recipients', label: 'Total Recipients' },
+        { key: 'sent_count', label: 'Sent' },
+        { key: 'failed_count', label: 'Failed' },
+        { key: 'pending_count', label: 'Pending' },
+        { key: 'created_at', label: 'Created', format: formatDateForExport },
+        { 
+          key: 'progress', 
+          label: 'Progress (%)',
+          format: (value: any, row: any) => {
+            const progress = getProgress(row);
+            return formatNumberForExport(progress, 1);
+          }
+        },
+      ];
+
+      exportToCSV(campaigns, columns, `whatsapp-campaigns-${new Date().toISOString().split('T')[0]}`);
+      
+      toast({
+        title: "Success",
+        description: "Campaigns exported successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to export campaigns",
+        variant: "destructive",
+      });
     }
   };
 
@@ -105,11 +121,18 @@ export default function WhatsAppCampaigns() {
         <div>
           <h1 className="text-3xl font-bold">WhatsApp Campaigns</h1>
           <p className="text-muted-foreground">Manage your bulk WhatsApp campaigns</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Last updated: {lastRefresh.toLocaleTimeString()}
+          </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={fetchCampaigns}>
+          <Button variant="outline" size="sm" onClick={manualRefresh}>
             <RefreshCw className="mr-2 h-4 w-4" />
             Refresh
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleExport} disabled={campaigns.length === 0}>
+            <Download className="mr-2 h-4 w-4" />
+            Export
           </Button>
           <Button onClick={() => navigate("/whatsapp/bulk-send")}>
             <Plus className="mr-2 h-4 w-4" />
@@ -133,7 +156,7 @@ export default function WhatsAppCampaigns() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {loading ? (
+            {isLoading ? (
               <TableRow>
                 <TableCell colSpan={8} className="text-center">Loading...</TableCell>
               </TableRow>
