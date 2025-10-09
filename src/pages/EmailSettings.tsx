@@ -143,30 +143,6 @@ const EmailSettings = () => {
     },
   });
 
-  const setupInboundMutation = useMutation({
-    mutationFn: async () => {
-      const { data, error } = await supabase.functions.invoke('manage-resend-domain', {
-        body: { action: 'setup-inbound-route' },
-      });
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['email-settings'] });
-      toast({
-        title: "Inbound routing enabled!",
-        description: "Email replies will now appear in Customer Journey.",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Setup failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
   const handleAddDomain = () => {
     if (!domain) {
       toast({
@@ -444,24 +420,36 @@ const EmailSettings = () => {
                     </AlertDescription>
                   </Alert>
                 ) : (
-                  <>
-                    <Alert>
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertDescription>
-                        Set up inbound routing to receive email replies in your Customer Journey timeline.
-                      </AlertDescription>
-                    </Alert>
-                    <Button
-                      className="w-full"
-                      onClick={() => setupInboundMutation.mutate()}
-                      disabled={setupInboundMutation.isPending}
-                    >
-                      {setupInboundMutation.isPending ? (
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      ) : null}
-                      Enable Inbound Routing
-                    </Button>
-                  </>
+                  <Alert>
+                    <AlertDescription className="space-y-3">
+                      <p className="font-semibold">Manual Configuration Required:</p>
+                      <ol className="list-decimal list-inside space-y-2 text-sm">
+                        <li>Go to <a href="https://resend.com/domains" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Resend Domains</a></li>
+                        <li>Select your verified domain</li>
+                        <li>Navigate to the "Inbound" tab</li>
+                        <li>Add the MX record to your DNS</li>
+                        <li>Configure the webhook URL below:</li>
+                      </ol>
+                      <div className="mt-2 p-2 bg-muted rounded-md">
+                        <p className="text-xs text-muted-foreground mb-1">Webhook URL:</p>
+                        <div className="flex items-center gap-2">
+                          <code className="text-xs flex-1 break-all">
+                            {`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/email-inbound-webhook`}
+                          </code>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              navigator.clipboard.writeText(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/email-inbound-webhook`);
+                              toast({ title: "Copied to clipboard" });
+                            }}
+                          >
+                            Copy
+                          </Button>
+                        </div>
+                      </div>
+                    </AlertDescription>
+                  </Alert>
                 )}
               </CardContent>
             </Card>

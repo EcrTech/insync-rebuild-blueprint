@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface DomainRequest {
-  action: 'create-domain' | 'verify-domain' | 'get-domain' | 'delete-domain' | 'setup-inbound-route';
+  action: 'create-domain' | 'verify-domain' | 'get-domain' | 'delete-domain';
   domain?: string;
   domainId?: string;
 }
@@ -225,119 +225,9 @@ serve(async (req) => {
 
         if (updateError) throw updateError;
 
-        // Auto-setup inbound routing if domain is verified
-        if (newStatus === 'verified') {
-          console.log('Domain verified, setting up inbound routing automatically...');
-          try {
-            const webhookUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/email-inbound-webhook`;
-            
-            console.log('Creating inbound route with webhook:', webhookUrl);
-            const inboundResponse = await fetch(
-              'https://api.resend.com/inbound-routes',
-              {
-                method: 'POST',
-                headers: {
-                  'Authorization': `Bearer ${resendApiKey}`,
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  domain_id: settings.resend_domain_id,
-                  rule: {
-                    action: 'forward',
-                    forward_to: webhookUrl,
-                  },
-                }),
-              }
-            );
-
-            if (inboundResponse.ok) {
-              const inboundData = await inboundResponse.json();
-              console.log('Inbound route created:', inboundData);
-              
-              await supabaseClient
-                .from('email_settings')
-                .update({
-                  inbound_route_id: inboundData.id,
-                  inbound_routing_enabled: true,
-                  inbound_webhook_url: webhookUrl,
-                })
-                .eq('org_id', profile.org_id);
-              
-              console.log('✓ Inbound routing enabled automatically');
-            } else {
-              console.log('Inbound route setup skipped or failed:', await inboundResponse.text());
-            }
-          } catch (inboundError) {
-            console.error('Failed to auto-setup inbound routing:', inboundError);
-            // Don't fail the verification if inbound setup fails
-          }
-        }
+        // Note: Inbound routing is currently in private alpha and must be configured manually via Resend Dashboard
 
         result = verifyData;
-        break;
-      }
-
-      case 'setup-inbound-route': {
-        const { data: settings } = await supabaseClient
-          .from('email_settings')
-          .select('resend_domain_id, verification_status')
-          .eq('org_id', profile.org_id)
-          .single();
-
-        if (!settings?.resend_domain_id) {
-          throw new Error('No domain configured');
-        }
-
-        if (settings.verification_status !== 'verified') {
-          throw new Error('Domain must be verified before setting up inbound routing');
-        }
-
-        const webhookUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/email-inbound-webhook`;
-        
-        console.log('Setting up inbound route for domain:', settings.resend_domain_id);
-        console.log('Webhook URL:', webhookUrl);
-        const inboundResponse = await fetch(
-          'https://api.resend.com/inbound-routes',
-          {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${resendApiKey}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              domain_id: settings.resend_domain_id,
-              rule: {
-                action: 'forward',
-                forward_to: webhookUrl,
-              },
-            }),
-          }
-        );
-
-        if (!inboundResponse.ok) {
-          const error = await inboundResponse.text();
-          console.error('Resend inbound route error:', error);
-          console.error('Response status:', inboundResponse.status);
-          console.error('API Key permissions may be insufficient - ensure "Full access" is enabled');
-          throw new Error(`Failed to setup inbound routing: ${error}`);
-        }
-
-        const inboundData = await inboundResponse.json();
-        console.log('Inbound route created:', inboundData);
-
-        // Update database
-        const { error: updateError } = await supabaseClient
-          .from('email_settings')
-          .update({
-            inbound_route_id: inboundData.id,
-            inbound_routing_enabled: true,
-            inbound_webhook_url: webhookUrl,
-          })
-          .eq('org_id', profile.org_id);
-
-        if (updateError) throw updateError;
-
-        result = inboundData;
         break;
       }
 
