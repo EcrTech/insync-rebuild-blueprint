@@ -17,10 +17,10 @@
     --charcoal: 186 8% 30%;
     
     /* Accents - Energy (Enhanced) */
-    --coral: 1 98% 69%;
-    --soft-coral: 0 95% 75%;
-    --warm-coral: 16 99% 70%;
-    --salmon: 13 97% 76%;
+    --coral: 197 78% 13%;
+    --soft-coral: 197 68% 18%;
+    --warm-coral: 197 75% 16%;
+    --salmon: 197 70% 20%;
     
     /* Accents - Supporting (Enhanced) */
     --vibrant-yellow: 48 100% 58%;
@@ -47,17 +47,17 @@
     
     /* Visual Effects */
     --gradient-primary: linear-gradient(135deg, hsl(178 95% 42%) 0%, hsl(168 60% 45%) 100%);
-    --gradient-accent: linear-gradient(135deg, hsl(1 98% 69%) 0%, hsl(16 99% 70%) 100%);
+    --gradient-accent: linear-gradient(135deg, hsl(197 78% 13%) 0%, hsl(197 70% 20%) 100%);
     --gradient-purple: linear-gradient(135deg, hsl(280 85% 65%) 0%, hsl(280 70% 75%) 100%);
     --shadow-vibrant: 0 8px 30px hsl(178 95% 42% / 0.25);
     --shadow-glow: 0 0 40px hsl(178 95% 42% / 0.15);
-    --shadow-accent: 0 8px 30px hsl(1 98% 69% / 0.2);
+    --shadow-accent: 0 8px 30px hsl(197 78% 13% / 0.3);
     
     /* Design Tokens */
-    --background: 60 33% 99%;
+    --background: 186 35% 96%;
     --foreground: var(--deep-slate);
     
-    --card: 0 0% 100%;
+    --card: 0 0% 98%;
     --card-foreground: var(--deep-slate);
     
     --popover: 0 0% 100%;
@@ -73,7 +73,7 @@
     --muted-foreground: var(--medium-gray);
     
     --accent: var(--coral);
-    --accent-foreground: 0 0% 100%;
+    --accent-foreground: 0 0% 98%;
     
     --destructive: var(--error);
     --destructive-foreground: 0 0% 100%;
@@ -105,8 +105,8 @@
     --muted: 186 15% 20%;
     --muted-foreground: 185 7% 68%;
     
-    --accent: 1 98% 72%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 197 78% 18%;
+    --accent-foreground: 0 0% 98%;
     
     --destructive: var(--error);
     --destructive-foreground: 0 0% 100%;
@@ -116,11 +116,11 @@
     --ring: 178 95% 48%;
     
     --gradient-primary: linear-gradient(135deg, hsl(178 95% 48%) 0%, hsl(168 60% 50%) 100%);
-    --gradient-accent: linear-gradient(135deg, hsl(1 98% 72%) 0%, hsl(16 99% 75%) 100%);
+    --gradient-accent: linear-gradient(135deg, hsl(197 78% 18%) 0%, hsl(197 70% 25%) 100%);
     --gradient-purple: linear-gradient(135deg, hsl(280 85% 70%) 0%, hsl(280 70% 78%) 100%);
     --shadow-vibrant: 0 8px 30px hsl(178 95% 48% / 0.35);
     --shadow-glow: 0 0 40px hsl(178 95% 48% / 0.25);
-    --shadow-accent: 0 8px 30px hsl(1 98% 72% / 0.3);
+    --shadow-accent: 0 8px 30px hsl(197 78% 18% / 0.4);
   }
 }
 
@@ -131,7 +131,7 @@
   body {
     @apply bg-background text-foreground;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    background: linear-gradient(180deg, hsl(var(--background)) 0%, hsl(178 95% 98%) 100%);
+    background: linear-gradient(180deg, hsl(186 35% 96%) 0%, hsl(178 50% 94%) 100%);
   }
 }
 
