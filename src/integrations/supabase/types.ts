@@ -884,6 +884,53 @@ export type Database = {
           },
         ]
       }
+      email_settings: {
+        Row: {
+          created_at: string | null
+          dns_records: Json | null
+          id: string
+          is_active: boolean | null
+          org_id: string
+          resend_domain_id: string | null
+          sending_domain: string
+          updated_at: string | null
+          verification_status: string
+          verified_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          dns_records?: Json | null
+          id?: string
+          is_active?: boolean | null
+          org_id: string
+          resend_domain_id?: string | null
+          sending_domain: string
+          updated_at?: string | null
+          verification_status?: string
+          verified_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          dns_records?: Json | null
+          id?: string
+          is_active?: boolean | null
+          org_id?: string
+          resend_domain_id?: string | null
+          sending_domain?: string
+          updated_at?: string | null
+          verification_status?: string
+          verified_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_settings_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_templates: {
         Row: {
           created_at: string

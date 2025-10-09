@@ -32,6 +32,7 @@ import Templates from "./pages/Templates";
 import TemplateBuilder from "./pages/TemplateBuilder";
 import WhatsAppDashboard from "./pages/WhatsAppDashboard";
 import BulkWhatsAppSender from "./pages/BulkWhatsAppSender";
+import EmailSettings from "./pages/EmailSettings";
 import WhatsAppCampaigns from "./pages/WhatsAppCampaigns";
 import WhatsAppCampaignDetail from "./pages/WhatsAppCampaignDetail";
 import QueueStatus from "./pages/QueueStatus";
@@ -173,6 +174,12 @@ const App = () => (
           <Route path="/admin/whatsapp-settings" element={
             <ProtectedRoute requiredRole="admin">
               <WhatsAppSettings />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/admin/email-settings" element={
+            <ProtectedRoute requiredRole="admin">
+              <EmailSettings />
             </ProtectedRoute>
           } />
           
