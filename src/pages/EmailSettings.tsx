@@ -47,14 +47,14 @@ const EmailSettings = () => {
       });
 
       if (error) throw error;
-      return data as { settings: EmailSettings };
+      return data as EmailSettings;
     },
   });
 
   useEffect(() => {
-    if (settings?.settings) {
-      setDomain(settings.settings.sending_domain);
-      setIsActive(settings.settings.is_active);
+    if (settings) {
+      setDomain(settings.sending_domain);
+      setIsActive(settings.is_active);
     }
   }, [settings]);
 
@@ -121,7 +121,7 @@ const EmailSettings = () => {
       const { error } = await supabase
         .from('email_settings')
         .update({ is_active: isActive })
-        .eq('org_id', settings?.settings?.org_id);
+        .eq('org_id', settings?.org_id);
       
       if (error) throw error;
     },
@@ -235,9 +235,9 @@ const EmailSettings = () => {
                     placeholder="mail.yourcompany.com"
                     value={domain}
                     onChange={(e) => setDomain(e.target.value)}
-                    disabled={!!settings?.settings?.resend_domain_id}
+                    disabled={!!settings?.resend_domain_id}
                   />
-                  {!settings?.settings?.resend_domain_id && (
+                  {!settings?.resend_domain_id && (
                     <Button
                       onClick={handleAddDomain}
                       disabled={createDomainMutation.isPending}
@@ -252,15 +252,15 @@ const EmailSettings = () => {
                 </div>
               </div>
 
-              {settings?.settings && (
+              {settings && (
                 <>
                   <div className="flex items-center justify-between p-4 border rounded-lg">
                     <div className="flex items-center gap-2">
-                      {getStatusIcon(settings.settings.verification_status)}
+                      {getStatusIcon(settings.verification_status)}
                       <div>
                         <p className="font-medium">Verification Status</p>
                         <p className="text-sm text-muted-foreground capitalize">
-                          {settings.settings.verification_status}
+                          {settings.verification_status}
                         </p>
                       </div>
                     </div>
@@ -302,7 +302,7 @@ const EmailSettings = () => {
           </Card>
 
           {/* DNS Records */}
-          {settings?.settings?.dns_records && (
+          {settings?.dns_records && (
             <Card>
               <CardHeader>
                 <CardTitle>DNS Records</CardTitle>
@@ -311,8 +311,8 @@ const EmailSettings = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {Array.isArray(settings.settings.dns_records) ? (
-                  settings.settings.dns_records.map((record: DnsRecord, index: number) => (
+                {Array.isArray(settings.dns_records) ? (
+                  settings.dns_records.map((record: DnsRecord, index: number) => (
                     <div key={index} className="p-4 border rounded-lg space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="font-medium">{record.record || record.type}</span>
@@ -359,7 +359,7 @@ const EmailSettings = () => {
                   </Alert>
                 )}
 
-                {settings.settings.verification_status !== 'verified' && (
+                {settings.verification_status !== 'verified' && (
                   <Button
                     className="w-full"
                     onClick={handleVerifyDomain}
