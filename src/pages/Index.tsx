@@ -1,9 +1,13 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import landingBackground from "@/assets/landing-background.png";
 
 const Index = () => {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-muted/20 to-primary/5">
+    <div 
+      className="min-h-screen flex items-center justify-center bg-cover bg-center bg-no-repeat"
+      style={{ backgroundImage: `url(${landingBackground})` }}
+    >
       <div className="text-center space-y-6 p-8 max-w-3xl">
         <h1 className="text-6xl font-extrabold text-primary mb-4">
           In-Sync
