@@ -37,22 +37,81 @@ Deno.serve(async (req) => {
     const payload: ResendInboundPayload = await req.json();
     console.log('Received inbound email:', JSON.stringify(payload, null, 2));
 
-    // Find contact by email
+    // Extract domain from recipient email (payload.to)
+    const recipientEmail = payload.to;
+    const recipientDomain = recipientEmail.split('@')[1];
+    console.log('Recipient domain:', recipientDomain);
+
+    // Find organization by matching sending domain
+    const { data: emailSettings } = await supabaseClient
+      .from('email_settings')
+      .select('org_id, verification_status, is_active')
+      .eq('sending_domain', recipientDomain)
+      .eq('is_active', true)
+      .limit(1);
+
+    if (!emailSettings || emailSettings.length === 0) {
+      console.log('No active email settings found for domain:', recipientDomain);
+      return new Response(
+        JSON.stringify({ success: false, message: 'Email sent to unverified domain' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const orgId = emailSettings[0].org_id;
+    console.log('Found organization:', orgId);
+
+    // Find existing contact by email and org_id
     const { data: contacts } = await supabaseClient
       .from('contacts')
-      .select('id, org_id')
+      .select('id')
       .eq('email', payload.from)
+      .eq('org_id', orgId)
       .limit(1);
 
     let contactId = contacts?.[0]?.id;
-    let orgId = contacts?.[0]?.org_id;
 
-    if (!contactId || !orgId) {
-      console.log('Contact not found for email:', payload.from);
-      return new Response(
-        JSON.stringify({ success: true, message: 'Contact not found, email ignored' }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    // If contact doesn't exist, create new contact
+    if (!contactId) {
+      console.log('Contact not found, creating new contact for:', payload.from);
+      
+      // Parse name from payload
+      let firstName = '';
+      let lastName = '';
+      
+      if (payload.fromName) {
+        const nameParts = payload.fromName.trim().split(' ');
+        firstName = nameParts[0] || '';
+        lastName = nameParts.slice(1).join(' ') || '';
+      } else {
+        // Extract name from email (before @)
+        firstName = payload.from.split('@')[0];
+      }
+
+      // Create new contact
+      const { data: newContact, error: createError } = await supabaseClient
+        .from('contacts')
+        .insert({
+          org_id: orgId,
+          email: payload.from,
+          first_name: firstName,
+          last_name: lastName || null,
+          source: 'email_inbound',
+          status: 'new',
+        })
+        .select('id')
+        .single();
+
+      if (createError) {
+        console.error('Error creating contact:', createError);
+        return new Response(
+          JSON.stringify({ error: 'Failed to create contact: ' + createError.message }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      contactId = newContact.id;
+      console.log('Created new contact:', contactId);
     }
 
     // Generate conversation ID from thread or create new
