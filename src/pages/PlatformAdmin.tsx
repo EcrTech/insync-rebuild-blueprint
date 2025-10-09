@@ -16,6 +16,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { setImpersonation } from "@/utils/orgContextEvents";
@@ -689,8 +695,21 @@ export default function PlatformAdmin() {
                         <TableCell className="max-w-md truncate">
                           {log.error_message}
                         </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {log.page_url || "-"}
+                        <TableCell className="text-xs text-muted-foreground max-w-xs">
+                          {log.page_url ? (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="truncate block cursor-help">
+                                    {new URL(log.page_url).pathname}
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent className="max-w-md break-all">
+                                  {log.page_url}
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          ) : "-"}
                         </TableCell>
                       </TableRow>
                     ))
