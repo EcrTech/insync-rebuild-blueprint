@@ -117,7 +117,7 @@ serve(async (req) => {
     console.log('Fetching user profile and org_id...');
     const { data: profile, error: profileError } = await supabaseClient
       .from("profiles")
-      .select("org_id")
+      .select("org_id, first_name, last_name")
       .eq("id", user.id)
       .single();
 
@@ -154,15 +154,11 @@ serve(async (req) => {
       throw new Error("Email domain is not verified. Please verify your domain in Email Settings before sending emails.");
     }
 
-    // Get organization name
-    const { data: org } = await supabaseClient
-      .from("organizations")
-      .select("name")
-      .eq("id", profile.org_id)
-      .maybeSingle();
-
-    const fromEmail = `noreply@${emailSettings.sending_domain}`;
-    const fromName = org?.name || "Your Organization";
+    // Use the logged-in user's email as the sender
+    const fromEmail = user.email || `noreply@${emailSettings.sending_domain}`;
+    const fromName = profile.first_name 
+      ? `${profile.first_name} ${profile.last_name || ''}`.trim()
+      : (user.email || "User");
 
     console.log("Sending email to:", to, "from:", fromEmail);
 
