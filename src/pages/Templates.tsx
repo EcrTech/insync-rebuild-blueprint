@@ -28,12 +28,60 @@ const Templates = () => {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [templates, setTemplates] = useState<Template[]>([]);
+  const [queuedJobId, setQueuedJobId] = useState<string | null>(null);
+  const [queueStatus, setQueueStatus] = useState<string | null>(null);
 
   useEffect(() => {
     if (effectiveOrgId) {
       fetchTemplates();
     }
   }, [effectiveOrgId]);
+
+  useEffect(() => {
+    if (!queuedJobId) return;
+
+    // Subscribe to queue updates
+    const channel = supabase
+      .channel('queue-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'operation_queue',
+          filter: `id=eq.${queuedJobId}`,
+        },
+        (payload) => {
+          const newStatus = payload.new.status;
+          setQueueStatus(newStatus);
+
+          if (newStatus === 'completed') {
+            toast({
+              title: "Sync Complete",
+              description: "Templates have been synced successfully",
+            });
+            setQueuedJobId(null);
+            setQueueStatus(null);
+            setSyncing(false);
+            fetchTemplates();
+          } else if (newStatus === 'failed') {
+            toast({
+              title: "Sync Failed",
+              description: payload.new.error_message || "Failed to sync templates",
+              variant: "destructive",
+            });
+            setQueuedJobId(null);
+            setQueueStatus(null);
+            setSyncing(false);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queuedJobId, toast]);
 
   const fetchTemplates = async () => {
     try {
@@ -60,16 +108,28 @@ const Templates = () => {
   const handleSync = async () => {
     setSyncing(true);
     try {
-      const { data, error } = await supabase.functions.invoke("sync-gupshup-templates");
+      const response = await supabase.functions.invoke("sync-gupshup-templates");
 
-      if (error) throw error;
+      if (response.error) throw response.error;
 
-      toast({
-        title: "Success",
-        description: `Synced ${data.synced} templates from Gupshup`,
-      });
-
-      fetchTemplates();
+      // Check if queued
+      if (response.data?.status === 'queued') {
+        setQueuedJobId(response.data.job_id);
+        setQueueStatus('queued');
+        
+        toast({
+          title: "Sync Queued",
+          description: `Your template sync has been queued. Estimated wait: ${response.data.estimated_wait_minutes} minutes. Position: ${response.data.position_in_queue}`,
+        });
+      } else {
+        // Immediate sync
+        toast({
+          title: "Success",
+          description: `Synced ${response.data.synced} templates from Gupshup`,
+        });
+        setSyncing(false);
+        fetchTemplates();
+      }
     } catch (error: any) {
       console.error("Error syncing templates:", error);
       toast({
@@ -77,7 +137,6 @@ const Templates = () => {
         description: error.message || "Failed to sync templates",
         variant: "destructive",
       });
-    } finally {
       setSyncing(false);
     }
   };
@@ -109,6 +168,22 @@ const Templates = () => {
   return (
     <DashboardLayout>
       <div className="space-y-6">
+        {queueStatus === 'queued' && (
+          <Card className="border-primary">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                <div>
+                  <p className="font-medium">Template Sync Queued</p>
+                  <p className="text-sm text-muted-foreground">
+                    Your sync request is in the queue and will be processed shortly.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold">Message Templates</h1>

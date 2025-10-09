@@ -21,9 +21,12 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const body = await req.json().catch(() => ({}));
+    const skipRateLimit = body.skip_rate_limit === true;
+
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      skipRateLimit ? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '' : Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       {
         global: {
           headers: { Authorization: req.headers.get('Authorization')! },
@@ -51,6 +54,85 @@ Deno.serve(async (req) => {
         status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
+    }
+
+    // Rate limit check: 3 syncs per hour per org
+    if (!skipRateLimit) {
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      
+      const { count } = await supabaseClient
+        .from('rate_limit_log')
+        .select('*', { count: 'exact', head: true })
+        .eq('org_id', profile.org_id)
+        .eq('operation', 'template_sync')
+        .gte('created_at', oneHourAgo);
+      
+      if ((count || 0) >= 3) {
+        console.log('Rate limit exceeded, queuing template sync');
+        
+        // Calculate next available slot
+        const serviceClient = createClient(
+          Deno.env.get('SUPABASE_URL') ?? '',
+          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+        );
+
+        const { data: nextSlot } = await serviceClient
+          .rpc('calculate_next_slot', {
+            p_user_id: user.id,
+            p_org_id: profile.org_id,
+            p_operation: 'template_sync',
+            p_window_minutes: 60,
+            p_max_operations: 3
+          });
+
+        // Queue the operation
+        const { data: queuedJob, error: queueError } = await serviceClient
+          .from('operation_queue')
+          .insert({
+            org_id: profile.org_id,
+            user_id: user.id,
+            operation_type: 'template_sync',
+            payload: {},
+            scheduled_for: nextSlot,
+            priority: 5
+          })
+          .select()
+          .single();
+
+        if (queueError) throw queueError;
+
+        // Get queue position
+        const { data: position } = await serviceClient
+          .rpc('get_queue_position', { p_job_id: queuedJob.id });
+
+        const estimatedWaitMinutes = Math.ceil(
+          (new Date(nextSlot).getTime() - Date.now()) / (60 * 1000)
+        );
+
+        return new Response(
+          JSON.stringify({
+            status: 'queued',
+            job_id: queuedJob.id,
+            message: `Template sync queued. Will process at ${new Date(nextSlot).toLocaleTimeString()}`,
+            estimated_wait_minutes: estimatedWaitMinutes,
+            position_in_queue: position,
+            scheduled_for: nextSlot
+          }),
+          {
+            status: 202,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        );
+      }
+
+      // Log rate limit attempt
+      await supabaseClient
+        .from('rate_limit_log')
+        .insert({
+          org_id: profile.org_id,
+          user_id: user.id,
+          operation: 'template_sync',
+        });
     }
 
     // Get WhatsApp settings for the org

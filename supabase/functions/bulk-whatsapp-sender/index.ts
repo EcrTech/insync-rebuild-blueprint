@@ -46,12 +46,13 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const body = await req.json();
+    const { campaignId, batchSize = 500, delayMs = 1000, skip_rate_limit = false } = body as SendMessageRequest & { skip_rate_limit?: boolean };
+
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
-
-    const { campaignId, batchSize = 500, delayMs = 1000 } = await req.json() as SendMessageRequest;
 
     // Validate input
     if (!campaignId || typeof campaignId !== 'string') {
@@ -82,27 +83,72 @@ Deno.serve(async (req) => {
       throw new Error(`Campaign not found: ${campaignError?.message}`);
     }
 
-    // Check rate limit
-    const withinLimit = await checkRateLimit(supabaseClient, campaign.org_id);
-    if (!withinLimit) {
-      console.error('Rate limit exceeded for org:', campaign.org_id);
-      
-      await supabaseClient
-        .from('whatsapp_bulk_campaigns')
-        .update({ status: 'failed', completed_at: new Date().toISOString() })
-        .eq('id', campaignId);
-      
-      return new Response(
-        JSON.stringify({ error: `Rate limit exceeded. Maximum ${RATE_LIMIT_CAMPAIGNS_PER_HOUR} campaigns per hour.` }),
-        {
-          status: 429,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
+    // Check rate limit (skip if called from queue processor)
+    if (!skip_rate_limit) {
+      const withinLimit = await checkRateLimit(supabaseClient, campaign.org_id);
+      if (!withinLimit) {
+        console.log('Rate limit exceeded, queuing campaign');
+        
+        // Calculate next available slot
+        const { data: nextSlot } = await supabaseClient
+          .rpc('calculate_next_slot', {
+            p_user_id: campaign.created_by,
+            p_org_id: campaign.org_id,
+            p_operation: 'bulk_whatsapp_send',
+            p_window_minutes: 60,
+            p_max_operations: RATE_LIMIT_CAMPAIGNS_PER_HOUR
+          });
+
+        // Queue the operation
+        const { data: queuedJob, error: queueError } = await supabaseClient
+          .from('operation_queue')
+          .insert({
+            org_id: campaign.org_id,
+            user_id: campaign.created_by,
+            operation_type: 'bulk_whatsapp_send',
+            payload: { campaign_id: campaignId },
+            scheduled_for: nextSlot,
+            priority: 5
+          })
+          .select()
+          .single();
+
+        if (queueError) throw queueError;
+
+        // Update campaign status to queued
+        await supabaseClient
+          .from('whatsapp_bulk_campaigns')
+          .update({ status: 'queued' })
+          .eq('id', campaignId);
+
+        // Get queue position
+        const { data: position } = await supabaseClient
+          .rpc('get_queue_position', { p_job_id: queuedJob.id });
+
+        const estimatedWaitMinutes = Math.ceil(
+          (new Date(nextSlot).getTime() - Date.now()) / (60 * 1000)
+        );
+
+        return new Response(
+          JSON.stringify({
+            status: 'queued',
+            job_id: queuedJob.id,
+            campaign_id: campaignId,
+            message: `Campaign queued for processing at ${new Date(nextSlot).toLocaleTimeString()}`,
+            estimated_wait_minutes: estimatedWaitMinutes,
+            position_in_queue: position,
+            scheduled_for: nextSlot
+          }),
+          {
+            status: 202,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        );
+      }
     }
 
     // Log rate limit attempt
-    await logRateLimit(supabaseClient, campaign.org_id);
+    await logRateLimit(supabaseClient, campaign.org_id, campaign.created_by);
 
     // Validate recipient count
     if (campaign.total_recipients > MAX_RECIPIENTS_PER_CAMPAIGN) {
