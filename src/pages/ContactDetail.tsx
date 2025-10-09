@@ -19,6 +19,7 @@ import { ContactEmails } from "@/components/Contact/ContactEmails";
 import { ContactPhones } from "@/components/Contact/ContactPhones";
 import { FillFormDialog } from "@/components/Contact/FillFormDialog";
 import { SendWhatsAppDialog } from "@/components/Contact/SendWhatsAppDialog";
+import { SendEmailDialog } from "@/components/Contact/SendEmailDialog";
 import { WhatsAppHistory } from "@/components/Contact/WhatsAppHistory";
 import { UnifiedCommunications } from "@/components/Contact/UnifiedCommunications";
 
@@ -56,6 +57,7 @@ export default function ContactDetail() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isFillFormOpen, setIsFillFormOpen] = useState(false);
   const [isWhatsAppOpen, setIsWhatsAppOpen] = useState(false);
+  const [isEmailOpen, setIsEmailOpen] = useState(false);
   const [activityType, setActivityType] = useState<string>("note");
 
   useEffect(() => {
@@ -275,7 +277,7 @@ export default function ContactDetail() {
                   <Button 
                     size="sm" 
                     variant="outline"
-                    onClick={() => { setActivityType("email"); setIsLogActivityOpen(true); }}
+                    onClick={() => setIsEmailOpen(true)}
                   >
                     <Mail className="h-4 w-4" />
                   </Button>
@@ -352,6 +354,17 @@ export default function ContactDetail() {
           }}
         />
       )}
+
+      <SendEmailDialog
+        open={isEmailOpen}
+        onOpenChange={setIsEmailOpen}
+        contactId={id!}
+        contactName={`${contact.first_name} ${contact.last_name || ''}`}
+        onEmailSent={() => {
+          setIsEmailOpen(false);
+          fetchContact();
+        }}
+      />
     </DashboardLayout>
   );
 }
