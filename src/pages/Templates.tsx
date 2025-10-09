@@ -5,11 +5,13 @@ import { DashboardLayout } from "@/components/Layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, MessageSquare, RefreshCw, Plus } from "lucide-react";
+import { Loader2, MessageSquare, RefreshCw, Plus, Mail } from "lucide-react";
 import { format } from "date-fns";
+import { EmailTemplateDialog } from "@/components/Templates/EmailTemplateDialog";
 
-interface Template {
+interface WhatsAppTemplate {
   id: string;
   template_id: string;
   template_name: string;
@@ -22,14 +24,28 @@ interface Template {
   last_synced_at: string;
 }
 
+interface EmailTemplate {
+  id: string;
+  name: string;
+  subject: string;
+  design_json: any;
+  html_content: string;
+  created_at: string;
+  updated_at: string;
+}
+
 const Templates = () => {
   const { effectiveOrgId } = useOrgContext();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
-  const [templates, setTemplates] = useState<Template[]>([]);
+  const [whatsappTemplates, setWhatsappTemplates] = useState<WhatsAppTemplate[]>([]);
+  const [emailTemplates, setEmailTemplates] = useState<EmailTemplate[]>([]);
   const [queuedJobId, setQueuedJobId] = useState<string | null>(null);
   const [queueStatus, setQueueStatus] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("whatsapp");
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+  const [selectedEmailTemplate, setSelectedEmailTemplate] = useState<EmailTemplate | null>(null);
 
   useEffect(() => {
     if (effectiveOrgId) {
@@ -63,7 +79,7 @@ const Templates = () => {
             setQueuedJobId(null);
             setQueueStatus(null);
             setSyncing(false);
-            fetchTemplates();
+            fetchWhatsAppTemplates();
           } else if (newStatus === 'failed') {
             toast({
               title: "Sync Failed",
@@ -84,6 +100,12 @@ const Templates = () => {
   }, [queuedJobId, toast]);
 
   const fetchTemplates = async () => {
+    setLoading(true);
+    await Promise.all([fetchWhatsAppTemplates(), fetchEmailTemplates()]);
+    setLoading(false);
+  };
+
+  const fetchWhatsAppTemplates = async () => {
     try {
       const { data, error } = await supabase
         .from("communication_templates")
@@ -92,16 +114,35 @@ const Templates = () => {
         .order("template_name");
 
       if (error) throw error;
-      setTemplates((data || []) as unknown as Template[]);
+      setWhatsappTemplates((data || []) as unknown as WhatsAppTemplate[]);
     } catch (error: any) {
-      console.error("Error fetching templates:", error);
+      console.error("Error fetching WhatsApp templates:", error);
       toast({
         title: "Error",
-        description: "Failed to load templates",
+        description: "Failed to load WhatsApp templates",
         variant: "destructive",
       });
-    } finally {
-      setLoading(false);
+    }
+  };
+
+  const fetchEmailTemplates = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("email_templates")
+        .select("*")
+        .eq("org_id", effectiveOrgId)
+        .eq("is_active", true)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setEmailTemplates(data || []);
+    } catch (error: any) {
+      console.error("Error fetching email templates:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load email templates",
+        variant: "destructive",
+      });
     }
   };
 
@@ -128,7 +169,7 @@ const Templates = () => {
           description: `Synced ${response.data.synced} templates from Gupshup`,
         });
         setSyncing(false);
-        fetchTemplates();
+        fetchWhatsAppTemplates();
       }
     } catch (error: any) {
       console.error("Error syncing templates:", error);
@@ -138,6 +179,42 @@ const Templates = () => {
         variant: "destructive",
       });
       setSyncing(false);
+    }
+  };
+
+  const handleCreateEmail = () => {
+    setSelectedEmailTemplate(null);
+    setEmailDialogOpen(true);
+  };
+
+  const handleEditEmail = (template: EmailTemplate) => {
+    setSelectedEmailTemplate(template);
+    setEmailDialogOpen(true);
+  };
+
+  const handleDeleteEmail = async (templateId: string) => {
+    if (!confirm("Are you sure you want to delete this template?")) return;
+
+    try {
+      const { error } = await supabase
+        .from("email_templates")
+        .update({ is_active: false })
+        .eq("id", templateId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Template deleted successfully",
+      });
+      fetchEmailTemplates();
+    } catch (error: any) {
+      console.error("Error deleting template:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete template",
+        variant: "destructive",
+      });
     }
   };
 
@@ -192,86 +269,175 @@ const Templates = () => {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button onClick={() => window.location.href = '/templates/create'} variant="default">
-              <Plus className="mr-2 h-4 w-4" />
-              Create Template
-            </Button>
-            <Button onClick={handleSync} disabled={syncing} variant="outline">
-              {syncing ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Syncing...
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  Sync Templates
-                </>
-              )}
-            </Button>
+            {activeTab === "whatsapp" ? (
+              <>
+                <Button onClick={() => window.location.href = '/templates/create'} variant="default">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create Template
+                </Button>
+                <Button onClick={handleSync} disabled={syncing} variant="outline">
+                  {syncing ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Syncing...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      Sync Templates
+                    </>
+                  )}
+                </Button>
+              </>
+            ) : (
+              <Button onClick={handleCreateEmail} variant="default">
+                <Plus className="mr-2 h-4 w-4" />
+                Create Email Template
+              </Button>
+            )}
           </div>
         </div>
 
-        {templates.length === 0 ? (
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <MessageSquare className="h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No templates found</h3>
-              <p className="text-muted-foreground text-center mb-4">
-                Configure your WhatsApp settings and sync templates from Gupshup
-              </p>
-              <Button onClick={handleSync} disabled={syncing}>
-                {syncing ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Syncing...
-                  </>
-                ) : (
-                  "Sync Templates"
-                )}
-              </Button>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {templates.map((template) => (
-              <Card key={template.id}>
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <CardTitle className="text-lg">{template.template_name}</CardTitle>
-                    <Badge variant={getStatusColor(template.status)}>
-                      {template.status}
-                    </Badge>
-                  </div>
-                  <CardDescription>
-                    {template.category} • {template.language}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="p-3 bg-muted rounded-md text-sm">
-                    {template.content}
-                  </div>
-                  {template.variables && template.variables.length > 0 && (
-                    <div className="text-sm">
-                      <span className="font-medium">Variables:</span>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {template.variables.map((v: any, idx: number) => (
-                          <Badge key={idx} variant="outline" className="text-xs">
-                            {`{{${v.index}}}`}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  <div className="text-xs text-muted-foreground">
-                    Last synced: {format(new Date(template.last_synced_at), "PPp")}
-                  </div>
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList>
+            <TabsTrigger value="whatsapp" className="flex items-center gap-2">
+              <MessageSquare className="h-4 w-4" />
+              WhatsApp ({whatsappTemplates.length})
+            </TabsTrigger>
+            <TabsTrigger value="email" className="flex items-center gap-2">
+              <Mail className="h-4 w-4" />
+              Email ({emailTemplates.length})
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="whatsapp" className="mt-6">
+            {whatsappTemplates.length === 0 ? (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-12">
+                  <MessageSquare className="h-12 w-12 text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No templates found</h3>
+                  <p className="text-muted-foreground text-center mb-4">
+                    Configure your WhatsApp settings and sync templates from Gupshup
+                  </p>
+                  <Button onClick={handleSync} disabled={syncing}>
+                    {syncing ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Syncing...
+                      </>
+                    ) : (
+                      "Sync Templates"
+                    )}
+                  </Button>
                 </CardContent>
               </Card>
-            ))}
-          </div>
-        )}
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {whatsappTemplates.map((template) => (
+                  <Card key={template.id}>
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <CardTitle className="text-lg">{template.template_name}</CardTitle>
+                        <Badge variant={getStatusColor(template.status)}>
+                          {template.status}
+                        </Badge>
+                      </div>
+                      <CardDescription>
+                        {template.category} • {template.language}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="p-3 bg-muted rounded-md text-sm">
+                        {template.content}
+                      </div>
+                      {template.variables && template.variables.length > 0 && (
+                        <div className="text-sm">
+                          <span className="font-medium">Variables:</span>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {template.variables.map((v: any, idx: number) => (
+                              <Badge key={idx} variant="outline" className="text-xs">
+                                {`{{${v.index}}}`}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      <div className="text-xs text-muted-foreground">
+                        Last synced: {format(new Date(template.last_synced_at), "PPp")}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="email" className="mt-6">
+            {emailTemplates.length === 0 ? (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-12">
+                  <Mail className="h-12 w-12 text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No email templates found</h3>
+                  <p className="text-muted-foreground text-center mb-4">
+                    Create your first email template with our drag-and-drop editor
+                  </p>
+                  <Button onClick={handleCreateEmail}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Create Email Template
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {emailTemplates.map((template) => (
+                  <Card key={template.id}>
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <CardTitle className="text-lg">{template.name}</CardTitle>
+                        <Badge variant="default">Email</Badge>
+                      </div>
+                      <CardDescription>{template.subject}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="p-3 bg-muted rounded-md text-sm max-h-32 overflow-hidden">
+                        <div dangerouslySetInnerHTML={{ __html: template.html_content }} />
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Updated: {format(new Date(template.updated_at), "PPp")}
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleEditEmail(template)}
+                          className="flex-1"
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handleDeleteEmail(template.id)}
+                          className="flex-1"
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
+
+      <EmailTemplateDialog
+        open={emailDialogOpen}
+        onOpenChange={setEmailDialogOpen}
+        template={selectedEmailTemplate}
+        onSuccess={fetchEmailTemplates}
+      />
     </DashboardLayout>
   );
 };

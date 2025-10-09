@@ -36,7 +36,6 @@ import WhatsAppCampaigns from "./pages/WhatsAppCampaigns";
 import WhatsAppCampaignDetail from "./pages/WhatsAppCampaignDetail";
 import QueueStatus from "./pages/QueueStatus";
 import Communications from "./pages/Communications";
-import EmailTemplateBuilder from "./pages/EmailTemplateBuilder";
 import BulkEmailSender from "./pages/BulkEmailSender";
 import EmailCampaigns from "./pages/EmailCampaigns";
 import EmailCampaignDetail from "./pages/EmailCampaignDetail";
@@ -228,18 +227,6 @@ const App = () => (
           <Route path="/communications" element={
             <ProtectedRoute>
               <Communications />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/email-templates/create" element={
-            <ProtectedRoute>
-              <EmailTemplateBuilder />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/email-templates/:id" element={
-            <ProtectedRoute>
-              <EmailTemplateBuilder />
             </ProtectedRoute>
           } />
           
