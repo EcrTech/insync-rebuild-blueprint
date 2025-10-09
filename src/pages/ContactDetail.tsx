@@ -293,15 +293,11 @@ export default function ContactDetail() {
               <Tabs defaultValue="journey">
                 <TabsList>
                   <TabsTrigger value="journey">Customer Journey</TabsTrigger>
-                  <TabsTrigger value="timeline">Timeline</TabsTrigger>
                   <TabsTrigger value="communications">All Communications</TabsTrigger>
                   <TabsTrigger value="notes">Notes</TabsTrigger>
                 </TabsList>
                 <TabsContent value="journey" className="space-y-4">
                   <CustomerJourney contactId={id!} />
-                </TabsContent>
-                <TabsContent value="timeline" className="space-y-4">
-                  <ActivityTimeline contactId={id!} />
                 </TabsContent>
                 <TabsContent value="communications" className="space-y-4">
                   <UnifiedCommunications contactId={id!} />
