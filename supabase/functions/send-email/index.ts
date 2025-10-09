@@ -9,7 +9,7 @@ const corsHeaders = {
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
-const sendEmail = async (to: string, subject: string, html: string) => {
+const sendEmail = async (to: string, subject: string, html: string, fromEmail: string, fromName: string) => {
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
@@ -17,7 +17,7 @@ const sendEmail = async (to: string, subject: string, html: string) => {
       Authorization: `Bearer ${RESEND_API_KEY}`,
     },
     body: JSON.stringify({
-      from: "onboarding@resend.dev",
+      from: `${fromName} <${fromEmail}>`,
       to: [to],
       subject: subject,
       html: html,
@@ -69,13 +69,6 @@ serve(async (req) => {
 
     const { to, subject, htmlContent, contactId, conversationId }: SendEmailRequest = await req.json();
 
-    console.log("Sending email to:", to);
-
-    // Send email via Resend
-    const emailData = await sendEmail(to, subject, htmlContent);
-
-    console.log("Email sent successfully:", emailData);
-
     // Get user's org_id
     const { data: profile } = await supabaseClient
       .from("profiles")
@@ -87,6 +80,38 @@ serve(async (req) => {
       throw new Error("User organization not found");
     }
 
+    // Get email settings and verify domain
+    const { data: emailSettings, error: settingsError } = await supabaseClient
+      .from("email_settings")
+      .select("sending_domain, verification_status, is_active")
+      .eq("org_id", profile.org_id)
+      .maybeSingle();
+
+    if (!emailSettings || !emailSettings.is_active) {
+      throw new Error("Email sending is not configured. Please set up your sending domain in Email Settings.");
+    }
+
+    if (emailSettings.verification_status !== "verified") {
+      throw new Error("Email domain is not verified. Please verify your domain in Email Settings before sending emails.");
+    }
+
+    // Get organization name
+    const { data: org } = await supabaseClient
+      .from("organizations")
+      .select("name")
+      .eq("id", profile.org_id)
+      .maybeSingle();
+
+    const fromEmail = `noreply@${emailSettings.sending_domain}`;
+    const fromName = org?.name || "Your Organization";
+
+    console.log("Sending email to:", to, "from:", fromEmail);
+
+    // Send email via Resend
+    const emailData = await sendEmail(to, subject, htmlContent, fromEmail, fromName);
+
+    console.log("Email sent successfully:", emailData);
+
     // Log email to email_conversations table
     const { error: logError } = await supabaseClient
       .from("email_conversations")
@@ -94,8 +119,8 @@ serve(async (req) => {
         org_id: profile.org_id,
         contact_id: contactId,
         conversation_id: conversationId || emailData?.id || crypto.randomUUID(),
-        from_email: "onboarding@resend.dev", // Should be updated
-        from_name: "Your Company", // Should be updated
+        from_email: fromEmail,
+        from_name: fromName,
         to_email: to,
         subject: subject,
         email_content: htmlContent,

@@ -9,7 +9,7 @@ const corsHeaders = {
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
-const sendEmail = async (to: string, subject: string, html: string) => {
+const sendEmail = async (to: string, subject: string, html: string, fromEmail: string, fromName: string) => {
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
@@ -17,7 +17,7 @@ const sendEmail = async (to: string, subject: string, html: string) => {
       Authorization: `Bearer ${RESEND_API_KEY}`,
     },
     body: JSON.stringify({
-      from: "onboarding@resend.dev",
+      from: `${fromName} <${fromEmail}>`,
       to: [to],
       subject: subject,
       html: html,
@@ -86,6 +86,43 @@ serve(async (req) => {
       throw new Error("Campaign not found");
     }
 
+    console.log("Processing campaign:", campaign.name);
+
+    // Get email settings and verify domain
+    const { data: emailSettings, error: settingsError } = await supabaseClient
+      .from("email_settings")
+      .select("sending_domain, verification_status, is_active")
+      .eq("org_id", campaign.org_id)
+      .maybeSingle();
+
+    if (!emailSettings || !emailSettings.is_active) {
+      await supabaseClient
+        .from("email_bulk_campaigns")
+        .update({ status: "failed" })
+        .eq("id", campaignId);
+      throw new Error("Email sending is not configured. Please set up your sending domain in Email Settings.");
+    }
+
+    if (emailSettings.verification_status !== "verified") {
+      await supabaseClient
+        .from("email_bulk_campaigns")
+        .update({ status: "failed" })
+        .eq("id", campaignId);
+      throw new Error("Email domain is not verified. Please verify your domain in Email Settings before sending emails.");
+    }
+
+    // Get organization name
+    const { data: org } = await supabaseClient
+      .from("organizations")
+      .select("name")
+      .eq("id", campaign.org_id)
+      .maybeSingle();
+
+    const fromEmail = `noreply@${emailSettings.sending_domain}`;
+    const fromName = org?.name || "Your Organization";
+
+    console.log("Sending emails from:", fromEmail);
+
     // Fetch pending recipients
     const { data: recipients, error: recipientsError } = await supabaseClient
       .from("email_campaign_recipients")
@@ -120,7 +157,29 @@ serve(async (req) => {
           recipient.email
         );
 
-        await sendEmail(recipient.email, campaign.subject, personalizedHtml);
+        const emailResult = await sendEmail(
+          recipient.email,
+          campaign.subject,
+          personalizedHtml,
+          fromEmail,
+          fromName
+        );
+
+        // Log to email_conversations
+        await supabaseClient.from("email_conversations").insert({
+          org_id: campaign.org_id,
+          contact_id: recipient.contact_id,
+          conversation_id: emailResult?.id || crypto.randomUUID(),
+          from_email: fromEmail,
+          from_name: fromName,
+          to_email: recipient.email,
+          subject: campaign.subject,
+          email_content: personalizedHtml,
+          html_content: personalizedHtml,
+          direction: "outbound",
+          status: "sent",
+          sent_at: new Date().toISOString(),
+        });
 
         // Update recipient status to sent
         await supabaseClient
