@@ -382,32 +382,32 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                     className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-accent/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
                     onClick={() => setSidebarOpen(false)}
                   >
-                    <MessageSquare size={20} className="text-accent-foreground/80" />
-                    <span>WhatsApp Settings</span>
+                    <MessageSquare size={20} className="text-foreground/70" />
+                    <span className="text-foreground">WhatsApp Settings</span>
                   </Link>
                   <Link
                     to="/admin/email-settings"
                     className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-accent/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
                     onClick={() => setSidebarOpen(false)}
                   >
-                    <Mail size={20} className="text-accent-foreground/80" />
-                    <span>Email Settings</span>
+                    <Mail size={20} className="text-foreground/70" />
+                    <span className="text-foreground">Email Settings</span>
                   </Link>
                   <Link
                     to="/templates"
                     className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-accent/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
                     onClick={() => setSidebarOpen(false)}
                   >
-                    <FileText size={20} className="text-accent-foreground/80" />
-                    <span>Templates</span>
+                    <FileText size={20} className="text-foreground/70" />
+                    <span className="text-foreground">Templates</span>
                   </Link>
                   <Link
                     to="/whatsapp-messages"
                     className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-accent/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
                     onClick={() => setSidebarOpen(false)}
                   >
-                    <MessageSquare size={20} className="text-accent-foreground/80" />
-                    <span>Message History</span>
+                    <MessageSquare size={20} className="text-foreground/70" />
+                    <span className="text-foreground">Message History</span>
                   </Link>
                   
                   <div className="pt-4 pb-2 section-accent-purple pl-4">
