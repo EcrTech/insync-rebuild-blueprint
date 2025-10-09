@@ -12,7 +12,7 @@ export function AuthLayout({ children, title, subtitle }: AuthLayoutProps) {
   return (
     <div className="min-h-screen flex">
       {/* Left Side - Image and Caption */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary/10 via-muted/20 to-accent/10 flex-col items-center justify-center p-12">
+      <div className="hidden lg:flex lg:w-1/2 bg-muted flex-col items-center justify-center p-12">
         <div className="max-w-xl text-center space-y-8">
           <h1 className="text-4xl font-bold text-foreground leading-tight">
             Level up your hustle! Call, connect, and conquer with the CRM that's got all the vibes!
