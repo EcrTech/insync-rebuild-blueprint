@@ -366,6 +366,14 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                     <span>WhatsApp Settings</span>
                   </Link>
                   <Link
+                    to="/admin/email-settings"
+                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    <Mail size={20} />
+                    <span>Email Settings</span>
+                  </Link>
+                  <Link
                     to="/templates"
                     className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
                     onClick={() => setSidebarOpen(false)}
