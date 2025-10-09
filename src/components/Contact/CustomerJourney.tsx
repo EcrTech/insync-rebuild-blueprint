@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Phone, Mail, Calendar, FileText, CheckCircle2, Clock } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from "date-fns";
 
 interface Activity {
@@ -181,9 +182,17 @@ export const CustomerJourney = ({ contactId }: CustomerJourneyProps) => {
                         <CheckCircle2 className={`h-4 w-4 ${getDispositionColor(activity.call_dispositions.category)}`} />
                       )}
                     </h4>
-                    {activity.subject && (
-                      <p className="text-sm text-foreground mt-1">{activity.subject}</p>
-                    )}
+              {activity.subject && (
+                <div className="flex items-center gap-2 mt-1">
+                  <p className="text-sm text-foreground">{activity.subject}</p>
+                  {activity.activity_type === 'email' && activity.subject?.startsWith('Reply:') && (
+                    <Badge variant="default" className="text-xs">Received</Badge>
+                  )}
+                  {activity.activity_type === 'email' && !activity.subject?.startsWith('Reply:') && (
+                    <Badge variant="secondary" className="text-xs">Sent</Badge>
+                  )}
+                </div>
+              )}
                   </div>
                   <span className="text-xs text-muted-foreground whitespace-nowrap">
                     {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })}

@@ -21,7 +21,6 @@ import { FillFormDialog } from "@/components/Contact/FillFormDialog";
 import { SendWhatsAppDialog } from "@/components/Contact/SendWhatsAppDialog";
 import { SendEmailDialog } from "@/components/Contact/SendEmailDialog";
 import { WhatsAppHistory } from "@/components/Contact/WhatsAppHistory";
-import { UnifiedCommunications } from "@/components/Contact/UnifiedCommunications";
 
 interface Contact {
   id: string;
@@ -293,16 +292,12 @@ export default function ContactDetail() {
             </CardHeader>
             <CardContent>
               <Tabs defaultValue="journey">
-                <TabsList>
+                <TabsList className="grid w-full grid-cols-2">
                   <TabsTrigger value="journey">Customer Journey</TabsTrigger>
-                  <TabsTrigger value="communications">All Communications</TabsTrigger>
                   <TabsTrigger value="notes">Notes</TabsTrigger>
                 </TabsList>
                 <TabsContent value="journey" className="space-y-4">
                   <CustomerJourney contactId={id!} />
-                </TabsContent>
-                <TabsContent value="communications" className="space-y-4">
-                  <UnifiedCommunications contactId={id!} />
                 </TabsContent>
                 <TabsContent value="notes">
                   {contact.notes ? (
