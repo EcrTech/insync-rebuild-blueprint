@@ -231,8 +231,9 @@ serve(async (req) => {
           try {
             const webhookUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/email-inbound-webhook`;
             
+            console.log('Creating inbound route with webhook:', webhookUrl);
             const inboundResponse = await fetch(
-              `https://api.resend.com/domains/${settings.resend_domain_id}/inbound-routes`,
+              'https://api.resend.com/inbound-routes',
               {
                 method: 'POST',
                 headers: {
@@ -240,8 +241,11 @@ serve(async (req) => {
                   'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                  destination_url: webhookUrl,
-                  enabled: true,
+                  domain_id: settings.resend_domain_id,
+                  rule: {
+                    action: 'forward',
+                    forward_to: webhookUrl,
+                  },
                 }),
               }
             );
@@ -291,8 +295,9 @@ serve(async (req) => {
         const webhookUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/email-inbound-webhook`;
         
         console.log('Setting up inbound route for domain:', settings.resend_domain_id);
+        console.log('Webhook URL:', webhookUrl);
         const inboundResponse = await fetch(
-          `https://api.resend.com/domains/${settings.resend_domain_id}/inbound-routes`,
+          'https://api.resend.com/inbound-routes',
           {
             method: 'POST',
             headers: {
@@ -300,8 +305,11 @@ serve(async (req) => {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              destination_url: webhookUrl,
-              enabled: true,
+              domain_id: settings.resend_domain_id,
+              rule: {
+                action: 'forward',
+                forward_to: webhookUrl,
+              },
             }),
           }
         );
@@ -309,6 +317,8 @@ serve(async (req) => {
         if (!inboundResponse.ok) {
           const error = await inboundResponse.text();
           console.error('Resend inbound route error:', error);
+          console.error('Response status:', inboundResponse.status);
+          console.error('API Key permissions may be insufficient - ensure "Full access" is enabled');
           throw new Error(`Failed to setup inbound routing: ${error}`);
         }
 
