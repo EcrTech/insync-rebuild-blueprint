@@ -168,7 +168,7 @@ const WhatsAppSettings = () => {
         <div>
           <h1 className="text-3xl font-bold">WhatsApp Configuration</h1>
           <p className="text-muted-foreground mt-2">
-            Configure your Gupshup WhatsApp Business API credentials
+            Configure your Gupshup WhatsApp Business API credentials and webhook
           </p>
         </div>
 
@@ -224,6 +224,33 @@ const WhatsAppSettings = () => {
                     setSettings({ ...settings, app_name: e.target.value })
                   }
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Webhook URL</Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={`https://aizgpxaqvtvvqarzjmze.supabase.co/functions/v1/whatsapp-webhook`}
+                    readOnly
+                    className="font-mono text-sm"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      navigator.clipboard.writeText(`https://aizgpxaqvtvvqarzjmze.supabase.co/functions/v1/whatsapp-webhook`);
+                      toast({
+                        title: "Copied!",
+                        description: "Webhook URL copied to clipboard",
+                      });
+                    }}
+                  >
+                    Copy
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Configure this URL in your Gupshup dashboard to receive message status updates
+                </p>
               </div>
 
               <div className="flex items-center justify-between">
