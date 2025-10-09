@@ -29,6 +29,7 @@ import PublicForm from "./pages/PublicForm";
 import PlatformAdmin from "./pages/PlatformAdmin";
 import WhatsAppSettings from "./pages/WhatsAppSettings";
 import Templates from "./pages/Templates";
+import WhatsAppDashboard from "./pages/WhatsAppDashboard";
 import ProtectedRoute from "./components/Auth/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -169,6 +170,12 @@ const App = () => (
           <Route path="/templates" element={
             <ProtectedRoute>
               <Templates />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/whatsapp-messages" element={
+            <ProtectedRoute>
+              <WhatsAppDashboard />
             </ProtectedRoute>
           } />
           

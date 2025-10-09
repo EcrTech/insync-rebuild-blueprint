@@ -19,6 +19,7 @@ import { ContactEmails } from "@/components/Contact/ContactEmails";
 import { ContactPhones } from "@/components/Contact/ContactPhones";
 import { FillFormDialog } from "@/components/Contact/FillFormDialog";
 import { SendWhatsAppDialog } from "@/components/Contact/SendWhatsAppDialog";
+import { WhatsAppHistory } from "@/components/Contact/WhatsAppHistory";
 
 interface Contact {
   id: string;
@@ -298,6 +299,7 @@ export default function ContactDetail() {
                 <TabsList>
                   <TabsTrigger value="journey">Customer Journey</TabsTrigger>
                   <TabsTrigger value="timeline">Timeline</TabsTrigger>
+                  <TabsTrigger value="whatsapp">WhatsApp</TabsTrigger>
                   <TabsTrigger value="notes">Notes</TabsTrigger>
                 </TabsList>
                 <TabsContent value="journey" className="space-y-4">
@@ -305,6 +307,9 @@ export default function ContactDetail() {
                 </TabsContent>
                 <TabsContent value="timeline" className="space-y-4">
                   <ActivityTimeline contactId={id!} />
+                </TabsContent>
+                <TabsContent value="whatsapp" className="space-y-4">
+                  <WhatsAppHistory contactId={id!} />
                 </TabsContent>
                 <TabsContent value="notes">
                   {contact.notes ? (
