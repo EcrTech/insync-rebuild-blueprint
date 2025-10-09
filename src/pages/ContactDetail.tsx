@@ -295,7 +295,6 @@ export default function ContactDetail() {
                   <TabsTrigger value="journey">Customer Journey</TabsTrigger>
                   <TabsTrigger value="timeline">Timeline</TabsTrigger>
                   <TabsTrigger value="communications">All Communications</TabsTrigger>
-                  <TabsTrigger value="whatsapp">WhatsApp</TabsTrigger>
                   <TabsTrigger value="notes">Notes</TabsTrigger>
                 </TabsList>
                 <TabsContent value="journey" className="space-y-4">
@@ -306,9 +305,6 @@ export default function ContactDetail() {
                 </TabsContent>
                 <TabsContent value="communications" className="space-y-4">
                   <UnifiedCommunications contactId={id!} />
-                </TabsContent>
-                <TabsContent value="whatsapp" className="space-y-4">
-                  <WhatsAppHistory contactId={id!} />
                 </TabsContent>
                 <TabsContent value="notes">
                   {contact.notes ? (
