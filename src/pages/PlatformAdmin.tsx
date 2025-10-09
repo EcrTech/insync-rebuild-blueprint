@@ -22,6 +22,14 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { setImpersonation } from "@/utils/orgContextEvents";
@@ -87,6 +95,9 @@ export default function PlatformAdmin() {
   const [orgDetails, setOrgDetails] = useState<any>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [errorLogs, setErrorLogs] = useState<ErrorLog[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const pageSize = 20;
   const [showErrorLogs, setShowErrorLogs] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -353,8 +364,17 @@ export default function PlatformAdmin() {
     }
   };
 
-  const fetchErrorLogs = async () => {
+  const fetchErrorLogs = async (page: number = 1) => {
     try {
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+
+      // Get total count
+      const { count } = await supabase
+        .from("error_logs")
+        .select("*", { count: "exact", head: true });
+
+      // Get paginated data
       const { data, error } = await supabase
         .from("error_logs")
         .select(`
@@ -363,10 +383,10 @@ export default function PlatformAdmin() {
           profiles!error_logs_user_id_fkey(first_name, last_name)
         `)
         .order("created_at", { ascending: false })
-        .limit(100);
+        .range(from, to);
 
       if (error) throw error;
-
+      
       const formattedLogs = data?.map(log => ({
         ...log,
         organization: log.organizations,
@@ -374,7 +394,8 @@ export default function PlatformAdmin() {
       })) as ErrorLog[];
 
       setErrorLogs(formattedLogs || []);
-      setShowErrorLogs(true);
+      setTotalPages(Math.ceil((count || 0) / pageSize));
+      setCurrentPage(page);
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -645,7 +666,7 @@ export default function PlatformAdmin() {
                 <CardTitle>Error Logs</CardTitle>
                 <CardDescription>System-wide error tracking across all organizations</CardDescription>
               </div>
-              <Button onClick={fetchErrorLogs} variant="outline">
+              <Button onClick={() => fetchErrorLogs(1)} variant="outline">
                 <AlertTriangle className="mr-2 h-4 w-4" />
                 {showErrorLogs ? "Refresh Logs" : "Load Error Logs"}
               </Button>
@@ -716,6 +737,49 @@ export default function PlatformAdmin() {
                   )}
                 </TableBody>
               </Table>
+            )}
+            
+            {totalPages > 1 && (
+              <div className="mt-4 flex justify-center">
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious 
+                        onClick={(e) => {
+                          e.preventDefault();
+                          if (currentPage > 1) fetchErrorLogs(currentPage - 1);
+                        }}
+                        className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                      />
+                    </PaginationItem>
+                    
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                      <PaginationItem key={page}>
+                        <PaginationLink
+                          onClick={(e) => {
+                            e.preventDefault();
+                            fetchErrorLogs(page);
+                          }}
+                          isActive={currentPage === page}
+                          className="cursor-pointer"
+                        >
+                          {page}
+                        </PaginationLink>
+                      </PaginationItem>
+                    ))}
+                    
+                    <PaginationItem>
+                      <PaginationNext 
+                        onClick={(e) => {
+                          e.preventDefault();
+                          if (currentPage < totalPages) fetchErrorLogs(currentPage + 1);
+                        }}
+                        className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              </div>
             )}
           </CardContent>
          </Card>
