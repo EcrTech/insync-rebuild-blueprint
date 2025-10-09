@@ -103,6 +103,127 @@ export type Database = {
           },
         ]
       }
+      campaign_analytics: {
+        Row: {
+          bounce_count: number | null
+          campaign_id: string
+          campaign_type: string
+          click_count: number | null
+          conversions: number | null
+          cpa: number | null
+          created_at: string | null
+          date: string
+          id: string
+          open_count: number | null
+          org_id: string
+          revenue: number | null
+          roas: number | null
+          spend: number | null
+        }
+        Insert: {
+          bounce_count?: number | null
+          campaign_id: string
+          campaign_type: string
+          click_count?: number | null
+          conversions?: number | null
+          cpa?: number | null
+          created_at?: string | null
+          date: string
+          id?: string
+          open_count?: number | null
+          org_id: string
+          revenue?: number | null
+          roas?: number | null
+          spend?: number | null
+        }
+        Update: {
+          bounce_count?: number | null
+          campaign_id?: string
+          campaign_type?: string
+          click_count?: number | null
+          conversions?: number | null
+          cpa?: number | null
+          created_at?: string | null
+          date?: string
+          id?: string
+          open_count?: number | null
+          org_id?: string
+          revenue?: number | null
+          roas?: number | null
+          spend?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_analytics_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaign_insights: {
+        Row: {
+          analysis: string | null
+          campaign_id: string | null
+          created_at: string | null
+          description: string | null
+          expires_at: string | null
+          id: string
+          impact: string | null
+          insight_type: string
+          org_id: string
+          priority: string
+          status: string | null
+          suggested_action: string | null
+          supporting_data: Json | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          analysis?: string | null
+          campaign_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          expires_at?: string | null
+          id?: string
+          impact?: string | null
+          insight_type: string
+          org_id: string
+          priority: string
+          status?: string | null
+          suggested_action?: string | null
+          supporting_data?: Json | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          analysis?: string | null
+          campaign_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          expires_at?: string | null
+          id?: string
+          impact?: string | null
+          insight_type?: string
+          org_id?: string
+          priority?: string
+          status?: string | null
+          suggested_action?: string | null
+          supporting_data?: Json | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_insights_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       communication_templates: {
         Row: {
           approved_at: string | null
