@@ -317,110 +317,110 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                   </div>
                   <Link
                     to="/admin"
-                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
+                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-yellow-500/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
                     onClick={() => setSidebarOpen(false)}
                   >
-                    <Building2 size={20} />
+                    <Building2 size={20} className="text-yellow-600" />
                     <span>Organization Settings</span>
                   </Link>
                   <Link
                     to="/admin/pipeline-stages"
-                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
+                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-yellow-500/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
                     onClick={() => setSidebarOpen(false)}
                   >
-                    <Layers size={20} />
+                    <Layers size={20} className="text-yellow-600" />
                     <span>Pipeline Stages</span>
                   </Link>
                   <Link
                     to="/admin/call-dispositions"
-                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
+                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-yellow-500/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
                     onClick={() => setSidebarOpen(false)}
                   >
-                    <PhoneCall size={20} />
+                    <PhoneCall size={20} className="text-yellow-600" />
                     <span>Call Dispositions</span>
                   </Link>
                   <Link
                     to="/admin/approval-matrix"
-                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
+                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-yellow-500/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
                     onClick={() => setSidebarOpen(false)}
                   >
-                    <CheckSquare size={20} />
+                    <CheckSquare size={20} className="text-yellow-600" />
                     <span>Approval Matrix</span>
                   </Link>
                   <Link
                     to="/admin/designations"
-                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
+                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-yellow-500/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
                     onClick={() => setSidebarOpen(false)}
                   >
-                    <Award size={20} />
+                    <Award size={20} className="text-yellow-600" />
                     <span>Designations</span>
                   </Link>
                   <Link
                     to="/admin/custom-fields"
-                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
+                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-yellow-500/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
                     onClick={() => setSidebarOpen(false)}
                   >
-                    <Sliders size={20} />
+                    <Sliders size={20} className="text-yellow-600" />
                     <span>Custom Fields</span>
                   </Link>
                   <Link
                     to="/admin/forms"
-                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
+                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-yellow-500/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
                     onClick={() => setSidebarOpen(false)}
                   >
-                    <FileText size={20} />
+                    <FileText size={20} className="text-yellow-600" />
                     <span>Forms</span>
                   </Link>
                   
-                  <div className="pt-4 pb-2">
-                    <p className="px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  <div className="pt-4 pb-2 section-accent-accent pl-4">
+                    <p className="px-4 text-xs font-semibold uppercase tracking-wider gradient-text-accent">
                       Communication
                     </p>
                   </div>
                   <Link
                     to="/admin/whatsapp-settings"
-                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
+                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-accent/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
                     onClick={() => setSidebarOpen(false)}
                   >
-                    <MessageSquare size={20} />
+                    <MessageSquare size={20} className="text-accent-foreground/80" />
                     <span>WhatsApp Settings</span>
                   </Link>
                   <Link
                     to="/admin/email-settings"
-                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
+                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-accent/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
                     onClick={() => setSidebarOpen(false)}
                   >
-                    <Mail size={20} />
+                    <Mail size={20} className="text-accent-foreground/80" />
                     <span>Email Settings</span>
                   </Link>
                   <Link
                     to="/templates"
-                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
+                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-accent/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
                     onClick={() => setSidebarOpen(false)}
                   >
-                    <FileText size={20} />
+                    <FileText size={20} className="text-accent-foreground/80" />
                     <span>Templates</span>
                   </Link>
                   <Link
                     to="/whatsapp-messages"
-                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
+                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-accent/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
                     onClick={() => setSidebarOpen(false)}
                   >
-                    <MessageSquare size={20} />
+                    <MessageSquare size={20} className="text-accent-foreground/80" />
                     <span>Message History</span>
                   </Link>
                   
-                  <div className="pt-4 pb-2">
-                    <p className="px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  <div className="pt-4 pb-2 section-accent-purple pl-4">
+                    <p className="px-4 text-xs font-semibold uppercase tracking-wider bg-gradient-to-r from-secondary to-secondary/70 bg-clip-text text-transparent">
                       Connectors
                     </p>
                   </div>
                   <Link
                     to="/admin/connectors"
-                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
+                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-secondary/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
                     onClick={() => setSidebarOpen(false)}
                   >
-                    <Webhook size={20} />
+                    <Webhook size={20} className="text-secondary" />
                     <span>Webhook Connectors</span>
                   </Link>
                 </>
