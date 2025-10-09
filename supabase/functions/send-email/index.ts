@@ -47,38 +47,93 @@ serve(async (req) => {
   }
 
   try {
+    console.log('=== send-email Request Started ===');
+    console.log('Request method:', req.method);
+    console.log('Timestamp:', new Date().toISOString());
+
+    // Check for Authorization header
+    const authHeader = req.headers.get("Authorization");
+    console.log('Auth Header Status:', {
+      present: !!authHeader,
+      preview: authHeader ? `${authHeader.substring(0, 20)}...` : 'MISSING',
+      length: authHeader?.length || 0
+    });
+
+    if (!authHeader) {
+      throw new Error('No Authorization header provided');
+    }
+
+    // Create Supabase client
+    console.log('Creating Supabase client with ANON_KEY...');
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_ANON_KEY") ?? "",
       {
         global: {
-          headers: { Authorization: req.headers.get("Authorization")! },
+          headers: { Authorization: authHeader },
+        },
+        auth: {
+          persistSession: false, // Critical for edge functions
         },
       }
     );
+    console.log('✓ Supabase client created successfully');
 
-    // Get user from auth
+    // Authenticate user
+    console.log('Attempting user authentication...');
     const {
       data: { user },
       error: authError,
     } = await supabaseClient.auth.getUser();
 
-    if (authError || !user) {
-      throw new Error("Unauthorized");
+    console.log('User Auth Result:', {
+      success: !!user,
+      userId: user?.id || 'N/A',
+      userEmail: user?.email || 'N/A',
+      hasError: !!authError,
+      errorCode: authError?.code || 'N/A',
+      errorMessage: authError?.message || 'N/A',
+      errorStatus: authError?.status || 'N/A',
+    });
+
+    if (authError) {
+      console.error('Auth Error Details:', JSON.stringify(authError, null, 2));
+      throw new Error(`Authentication failed: ${authError.message}`);
     }
+
+    if (!user) {
+      throw new Error('No user found in session');
+    }
+
+    console.log('✓ User authenticated:', user.email);
 
     const { to, subject, htmlContent, contactId, conversationId }: SendEmailRequest = await req.json();
 
-    // Get user's org_id
-    const { data: profile } = await supabaseClient
+    // Fetch user profile and org_id
+    console.log('Fetching user profile and org_id...');
+    const { data: profile, error: profileError } = await supabaseClient
       .from("profiles")
       .select("org_id")
       .eq("id", user.id)
       .single();
 
+    console.log('Profile Lookup Result:', {
+      found: !!profile,
+      orgId: profile?.org_id || 'N/A',
+      hasError: !!profileError,
+      errorMessage: profileError?.message || 'N/A'
+    });
+
+    if (profileError) {
+      console.error('Profile Error:', profileError);
+      throw new Error(`Failed to fetch user profile: ${profileError.message}`);
+    }
+
     if (!profile?.org_id) {
       throw new Error("User organization not found");
     }
+
+    console.log('✓ Organization verified:', profile.org_id);
 
     // Get email settings and verify domain
     const { data: emailSettings, error: settingsError } = await supabaseClient
@@ -143,11 +198,19 @@ serve(async (req) => {
       }
     );
   } catch (error: any) {
-    console.error("Error in send-email function:", error);
+    console.error('=== send-email Error ===');
+    console.error('Error Type:', error.constructor.name);
+    console.error('Error Message:', error.message);
+    console.error('Error Stack:', error.stack);
+    console.error('Timestamp:', new Date().toISOString());
+    
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message,
+        timestamp: new Date().toISOString()
+      }),
       {
-        status: 500,
+        status: error.message.includes('Unauthorized') || error.message.includes('Authentication') ? 401 : 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );

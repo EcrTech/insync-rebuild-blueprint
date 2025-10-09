@@ -19,40 +19,91 @@ Deno.serve(async (req) => {
   }
 
   try {
+    console.log('=== send-whatsapp-message Request Started ===');
+    console.log('Request method:', req.method);
+    console.log('Timestamp:', new Date().toISOString());
+
+    // Check for Authorization header
+    const authHeader = req.headers.get('Authorization');
+    console.log('Auth Header Status:', {
+      present: !!authHeader,
+      preview: authHeader ? `${authHeader.substring(0, 20)}...` : 'MISSING',
+      length: authHeader?.length || 0
+    });
+
+    if (!authHeader) {
+      throw new Error('No Authorization header provided');
+    }
+
+    // Create Supabase client
+    console.log('Creating Supabase client with ANON_KEY...');
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       {
         global: {
-          headers: { Authorization: req.headers.get('Authorization')! },
+          headers: { Authorization: authHeader },
+        },
+        auth: {
+          persistSession: false, // Critical for edge functions
         },
       }
     );
+    console.log('✓ Supabase client created successfully');
 
-    const { data: { user } } = await supabaseClient.auth.getUser();
-    if (!user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    // Authenticate user
+    console.log('Attempting user authentication...');
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+
+    console.log('User Auth Result:', {
+      success: !!user,
+      userId: user?.id || 'N/A',
+      userEmail: user?.email || 'N/A',
+      hasError: !!userError,
+      errorCode: userError?.code || 'N/A',
+      errorMessage: userError?.message || 'N/A',
+      errorStatus: userError?.status || 'N/A',
+    });
+
+    if (userError) {
+      console.error('Auth Error Details:', JSON.stringify(userError, null, 2));
+      throw new Error(`Authentication failed: ${userError.message}`);
     }
+
+    if (!user) {
+      throw new Error('No user found in session');
+    }
+
+    console.log('✓ User authenticated:', user.email);
 
     const body: SendMessageRequest = await req.json();
     const { contactId, phoneNumber, templateId, templateVariables, message } = body;
 
-    // Get user's org_id
-    const { data: profile } = await supabaseClient
+    // Fetch user profile and org_id
+    console.log('Fetching user profile and org_id...');
+    const { data: profile, error: profileError } = await supabaseClient
       .from('profiles')
       .select('org_id')
       .eq('id', user.id)
       .single();
 
-    if (!profile?.org_id) {
-      return new Response(JSON.stringify({ error: 'Organization not found' }), {
-        status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    console.log('Profile Lookup Result:', {
+      found: !!profile,
+      orgId: profile?.org_id || 'N/A',
+      hasError: !!profileError,
+      errorMessage: profileError?.message || 'N/A'
+    });
+
+    if (profileError) {
+      console.error('Profile Error:', profileError);
+      throw new Error(`Failed to fetch user profile: ${profileError.message}`);
     }
+
+    if (!profile?.org_id) {
+      throw new Error('Organization not found');
+    }
+
+    console.log('✓ Organization verified:', profile.org_id);
 
     // Get WhatsApp settings
     const { data: whatsappSettings } = await supabaseClient
@@ -203,12 +254,21 @@ Deno.serve(async (req) => {
       }
     );
   } catch (error) {
-    console.error('Error sending WhatsApp message:', error);
+    const err = error as Error;
+    console.error('=== send-whatsapp-message Error ===');
+    console.error('Error Type:', err.constructor.name);
+    console.error('Error Message:', err.message);
+    console.error('Error Stack:', err.stack);
+    console.error('Timestamp:', new Date().toISOString());
+    
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({ 
+        error: errorMessage,
+        timestamp: new Date().toISOString()
+      }),
       {
-        status: 500,
+        status: err.message?.includes('Unauthorized') || err.message?.includes('Authentication') ? 401 : 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );

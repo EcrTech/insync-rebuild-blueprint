@@ -18,32 +18,88 @@ serve(async (req) => {
   }
 
   try {
+    console.log('=== manage-resend-domain Request Started ===');
+    console.log('Request method:', req.method);
+    console.log('Timestamp:', new Date().toISOString());
+
+    // Check for Authorization header
+    const authHeader = req.headers.get('Authorization');
+    console.log('Auth Header Status:', {
+      present: !!authHeader,
+      preview: authHeader ? `${authHeader.substring(0, 20)}...` : 'MISSING',
+      length: authHeader?.length || 0
+    });
+
+    if (!authHeader) {
+      throw new Error('No Authorization header provided');
+    }
+
     // Create client with anon key to authenticate user
+    console.log('Creating Supabase client with ANON_KEY...');
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       {
         global: {
-          headers: { Authorization: req.headers.get('Authorization')! },
+          headers: { Authorization: authHeader },
+        },
+        auth: {
+          persistSession: false, // Critical for edge functions
         },
       }
     );
+    console.log('✓ Supabase client created successfully');
 
+    // Authenticate user
+    console.log('Attempting user authentication...');
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
-    if (userError || !user) {
-      console.error('Auth error:', userError);
-      throw new Error('Unauthorized');
+
+    console.log('User Auth Result:', {
+      success: !!user,
+      userId: user?.id || 'N/A',
+      userEmail: user?.email || 'N/A',
+      hasError: !!userError,
+      errorCode: userError?.code || 'N/A',
+      errorMessage: userError?.message || 'N/A',
+      errorStatus: userError?.status || 'N/A',
+    });
+
+    if (userError) {
+      console.error('Auth Error Details:', JSON.stringify(userError, null, 2));
+      throw new Error(`Authentication failed: ${userError.message}`);
     }
 
-    const { data: profile } = await supabaseClient
+    if (!user) {
+      throw new Error('No user found in session');
+    }
+
+    console.log('✓ User authenticated:', user.email);
+
+    // Fetch user profile and org_id
+    console.log('Fetching user profile and org_id...');
+    const { data: profile, error: profileError } = await supabaseClient
       .from('profiles')
       .select('org_id')
       .eq('id', user.id)
       .single();
 
-    if (!profile?.org_id) {
-      throw new Error('Organization not found');
+    console.log('Profile Lookup Result:', {
+      found: !!profile,
+      orgId: profile?.org_id || 'N/A',
+      hasError: !!profileError,
+      errorMessage: profileError?.message || 'N/A'
+    });
+
+    if (profileError) {
+      console.error('Profile Error:', profileError);
+      throw new Error(`Failed to fetch user profile: ${profileError.message}`);
     }
+
+    if (!profile?.org_id) {
+      throw new Error('User organization not found');
+    }
+
+    console.log('✓ Organization verified:', profile.org_id);
 
     const resendApiKey = Deno.env.get('RESEND_API_KEY');
     if (!resendApiKey) {
@@ -268,12 +324,21 @@ serve(async (req) => {
       }
     );
   } catch (error) {
-    console.error('Error in manage-resend-domain:', error);
+    const err = error as Error;
+    console.error('=== manage-resend-domain Error ===');
+    console.error('Error Type:', err.constructor.name);
+    console.error('Error Message:', err.message);
+    console.error('Error Stack:', err.stack);
+    console.error('Timestamp:', new Date().toISOString());
+    
     return new Response(
-      JSON.stringify({ error: (error as Error).message }),
+      JSON.stringify({ 
+        error: err.message,
+        timestamp: new Date().toISOString()
+      }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
+        status: err.message.includes('Unauthorized') || err.message.includes('Authentication') ? 401 : 400,
       }
     );
   }
