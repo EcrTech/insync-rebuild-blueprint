@@ -5,6 +5,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const RATE_LIMIT_WEBHOOKS_PER_MINUTE = 100;
+
 interface GupshupWebhookPayload {
   type: string;
   payload: {
@@ -15,6 +17,31 @@ interface GupshupWebhookPayload {
     timestamp: number;
     type: string;
   };
+}
+
+// Rate limiting for webhook calls (IP-based)
+async function checkWebhookRateLimit(supabaseClient: any, ipAddress: string): Promise<boolean> {
+  const oneMinuteAgo = new Date(Date.now() - 60 * 1000).toISOString();
+  
+  const { count } = await supabaseClient
+    .from('rate_limit_log')
+    .select('*', { count: 'exact', head: true })
+    .eq('ip_address', ipAddress)
+    .eq('operation', 'webhook_whatsapp')
+    .gte('created_at', oneMinuteAgo);
+  
+  return (count || 0) < RATE_LIMIT_WEBHOOKS_PER_MINUTE;
+}
+
+// Validate webhook payload structure
+function validateWebhookPayload(payload: any): payload is GupshupWebhookPayload {
+  return (
+    payload &&
+    typeof payload.type === 'string' &&
+    payload.payload &&
+    typeof payload.payload.gsId === 'string' &&
+    typeof payload.payload.status === 'string'
+  );
 }
 
 Deno.serve(async (req) => {
@@ -28,7 +55,46 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
 
-    const payload: GupshupWebhookPayload = await req.json();
+    // Get client IP for rate limiting
+    const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0] || 
+                     req.headers.get('x-real-ip') || 
+                     'unknown';
+
+    // Check rate limit
+    const withinLimit = await checkWebhookRateLimit(supabaseClient, clientIp);
+    if (!withinLimit) {
+      console.error('Webhook rate limit exceeded from IP:', clientIp);
+      return new Response(
+        JSON.stringify({ error: 'Rate limit exceeded' }),
+        {
+          status: 429,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
+    const payload: any = await req.json();
+    
+    // Validate payload structure
+    if (!validateWebhookPayload(payload)) {
+      console.error('Invalid webhook payload structure:', payload);
+      return new Response(
+        JSON.stringify({ error: 'Invalid payload structure' }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
+    // Log rate limit
+    await supabaseClient
+      .from('rate_limit_log')
+      .insert({
+        org_id: null,
+        operation: 'webhook_whatsapp',
+        ip_address: clientIp,
+      });
     
     console.log('Received Gupshup webhook:', JSON.stringify(payload, null, 2));
 

@@ -1024,6 +1024,33 @@ export type Database = {
           },
         ]
       }
+      rate_limit_log: {
+        Row: {
+          created_at: string
+          id: string
+          ip_address: unknown | null
+          operation: string
+          org_id: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          ip_address?: unknown | null
+          operation: string
+          org_id: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          ip_address?: unknown | null
+          operation?: string
+          org_id?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       reporting_hierarchy: {
         Row: {
           created_at: string | null
@@ -1388,6 +1415,7 @@ export type Database = {
           is_active: boolean | null
           org_id: string
           updated_at: string | null
+          webhook_secret: string | null
           whatsapp_source_number: string
         }
         Insert: {
@@ -1398,6 +1426,7 @@ export type Database = {
           is_active?: boolean | null
           org_id: string
           updated_at?: string | null
+          webhook_secret?: string | null
           whatsapp_source_number: string
         }
         Update: {
@@ -1408,6 +1437,7 @@ export type Database = {
           is_active?: boolean | null
           org_id?: string
           updated_at?: string | null
+          webhook_secret?: string | null
           whatsapp_source_number?: string
         }
         Relationships: [
@@ -1470,9 +1500,22 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_campaign_stats: {
+        Args: {
+          p_campaign_id: string
+          p_failed_increment?: number
+          p_pending_increment?: number
+          p_sent_increment?: number
+        }
+        Returns: undefined
+      }
       is_platform_admin: {
         Args: { _user_id: string }
         Returns: boolean
+      }
+      trigger_retry_failed_whatsapp: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
     }
     Enums: {

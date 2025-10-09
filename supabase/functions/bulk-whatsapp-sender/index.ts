@@ -5,10 +5,39 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const MAX_RECIPIENTS_PER_CAMPAIGN = 50000;
+const MAX_BATCH_SIZE = 500;
+const RATE_LIMIT_CAMPAIGNS_PER_HOUR = 10;
+
 interface SendMessageRequest {
   campaignId: string;
   batchSize?: number;
   delayMs?: number;
+}
+
+// Rate limiting check
+async function checkRateLimit(supabaseClient: any, orgId: string): Promise<boolean> {
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  
+  const { count } = await supabaseClient
+    .from('rate_limit_log')
+    .select('*', { count: 'exact', head: true })
+    .eq('org_id', orgId)
+    .eq('operation', 'bulk_whatsapp_send')
+    .gte('created_at', oneHourAgo);
+  
+  return (count || 0) < RATE_LIMIT_CAMPAIGNS_PER_HOUR;
+}
+
+// Log rate limit attempt
+async function logRateLimit(supabaseClient: any, orgId: string, userId?: string) {
+  await supabaseClient
+    .from('rate_limit_log')
+    .insert({
+      org_id: orgId,
+      user_id: userId,
+      operation: 'bulk_whatsapp_send',
+    });
 }
 
 Deno.serve(async (req) => {
@@ -24,6 +53,22 @@ Deno.serve(async (req) => {
 
     const { campaignId, batchSize = 500, delayMs = 1000 } = await req.json() as SendMessageRequest;
 
+    // Validate input
+    if (!campaignId || typeof campaignId !== 'string') {
+      return new Response(JSON.stringify({ error: 'Invalid campaign ID' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Validate batch size
+    if (batchSize > MAX_BATCH_SIZE) {
+      return new Response(JSON.stringify({ error: `Batch size cannot exceed ${MAX_BATCH_SIZE}` }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     console.log('Starting bulk WhatsApp sender for campaign:', campaignId);
 
     // Get campaign details
@@ -35,6 +80,44 @@ Deno.serve(async (req) => {
 
     if (campaignError || !campaign) {
       throw new Error(`Campaign not found: ${campaignError?.message}`);
+    }
+
+    // Check rate limit
+    const withinLimit = await checkRateLimit(supabaseClient, campaign.org_id);
+    if (!withinLimit) {
+      console.error('Rate limit exceeded for org:', campaign.org_id);
+      
+      await supabaseClient
+        .from('whatsapp_bulk_campaigns')
+        .update({ status: 'failed', completed_at: new Date().toISOString() })
+        .eq('id', campaignId);
+      
+      return new Response(
+        JSON.stringify({ error: `Rate limit exceeded. Maximum ${RATE_LIMIT_CAMPAIGNS_PER_HOUR} campaigns per hour.` }),
+        {
+          status: 429,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
+    // Log rate limit attempt
+    await logRateLimit(supabaseClient, campaign.org_id);
+
+    // Validate recipient count
+    if (campaign.total_recipients > MAX_RECIPIENTS_PER_CAMPAIGN) {
+      await supabaseClient
+        .from('whatsapp_bulk_campaigns')
+        .update({ status: 'failed', completed_at: new Date().toISOString() })
+        .eq('id', campaignId);
+      
+      return new Response(
+        JSON.stringify({ error: `Campaign exceeds maximum of ${MAX_RECIPIENTS_PER_CAMPAIGN} recipients` }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     // Update campaign status to processing
@@ -218,6 +301,24 @@ Deno.serve(async (req) => {
     );
   } catch (error: any) {
     console.error('Error in bulk WhatsApp sender:', error);
+    
+    // Try to mark campaign as failed
+    try {
+      const body = await req.clone().json();
+      if (body.campaignId) {
+        const supabaseClient = createClient(
+          Deno.env.get('SUPABASE_URL') ?? '',
+          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+        );
+        await supabaseClient
+          .from('whatsapp_bulk_campaigns')
+          .update({ status: 'failed', completed_at: new Date().toISOString() })
+          .eq('id', body.campaignId);
+      }
+    } catch (e) {
+      console.error('Failed to mark campaign as failed:', e);
+    }
+    
     return new Response(
       JSON.stringify({ error: error.message }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }

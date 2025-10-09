@@ -5,6 +5,51 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const MAX_TEMPLATE_NAME_LENGTH = 100;
+const MAX_BODY_LENGTH = 1024;
+const MAX_HEADER_LENGTH = 60;
+const MAX_FOOTER_LENGTH = 60;
+const RATE_LIMIT_TEMPLATES_PER_HOUR = 5;
+
+// Rate limiting check
+async function checkTemplateRateLimit(supabaseClient: any, orgId: string): Promise<boolean> {
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  
+  const { count } = await supabaseClient
+    .from('rate_limit_log')
+    .select('*', { count: 'exact', head: true })
+    .eq('org_id', orgId)
+    .eq('operation', 'create_template')
+    .gte('created_at', oneHourAgo);
+  
+  return (count || 0) < RATE_LIMIT_TEMPLATES_PER_HOUR;
+}
+
+// Validate template input
+function validateTemplateInput(data: CreateTemplateRequest): string | null {
+  if (!data.template_name || data.template_name.length > MAX_TEMPLATE_NAME_LENGTH) {
+    return `Template name is required and must be less than ${MAX_TEMPLATE_NAME_LENGTH} characters`;
+  }
+  
+  if (!/^[a-z0-9_]+$/.test(data.template_name)) {
+    return 'Template name can only contain lowercase letters, numbers, and underscores';
+  }
+  
+  if (!data.body_content || data.body_content.length > MAX_BODY_LENGTH) {
+    return `Body content is required and must be less than ${MAX_BODY_LENGTH} characters`;
+  }
+  
+  if (data.header_content && data.header_content.length > MAX_HEADER_LENGTH) {
+    return `Header content must be less than ${MAX_HEADER_LENGTH} characters`;
+  }
+  
+  if (data.footer_text && data.footer_text.length > MAX_FOOTER_LENGTH) {
+    return `Footer text must be less than ${MAX_FOOTER_LENGTH} characters`;
+  }
+  
+  return null;
+}
+
 interface TemplateComponent {
   type: 'HEADER' | 'BODY' | 'FOOTER' | 'BUTTONS';
   format?: string;
@@ -81,6 +126,36 @@ Deno.serve(async (req) => {
     }
 
     const templateData: CreateTemplateRequest = await req.json();
+
+    // Validate input
+    const validationError = validateTemplateInput(templateData);
+    if (validationError) {
+      return new Response(JSON.stringify({ error: validationError }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Check rate limit
+    const withinLimit = await checkTemplateRateLimit(supabaseClient, profile.org_id);
+    if (!withinLimit) {
+      return new Response(
+        JSON.stringify({ error: `Rate limit exceeded. Maximum ${RATE_LIMIT_TEMPLATES_PER_HOUR} templates per hour.` }),
+        {
+          status: 429,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
+    // Log rate limit attempt
+    await supabaseClient
+      .from('rate_limit_log')
+      .insert({
+        org_id: profile.org_id,
+        user_id: user.id,
+        operation: 'create_template',
+      });
 
     // Build Gupshup template components
     const components: TemplateComponent[] = [];

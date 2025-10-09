@@ -5,6 +5,22 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const MAX_RETRIES = 3;
+const RATE_LIMIT_RETRIES_PER_HOUR = 100;
+
+// Rate limiting check for retry operations
+async function checkRetryRateLimit(supabaseClient: any): Promise<boolean> {
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  
+  const { count } = await supabaseClient
+    .from('rate_limit_log')
+    .select('*', { count: 'exact', head: true })
+    .eq('operation', 'retry_whatsapp')
+    .gte('created_at', oneHourAgo);
+  
+  return (count || 0) < RATE_LIMIT_RETRIES_PER_HOUR;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -18,6 +34,19 @@ Deno.serve(async (req) => {
 
     console.log('Starting retry job for failed WhatsApp messages');
 
+    // Check rate limit
+    const withinLimit = await checkRetryRateLimit(supabaseClient);
+    if (!withinLimit) {
+      console.log('Retry rate limit exceeded, skipping this run');
+      return new Response(
+        JSON.stringify({ message: 'Rate limit exceeded, try again later' }),
+        {
+          status: 429,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
     // Find recipients that need retry
     const { data: recipients, error: recipientsError } = await supabaseClient
       .from('whatsapp_campaign_recipients')
@@ -29,10 +58,10 @@ Deno.serve(async (req) => {
         )
       `)
       .in('status', ['failed', 'retrying'])
-      .lt('retry_count', supabaseClient.rpc('max_retries'))
+      .lt('retry_count', MAX_RETRIES)
       .lte('next_retry_at', new Date().toISOString())
-      .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()) // Within 24 hours
-      .limit(500); // Process max 500 at a time
+      .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+      .limit(500);
 
     if (recipientsError || !recipients || recipients.length === 0) {
       console.log('No recipients to retry');
@@ -106,12 +135,25 @@ Deno.serve(async (req) => {
             })
             .eq('id', recipient.id);
 
-          // Update campaign stats
-          await supabaseClient.rpc('increment_campaign_stats', {
+          // Update campaign stats using the function
+          const { error: statsError } = await supabaseClient.rpc('increment_campaign_stats', {
             p_campaign_id: campaign.id,
             p_sent_increment: 1,
             p_failed_increment: -1,
+            p_pending_increment: 0,
           });
+
+          if (statsError) {
+            console.error('Error updating campaign stats:', statsError);
+          }
+
+          // Log rate limit
+          await supabaseClient
+            .from('rate_limit_log')
+            .insert({
+              org_id: campaign.org_id,
+              operation: 'retry_whatsapp',
+            });
 
           // Log activity
           if (recipient.contact_id) {
@@ -133,7 +175,7 @@ Deno.serve(async (req) => {
         console.error('Retry failed for recipient', recipient.id, ':', error);
         
         const retryCount = recipient.retry_count + 1;
-        const isLastRetry = retryCount >= recipient.max_retries;
+        const isLastRetry = retryCount >= MAX_RETRIES;
         const backoffMinutes = [5, 30, 120][Math.min(retryCount - 1, 2)];
         const nextRetryAt = !isLastRetry 
           ? new Date(Date.now() + backoffMinutes * 60 * 1000) 

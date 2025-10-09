@@ -28,6 +28,20 @@ export default function BulkWhatsAppSender() {
   const [selectedContacts, setSelectedContacts] = useState<Set<string>>(new Set());
   const [csvInput, setCsvInput] = useState("");
 
+  const MAX_RECIPIENTS = 50000;
+  const MAX_MESSAGE_LENGTH = 1024;
+  const MAX_CAMPAIGN_NAME_LENGTH = 100;
+
+  // Phone validation regex
+  const isValidPhone = (phone: string) => {
+    return /^\+?[1-9]\d{1,14}$/.test(phone.replace(/\s/g, ''));
+  };
+
+  // Sanitize campaign name
+  const sanitizeCampaignName = (name: string) => {
+    return name.replace(/[<>\"']/g, '').trim();
+  };
+
   useEffect(() => {
     if (effectiveOrgId) {
       fetchTemplates();
@@ -95,39 +109,98 @@ export default function BulkWhatsAppSender() {
   };
 
   const handleCreateCampaign = async () => {
-    if (!campaignName || !messageContent || selectedContacts.size === 0) {
+    // Validate campaign name
+    if (!campaignName || campaignName.length > MAX_CAMPAIGN_NAME_LENGTH) {
       toast({
         title: "Error",
-        description: "Please fill in all required fields",
+        description: `Campaign name is required and must be less than ${MAX_CAMPAIGN_NAME_LENGTH} characters`,
         variant: "destructive",
       });
       return;
+    }
+
+    // Validate message content
+    if (!messageContent || messageContent.length > MAX_MESSAGE_LENGTH) {
+      toast({
+        title: "Error",
+        description: `Message content is required and must be less than ${MAX_MESSAGE_LENGTH} characters`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate recipient selection
+    if (selectedContacts.size === 0) {
+      toast({
+        title: "Error",
+        description: "Please select at least one recipient",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check max recipients
+    if (selectedContacts.size > MAX_RECIPIENTS) {
+      toast({
+        title: "Error",
+        description: `Maximum ${MAX_RECIPIENTS.toLocaleString()} recipients allowed per campaign`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate phone numbers
+    const selectedContactsList = contacts.filter(c => selectedContacts.has(c.id));
+    const invalidContacts = selectedContactsList.filter(c => !isValidPhone(c.phone));
+    if (invalidContacts.length > 0) {
+      toast({
+        title: "Error",
+        description: `${invalidContacts.length} contacts have invalid phone numbers`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check for duplicates
+    const phoneNumbers = selectedContactsList.map(c => c.phone);
+    const uniquePhones = new Set(phoneNumbers);
+    if (uniquePhones.size !== phoneNumbers.length) {
+      toast({
+        title: "Warning",
+        description: `Found ${phoneNumbers.length - uniquePhones.size} duplicate phone numbers. Only unique numbers will receive messages.`,
+      });
     }
 
     setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
+      // Sanitize campaign name
+      const sanitizedName = sanitizeCampaignName(campaignName);
+
       // Create campaign
       const { data: campaign, error: campaignError } = await supabase
         .from("whatsapp_bulk_campaigns")
         .insert({
           org_id: effectiveOrgId,
-          name: campaignName,
+          name: sanitizedName,
           template_id: templateId || null,
           message_content: messageContent,
           created_by: user?.id,
-          total_recipients: selectedContacts.size,
-          pending_count: selectedContacts.size,
+          total_recipients: uniquePhones.size,
+          pending_count: uniquePhones.size,
         })
         .select()
         .single();
 
       if (campaignError) throw campaignError;
 
-      // Create recipients
-      const selectedContactsList = contacts.filter(c => selectedContacts.has(c.id));
-      const recipients = selectedContactsList.map(contact => ({
+      // Create recipients (deduplicated)
+      const uniqueContacts = selectedContactsList.filter((contact, index, self) => 
+        self.findIndex(c => c.phone === contact.phone) === index
+      );
+      
+      const recipients = uniqueContacts.map(contact => ({
         campaign_id: campaign.id,
         contact_id: contact.id,
         phone_number: contact.phone,
@@ -148,15 +221,23 @@ export default function BulkWhatsAppSender() {
 
       toast({
         title: "Campaign Started",
-        description: `Sending to ${selectedContacts.size} recipients`,
+        description: `Sending to ${uniquePhones.size} unique recipients`,
       });
 
       navigate(`/whatsapp/campaigns/${campaign.id}`);
     } catch (error: any) {
       console.error('Error creating campaign:', error);
+      
+      let errorMessage = error.message;
+      if (error.message?.includes('rate limit')) {
+        errorMessage = 'Rate limit exceeded. Please try again later.';
+      } else if (error.message?.includes('maximum')) {
+        errorMessage = `Maximum ${MAX_RECIPIENTS.toLocaleString()} recipients allowed`;
+      }
+      
       toast({
         title: "Error",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -193,12 +274,18 @@ export default function BulkWhatsAppSender() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label>Campaign Name *</Label>
+              <Label>Campaign Name * (max {MAX_CAMPAIGN_NAME_LENGTH} chars)</Label>
               <Input
                 value={campaignName}
                 onChange={(e) => setCampaignName(e.target.value)}
                 placeholder="e.g., Holiday Promotion 2025"
+                maxLength={MAX_CAMPAIGN_NAME_LENGTH}
               />
+              {campaignName.length > 0 && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {campaignName.length}/{MAX_CAMPAIGN_NAME_LENGTH}
+                </p>
+              )}
             </div>
 
             <div>
@@ -219,13 +306,19 @@ export default function BulkWhatsAppSender() {
             </div>
 
             <div>
-              <Label>Message Content *</Label>
+              <Label>Message Content * (max {MAX_MESSAGE_LENGTH} chars)</Label>
               <Textarea
                 value={messageContent}
                 onChange={(e) => setMessageContent(e.target.value)}
                 placeholder="Enter your message..."
                 rows={6}
+                maxLength={MAX_MESSAGE_LENGTH}
               />
+              {messageContent.length > 0 && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {messageContent.length}/{MAX_MESSAGE_LENGTH}
+                </p>
+              )}
             </div>
 
             <Button onClick={() => setStep(2)} className="w-full">
@@ -247,6 +340,11 @@ export default function BulkWhatsAppSender() {
                 <Users className="h-4 w-4" />
                 <span className="text-sm">
                   {selectedContacts.size} of {contacts.length} selected
+                  {selectedContacts.size > MAX_RECIPIENTS && (
+                    <span className="text-destructive ml-2">
+                      (exceeds limit of {MAX_RECIPIENTS.toLocaleString()})
+                    </span>
+                  )}
                 </span>
               </div>
               <Button variant="outline" size="sm" onClick={handleSelectAll}>
