@@ -104,6 +104,7 @@ export function SendEmailDialog({
 
     try {
       // Call edge function to send email
+      // The trigger will automatically create the activity record
       const { data, error } = await supabase.functions.invoke("send-email", {
         body: {
           to: recipientEmail,
@@ -114,16 +115,6 @@ export function SendEmailDialog({
       });
 
       if (error) throw error;
-
-      // Create activity log
-      await supabase.from("contact_activities").insert({
-        contact_id: contactId,
-        activity_type: "email",
-        subject: subject,
-        description: body,
-        created_by: (await supabase.auth.getUser()).data.user?.id,
-        org_id: (await supabase.from("contacts").select("org_id").eq("id", contactId).single()).data?.org_id,
-      });
 
       toast({
         title: "Email sent",
