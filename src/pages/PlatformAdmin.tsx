@@ -85,6 +85,7 @@ export default function PlatformAdmin() {
 
   useEffect(() => {
     checkPlatformAdmin();
+    fetchErrorLogs();
   }, []);
 
   const checkPlatformAdmin = async () => {
