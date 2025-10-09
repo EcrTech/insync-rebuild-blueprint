@@ -29,6 +29,7 @@ import PublicForm from "./pages/PublicForm";
 import PlatformAdmin from "./pages/PlatformAdmin";
 import WhatsAppSettings from "./pages/WhatsAppSettings";
 import Templates from "./pages/Templates";
+import TemplateBuilder from "./pages/TemplateBuilder";
 import WhatsAppDashboard from "./pages/WhatsAppDashboard";
 import ProtectedRoute from "./components/Auth/ProtectedRoute";
 
@@ -167,9 +168,21 @@ const App = () => (
             </ProtectedRoute>
           } />
           
+          <Route path="/whatsapp-settings" element={
+            <ProtectedRoute requiredRole="admin">
+              <WhatsAppSettings />
+            </ProtectedRoute>
+          } />
+          
           <Route path="/templates" element={
             <ProtectedRoute>
               <Templates />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/templates/create" element={
+            <ProtectedRoute>
+              <TemplateBuilder />
             </ProtectedRoute>
           } />
           

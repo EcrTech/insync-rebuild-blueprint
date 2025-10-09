@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, MessageSquare, RefreshCw } from "lucide-react";
+import { Loader2, MessageSquare, RefreshCw, Plus } from "lucide-react";
 import { format } from "date-fns";
 
 interface Template {
@@ -87,6 +87,7 @@ const Templates = () => {
       case "approved":
         return "default";
       case "pending":
+      case "pending_submission":
         return "secondary";
       case "rejected":
         return "destructive";
@@ -115,19 +116,25 @@ const Templates = () => {
               Manage your WhatsApp, Email, and SMS templates
             </p>
           </div>
-          <Button onClick={handleSync} disabled={syncing}>
-            {syncing ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Syncing...
-              </>
-            ) : (
-              <>
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Sync Templates
-              </>
-            )}
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={() => window.location.href = '/templates/create'} variant="default">
+              <Plus className="mr-2 h-4 w-4" />
+              Create Template
+            </Button>
+            <Button onClick={handleSync} disabled={syncing} variant="outline">
+              {syncing ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Syncing...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Sync Templates
+                </>
+              )}
+            </Button>
+          </div>
         </div>
 
         {templates.length === 0 ? (

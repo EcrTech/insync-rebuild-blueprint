@@ -105,14 +105,23 @@ export type Database = {
       }
       communication_templates: {
         Row: {
+          approved_at: string | null
+          buttons: Json | null
           category: string | null
           content: string
           created_at: string | null
+          footer_text: string | null
+          header_content: string | null
+          header_type: string | null
           id: string
           language: string | null
           last_synced_at: string | null
           org_id: string
+          rejection_reason: string | null
+          sample_values: Json | null
           status: string | null
+          submission_status: string | null
+          submitted_at: string | null
           template_id: string
           template_name: string
           template_type: string
@@ -120,14 +129,23 @@ export type Database = {
           variables: Json | null
         }
         Insert: {
+          approved_at?: string | null
+          buttons?: Json | null
           category?: string | null
           content: string
           created_at?: string | null
+          footer_text?: string | null
+          header_content?: string | null
+          header_type?: string | null
           id?: string
           language?: string | null
           last_synced_at?: string | null
           org_id: string
+          rejection_reason?: string | null
+          sample_values?: Json | null
           status?: string | null
+          submission_status?: string | null
+          submitted_at?: string | null
           template_id: string
           template_name: string
           template_type: string
@@ -135,14 +153,23 @@ export type Database = {
           variables?: Json | null
         }
         Update: {
+          approved_at?: string | null
+          buttons?: Json | null
           category?: string | null
           content?: string
           created_at?: string | null
+          footer_text?: string | null
+          header_content?: string | null
+          header_type?: string | null
           id?: string
           language?: string | null
           last_synced_at?: string | null
           org_id?: string
+          rejection_reason?: string | null
+          sample_values?: Json | null
           status?: string | null
+          submission_status?: string | null
+          submitted_at?: string | null
           template_id?: string
           template_name?: string
           template_type?: string
