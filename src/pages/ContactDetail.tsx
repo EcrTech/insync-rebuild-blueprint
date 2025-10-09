@@ -18,6 +18,7 @@ import { EditContactDialog } from "@/components/Contact/EditContactDialog";
 import { ContactEmails } from "@/components/Contact/ContactEmails";
 import { ContactPhones } from "@/components/Contact/ContactPhones";
 import { FillFormDialog } from "@/components/Contact/FillFormDialog";
+import { SendWhatsAppDialog } from "@/components/Contact/SendWhatsAppDialog";
 
 interface Contact {
   id: string;
@@ -52,6 +53,7 @@ export default function ContactDetail() {
   const [isLogActivityOpen, setIsLogActivityOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isFillFormOpen, setIsFillFormOpen] = useState(false);
+  const [isWhatsAppOpen, setIsWhatsAppOpen] = useState(false);
   const [activityType, setActivityType] = useState<string>("note");
 
   useEffect(() => {
@@ -153,7 +155,7 @@ export default function ContactDetail() {
               )}
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button variant="outline" onClick={() => setIsEditOpen(true)}>
               <Edit className="mr-2 h-4 w-4" />
               Edit
@@ -162,6 +164,12 @@ export default function ContactDetail() {
               <FileText className="mr-2 h-4 w-4" />
               Fill Form
             </Button>
+            {contact.phone && (
+              <Button variant="outline" onClick={() => setIsWhatsAppOpen(true)}>
+                <MessageSquare className="mr-2 h-4 w-4" />
+                WhatsApp
+              </Button>
+            )}
             <Button onClick={() => { setActivityType("note"); setIsLogActivityOpen(true); }}>
               <Plus className="mr-2 h-4 w-4" />
               Log Activity
@@ -334,6 +342,20 @@ export default function ContactDetail() {
         contactId={id!}
         onFormFilled={handleFormFilled}
       />
+
+      {contact.phone && (
+        <SendWhatsAppDialog
+          open={isWhatsAppOpen}
+          onOpenChange={setIsWhatsAppOpen}
+          contactId={id!}
+          contactName={`${contact.first_name} ${contact.last_name || ''}`}
+          phoneNumber={contact.phone}
+          onMessageSent={() => {
+            setIsWhatsAppOpen(false);
+            fetchContact();
+          }}
+        />
+      )}
     </DashboardLayout>
   );
 }
