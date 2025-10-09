@@ -44,8 +44,6 @@ export function EditContactDialog({
   const [formData, setFormData] = useState({
     first_name: "",
     last_name: "",
-    email: "",
-    phone: "",
     company: "",
     job_title: "",
     status: "new",
@@ -59,8 +57,6 @@ export function EditContactDialog({
       setFormData({
         first_name: contact.first_name,
         last_name: contact.last_name || "",
-        email: contact.email || "",
-        phone: contact.phone || "",
         company: contact.company || "",
         job_title: contact.job_title || "",
         status: contact.status,
@@ -81,8 +77,6 @@ export function EditContactDialog({
         .update({
           first_name: formData.first_name,
           last_name: formData.last_name || null,
-          email: formData.email || null,
-          phone: formData.phone || null,
           company: formData.company || null,
           job_title: formData.job_title || null,
           status: formData.status,
@@ -135,27 +129,6 @@ export function EditContactDialog({
                 id="last_name"
                 value={formData.last_name}
                 onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone</Label>
-              <Input
-                id="phone"
-                type="tel"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
               />
             </div>
           </div>
