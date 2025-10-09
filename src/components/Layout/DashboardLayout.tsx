@@ -142,11 +142,11 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
         >
           <div className="h-full flex flex-col">
             {/* Logo */}
-            <div className="p-6 border-b border-border flex flex-col items-center">
+            <div className="p-6 border-b border-border flex flex-col items-center bg-gradient-to-br from-primary/5 to-transparent">
               {orgLogo ? (
                 <img src={orgLogo} alt="Organization Logo" className="h-16 object-contain mb-3" />
               ) : (
-                <h1 className="text-2xl font-bold text-primary">In-Sync</h1>
+                <h1 className="text-2xl font-bold gradient-text-primary">In-Sync</h1>
               )}
               <p className="text-sm text-muted-foreground text-center">{userName}</p>
             </div>
@@ -154,53 +154,53 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
             {/* Navigation */}
             <nav className="flex-1 p-4 space-y-2">
               {/* Dashboards & Reports Section */}
-              <div className="pb-2">
-                <p className="px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              <div className="pb-2 section-accent-teal pl-4">
+                <p className="px-4 text-xs font-semibold uppercase tracking-wider gradient-text-primary">
                   Dashboards & Reports
                 </p>
               </div>
               <Link
                 to="/dashboard"
-                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
+                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-primary/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
                 onClick={() => setSidebarOpen(false)}
               >
-                <LayoutDashboard size={20} />
+                <LayoutDashboard size={20} className="text-primary" />
                 <span>Dashboard</span>
               </Link>
 
               <Link
                 to="/reports"
-                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
+                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-primary/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
                 onClick={() => setSidebarOpen(false)}
               >
-                <BarChart3 size={20} />
+                <BarChart3 size={20} className="text-primary" />
                 <span>Reports</span>
               </Link>
 
               <Link
                 to="/calling-dashboard"
-                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
+                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-primary/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
                 onClick={() => setSidebarOpen(false)}
               >
-                <PhoneCall size={20} />
+                <PhoneCall size={20} className="text-primary" />
                 <span>Calling Dashboard</span>
               </Link>
 
               <Link
                 to="/campaigns/overview"
-                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
+                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-primary/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
                 onClick={() => setSidebarOpen(false)}
               >
-                <TrendingUp size={20} />
+                <TrendingUp size={20} className="text-primary" />
                 <span>Campaign Overview</span>
               </Link>
 
               <Link
                 to="/campaigns/insights"
-                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
+                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-primary/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
                 onClick={() => setSidebarOpen(false)}
               >
-                <Lightbulb size={20} />
+                <Lightbulb size={20} className="text-primary" />
                 <span>AI Insights</span>
               </Link>
 
@@ -216,92 +216,92 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
               )}
 
               {/* Operations Section */}
-              <div className="pt-4 pb-2">
-                <p className="px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              <div className="pt-4 pb-2 section-accent-coral pl-4">
+                <p className="px-4 text-xs font-semibold uppercase tracking-wider gradient-text-accent">
                   Operations
                 </p>
               </div>
               <Link
                 to="/communications"
-                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
+                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-accent/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
                 onClick={() => setSidebarOpen(false)}
               >
-                <MessageSquare size={20} />
+                <MessageSquare size={20} className="text-accent" />
                 <span>Communications</span>
               </Link>
               <Link
                 to="/bulk-email"
-                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
+                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-accent/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
                 onClick={() => setSidebarOpen(false)}
               >
-                <Send size={20} />
+                <Send size={20} className="text-accent" />
                 <span>Bulk Email</span>
               </Link>
               <Link
                 to="/email-campaigns"
-                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
+                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-accent/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
                 onClick={() => setSidebarOpen(false)}
               >
-                <Mail size={20} />
+                <Mail size={20} className="text-accent" />
                 <span>Email Campaigns</span>
               </Link>
               <Link
                 to="/contacts"
-                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
+                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-accent/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
                 onClick={() => setSidebarOpen(false)}
               >
-                <Contact size={20} />
+                <Contact size={20} className="text-accent" />
                 <span>Contacts</span>
               </Link>
 
               <Link
                 to="/pipeline"
-                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
+                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-accent/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
                 onClick={() => setSidebarOpen(false)}
               >
-                <GitBranch size={20} />
+                <GitBranch size={20} className="text-accent" />
                 <span>Pipeline</span>
               </Link>
 
               <Link
                 to="/call-logs"
-                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
+                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-accent/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
                 onClick={() => setSidebarOpen(false)}
               >
-                <List size={20} />
+                <List size={20} className="text-accent" />
                 <span>Call Logs</span>
               </Link>
 
               <Link
                 to="/org-chart"
-                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
+                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-accent/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
                 onClick={() => setSidebarOpen(false)}
               >
-                <Network size={20} />
+                <Network size={20} className="text-accent" />
                 <span>Org Chart</span>
               </Link>
 
               {(userRole === "admin" || userRole === "super_admin" || userRole === "sales_manager" || userRole === "support_manager") && (
                 <>
-                  <div className="pt-4 pb-2">
-                    <p className="px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  <div className="pt-4 pb-2 section-accent-purple pl-4">
+                    <p className="px-4 text-xs font-semibold uppercase tracking-wider bg-gradient-to-r from-secondary to-secondary/70 bg-clip-text text-transparent">
                       Management
                     </p>
                   </div>
                   <Link
                     to="/users"
-                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
+                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-secondary/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
                     onClick={() => setSidebarOpen(false)}
                   >
-                    <UserCog size={20} />
+                    <UserCog size={20} className="text-secondary" />
                     <span>Users</span>
                   </Link>
                   <Link
                     to="/teams"
-                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
+                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-secondary/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
                     onClick={() => setSidebarOpen(false)}
                   >
-                    <UsersRound size={20} />
+                    <UsersRound size={20} className="text-secondary" />
                     <span>Teams</span>
                   </Link>
                 </>
@@ -310,8 +310,8 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
 
               {isAdmin && (
                 <>
-                  <div className="pt-4 pb-2">
-                    <p className="px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  <div className="pt-4 pb-2 section-accent-teal pl-4">
+                    <p className="px-4 text-xs font-semibold uppercase tracking-wider bg-gradient-to-r from-yellow-500 to-yellow-600 bg-clip-text text-transparent">
                       Admin
                     </p>
                   </div>
