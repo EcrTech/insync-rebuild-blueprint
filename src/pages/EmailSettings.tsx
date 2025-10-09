@@ -143,6 +143,30 @@ const EmailSettings = () => {
     },
   });
 
+  const setupInboundMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('manage-resend-domain', {
+        body: { action: 'setup-inbound-route' },
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['email-settings'] });
+      toast({
+        title: "Inbound routing enabled!",
+        description: "Email replies will now appear in Customer Journey.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Setup failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleAddDomain = () => {
     if (!domain) {
       toast({
@@ -420,11 +444,24 @@ const EmailSettings = () => {
                     </AlertDescription>
                   </Alert>
                 ) : (
-                  <Alert>
-                    <AlertDescription>
-                      Inbound routing will be automatically configured when you verify your domain.
-                    </AlertDescription>
-                  </Alert>
+                  <>
+                    <Alert>
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>
+                        Set up inbound routing to receive email replies in your Customer Journey timeline.
+                      </AlertDescription>
+                    </Alert>
+                    <Button
+                      className="w-full"
+                      onClick={() => setupInboundMutation.mutate()}
+                      disabled={setupInboundMutation.isPending}
+                    >
+                      {setupInboundMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : null}
+                      Enable Inbound Routing
+                    </Button>
+                  </>
                 )}
               </CardContent>
             </Card>
