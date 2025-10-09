@@ -35,6 +35,7 @@ import BulkWhatsAppSender from "./pages/BulkWhatsAppSender";
 import WhatsAppCampaigns from "./pages/WhatsAppCampaigns";
 import WhatsAppCampaignDetail from "./pages/WhatsAppCampaignDetail";
 import QueueStatus from "./pages/QueueStatus";
+import Communications from "./pages/Communications";
 import ProtectedRoute from "./components/Auth/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -217,6 +218,12 @@ const App = () => (
           <Route path="/queue-status" element={
             <ProtectedRoute>
               <QueueStatus />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/communications" element={
+            <ProtectedRoute>
+              <Communications />
             </ProtectedRoute>
           } />
           

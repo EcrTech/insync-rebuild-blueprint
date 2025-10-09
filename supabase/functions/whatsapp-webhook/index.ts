@@ -16,6 +16,10 @@ interface GupshupWebhookPayload {
     status: string;
     timestamp: number;
     type: string;
+    text?: string;
+    caption?: string;
+    name?: string;
+    url?: string;
   };
 }
 
@@ -98,9 +102,66 @@ Deno.serve(async (req) => {
     
     console.log('Received Gupshup webhook:', JSON.stringify(payload, null, 2));
 
-    // Extract status information
+    // Extract information
     const { type, payload: webhookData } = payload;
     
+    // Handle inbound messages (new messages from customers)
+    if (type === 'message' && webhookData.text) {
+      console.log('Received inbound message:', webhookData);
+      
+      // Find or create contact by phone number
+      const { data: contacts } = await supabaseClient
+        .from('contacts')
+        .select('id, org_id')
+        .eq('phone', webhookData.mobile)
+        .limit(1);
+      
+      let contactId = contacts?.[0]?.id;
+      let orgId = contacts?.[0]?.org_id;
+      
+      if (!contactId || !orgId) {
+        console.log('Contact not found for phone:', webhookData.mobile);
+        return new Response(
+          JSON.stringify({ success: true, message: 'Contact not found, message ignored' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      // Store inbound message
+      const { error: insertError } = await supabaseClient
+        .from('whatsapp_messages')
+        .insert({
+          org_id: orgId,
+          contact_id: contactId,
+          conversation_id: webhookData.mobile,
+          direction: 'inbound',
+          message_content: webhookData.text || webhookData.caption || '',
+          sender_name: webhookData.name,
+          phone_number: webhookData.mobile,
+          media_url: webhookData.url,
+          media_type: webhookData.type,
+          gupshup_message_id: webhookData.id,
+          status: 'received',
+          sent_at: new Date(webhookData.timestamp),
+        });
+      
+      if (insertError) {
+        console.error('Error inserting inbound message:', insertError);
+        return new Response(
+          JSON.stringify({ error: insertError.message }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      console.log('Stored inbound message from:', webhookData.mobile);
+      
+      return new Response(
+        JSON.stringify({ success: true, message: 'Inbound message stored' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    // Handle status updates for outbound messages
     if (type === 'message-event' && webhookData.gsId) {
       const messageStatus = webhookData.status.toLowerCase();
       const timestamp = new Date(webhookData.timestamp);

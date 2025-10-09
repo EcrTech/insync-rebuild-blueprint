@@ -649,6 +649,115 @@ export type Database = {
         }
         Relationships: []
       }
+      email_conversations: {
+        Row: {
+          attachments: Json | null
+          bcc_emails: string[] | null
+          cc_emails: string[] | null
+          contact_id: string | null
+          conversation_id: string
+          created_at: string | null
+          direction: string
+          email_content: string
+          from_email: string
+          from_name: string | null
+          has_attachments: boolean | null
+          html_content: string | null
+          id: string
+          is_read: boolean | null
+          org_id: string
+          provider_message_id: string | null
+          read_at: string | null
+          received_at: string | null
+          replied_to_message_id: string | null
+          sent_at: string | null
+          sent_by: string | null
+          status: string | null
+          subject: string
+          thread_id: string | null
+          to_email: string
+          updated_at: string | null
+        }
+        Insert: {
+          attachments?: Json | null
+          bcc_emails?: string[] | null
+          cc_emails?: string[] | null
+          contact_id?: string | null
+          conversation_id: string
+          created_at?: string | null
+          direction: string
+          email_content: string
+          from_email: string
+          from_name?: string | null
+          has_attachments?: boolean | null
+          html_content?: string | null
+          id?: string
+          is_read?: boolean | null
+          org_id: string
+          provider_message_id?: string | null
+          read_at?: string | null
+          received_at?: string | null
+          replied_to_message_id?: string | null
+          sent_at?: string | null
+          sent_by?: string | null
+          status?: string | null
+          subject: string
+          thread_id?: string | null
+          to_email: string
+          updated_at?: string | null
+        }
+        Update: {
+          attachments?: Json | null
+          bcc_emails?: string[] | null
+          cc_emails?: string[] | null
+          contact_id?: string | null
+          conversation_id?: string
+          created_at?: string | null
+          direction?: string
+          email_content?: string
+          from_email?: string
+          from_name?: string | null
+          has_attachments?: boolean | null
+          html_content?: string | null
+          id?: string
+          is_read?: boolean | null
+          org_id?: string
+          provider_message_id?: string | null
+          read_at?: string | null
+          received_at?: string | null
+          replied_to_message_id?: string | null
+          sent_at?: string | null
+          sent_by?: string | null
+          status?: string | null
+          subject?: string
+          thread_id?: string | null
+          to_email?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_conversations_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_conversations_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_conversations_replied_to_message_id_fkey"
+            columns: ["replied_to_message_id"]
+            isOneToOne: false
+            referencedRelation: "email_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       error_logs: {
         Row: {
           created_at: string
@@ -1333,15 +1442,21 @@ export type Database = {
       whatsapp_messages: {
         Row: {
           contact_id: string
+          conversation_id: string | null
           created_at: string | null
           delivered_at: string | null
+          direction: string
           error_message: string | null
           gupshup_message_id: string | null
           id: string
+          media_type: string | null
+          media_url: string | null
           message_content: string
           org_id: string
           phone_number: string
           read_at: string | null
+          replied_to_message_id: string | null
+          sender_name: string | null
           sent_at: string | null
           sent_by: string | null
           status: string | null
@@ -1350,15 +1465,21 @@ export type Database = {
         }
         Insert: {
           contact_id: string
+          conversation_id?: string | null
           created_at?: string | null
           delivered_at?: string | null
+          direction?: string
           error_message?: string | null
           gupshup_message_id?: string | null
           id?: string
+          media_type?: string | null
+          media_url?: string | null
           message_content: string
           org_id: string
           phone_number: string
           read_at?: string | null
+          replied_to_message_id?: string | null
+          sender_name?: string | null
           sent_at?: string | null
           sent_by?: string | null
           status?: string | null
@@ -1367,15 +1488,21 @@ export type Database = {
         }
         Update: {
           contact_id?: string
+          conversation_id?: string | null
           created_at?: string | null
           delivered_at?: string | null
+          direction?: string
           error_message?: string | null
           gupshup_message_id?: string | null
           id?: string
+          media_type?: string | null
+          media_url?: string | null
           message_content?: string
           org_id?: string
           phone_number?: string
           read_at?: string | null
+          replied_to_message_id?: string | null
+          sender_name?: string | null
           sent_at?: string | null
           sent_by?: string | null
           status?: string | null
@@ -1395,6 +1522,13 @@ export type Database = {
             columns: ["org_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_messages_replied_to_message_id_fkey"
+            columns: ["replied_to_message_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_messages"
             referencedColumns: ["id"]
           },
           {
@@ -1487,6 +1621,23 @@ export type Database = {
         Returns: {
           designation_id: string
           level: number
+        }[]
+      }
+      get_unified_inbox: {
+        Args: { p_limit?: number; p_org_id: string }
+        Returns: {
+          channel: string
+          contact_id: string
+          contact_name: string
+          conversation_id: string
+          direction: string
+          email_address: string
+          id: string
+          is_read: boolean
+          phone_number: string
+          preview: string
+          sender_name: string
+          sent_at: string
         }[]
       }
       get_user_org_id: {

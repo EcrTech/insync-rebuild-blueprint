@@ -200,6 +200,14 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                 </p>
               </div>
               <Link
+                to="/communications"
+                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
+                onClick={() => setSidebarOpen(false)}
+              >
+                <MessageSquare size={20} />
+                <span>Communications</span>
+              </Link>
+              <Link
                 to="/contacts"
                 className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
                 onClick={() => setSidebarOpen(false)}
