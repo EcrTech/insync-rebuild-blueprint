@@ -161,56 +161,56 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
               </div>
               <Link
                 to="/dashboard"
-                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-primary/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
+                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-accent/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
                 onClick={() => setSidebarOpen(false)}
               >
-                <LayoutDashboard size={20} className="text-primary" />
+                <LayoutDashboard size={20} className="text-accent" />
                 <span>Dashboard</span>
               </Link>
 
               <Link
                 to="/reports"
-                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-primary/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
+                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-accent/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
                 onClick={() => setSidebarOpen(false)}
               >
-                <BarChart3 size={20} className="text-primary" />
+                <BarChart3 size={20} className="text-accent" />
                 <span>Reports</span>
               </Link>
 
               <Link
                 to="/calling-dashboard"
-                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-primary/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
+                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-accent/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
                 onClick={() => setSidebarOpen(false)}
               >
-                <PhoneCall size={20} className="text-primary" />
+                <PhoneCall size={20} className="text-accent" />
                 <span>Calling Dashboard</span>
               </Link>
 
               <Link
                 to="/campaigns/overview"
-                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-primary/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
+                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-accent/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
                 onClick={() => setSidebarOpen(false)}
               >
-                <TrendingUp size={20} className="text-primary" />
+                <TrendingUp size={20} className="text-accent" />
                 <span>Campaign Overview</span>
               </Link>
 
               <Link
                 to="/campaigns/insights"
-                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-primary/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
+                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-accent/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
                 onClick={() => setSidebarOpen(false)}
               >
-                <Lightbulb size={20} className="text-primary" />
+                <Lightbulb size={20} className="text-accent" />
                 <span>AI Insights</span>
               </Link>
 
               {isPlatformAdmin && (
                 <Link
                   to="/platform-admin"
-                  className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
+                  className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-accent/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
                   onClick={() => setSidebarOpen(false)}
                 >
-                  <ShieldCheck size={20} />
+                  <ShieldCheck size={20} className="text-accent" />
                   <span>Platform Dashboard</span>
                 </Link>
               )}
@@ -276,24 +276,24 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
               {(userRole === "admin" || userRole === "super_admin" || userRole === "sales_manager" || userRole === "support_manager") && (
                 <>
                   <div className="pt-4 pb-2 section-accent-purple pl-4">
-                    <p className="px-4 text-xs font-semibold uppercase tracking-wider bg-gradient-to-r from-secondary to-secondary/70 bg-clip-text text-transparent">
+                    <p className="px-4 text-xs font-semibold uppercase tracking-wider gradient-text-accent">
                       Management
                     </p>
                   </div>
                   <Link
                     to="/users"
-                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-secondary/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
+                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-accent/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
                     onClick={() => setSidebarOpen(false)}
                   >
-                    <UserCog size={20} className="text-secondary" />
+                    <UserCog size={20} className="text-accent" />
                     <span>Users</span>
                   </Link>
                   <Link
                     to="/teams"
-                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-secondary/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
+                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-accent/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
                     onClick={() => setSidebarOpen(false)}
                   >
-                    <UsersRound size={20} className="text-secondary" />
+                    <UsersRound size={20} className="text-accent" />
                     <span>Teams</span>
                   </Link>
                 </>
@@ -303,64 +303,64 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
               {isAdmin && (
                 <>
                   <div className="pt-4 pb-2 section-accent-teal pl-4">
-                    <p className="px-4 text-xs font-semibold uppercase tracking-wider bg-gradient-to-r from-yellow-500 to-yellow-600 bg-clip-text text-transparent">
+                    <p className="px-4 text-xs font-semibold uppercase tracking-wider gradient-text-accent">
                       Admin
                     </p>
                   </div>
                   <Link
                     to="/admin"
-                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-yellow-500/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
+                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-accent/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
                     onClick={() => setSidebarOpen(false)}
                   >
-                    <Building2 size={20} className="text-yellow-600" />
+                    <Building2 size={20} className="text-accent" />
                     <span>Organization Settings</span>
                   </Link>
                   <Link
                     to="/admin/pipeline-stages"
-                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-yellow-500/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
+                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-accent/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
                     onClick={() => setSidebarOpen(false)}
                   >
-                    <Layers size={20} className="text-yellow-600" />
+                    <Layers size={20} className="text-accent" />
                     <span>Pipeline Stages</span>
                   </Link>
                   <Link
                     to="/admin/call-dispositions"
-                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-yellow-500/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
+                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-accent/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
                     onClick={() => setSidebarOpen(false)}
                   >
-                    <PhoneCall size={20} className="text-yellow-600" />
+                    <PhoneCall size={20} className="text-accent" />
                     <span>Call Dispositions</span>
                   </Link>
                   <Link
                     to="/admin/approval-matrix"
-                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-yellow-500/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
+                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-accent/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
                     onClick={() => setSidebarOpen(false)}
                   >
-                    <CheckSquare size={20} className="text-yellow-600" />
+                    <CheckSquare size={20} className="text-accent" />
                     <span>Approval Matrix</span>
                   </Link>
                   <Link
                     to="/admin/designations"
-                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-yellow-500/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
+                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-accent/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
                     onClick={() => setSidebarOpen(false)}
                   >
-                    <Award size={20} className="text-yellow-600" />
+                    <Award size={20} className="text-accent" />
                     <span>Designations</span>
                   </Link>
                   <Link
                     to="/admin/custom-fields"
-                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-yellow-500/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
+                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-accent/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
                     onClick={() => setSidebarOpen(false)}
                   >
-                    <Sliders size={20} className="text-yellow-600" />
+                    <Sliders size={20} className="text-accent" />
                     <span>Custom Fields</span>
                   </Link>
                   <Link
                     to="/admin/forms"
-                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-yellow-500/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
+                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-accent/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
                     onClick={() => setSidebarOpen(false)}
                   >
-                    <FileText size={20} className="text-yellow-600" />
+                    <FileText size={20} className="text-accent" />
                     <span>Forms</span>
                   </Link>
                   
@@ -374,45 +374,45 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                     className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-accent/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
                     onClick={() => setSidebarOpen(false)}
                   >
-                    <MessageSquare size={20} className="text-foreground/70" />
-                    <span className="text-foreground">WhatsApp Settings</span>
+                    <MessageSquare size={20} className="text-accent" />
+                    <span>WhatsApp Settings</span>
                   </Link>
                   <Link
                     to="/admin/email-settings"
                     className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-accent/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
                     onClick={() => setSidebarOpen(false)}
                   >
-                    <Mail size={20} className="text-foreground/70" />
-                    <span className="text-foreground">Email Settings</span>
+                    <Mail size={20} className="text-accent" />
+                    <span>Email Settings</span>
                   </Link>
                   <Link
                     to="/templates"
                     className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-accent/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
                     onClick={() => setSidebarOpen(false)}
                   >
-                    <FileText size={20} className="text-foreground/70" />
-                    <span className="text-foreground">Templates</span>
+                    <FileText size={20} className="text-accent" />
+                    <span>Templates</span>
                   </Link>
                   <Link
                     to="/whatsapp-messages"
                     className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-accent/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
                     onClick={() => setSidebarOpen(false)}
                   >
-                    <MessageSquare size={20} className="text-foreground/70" />
-                    <span className="text-foreground">Message History</span>
+                    <MessageSquare size={20} className="text-accent" />
+                    <span>Message History</span>
                   </Link>
                   
                   <div className="pt-4 pb-2 section-accent-purple pl-4">
-                    <p className="px-4 text-xs font-semibold uppercase tracking-wider bg-gradient-to-r from-secondary to-secondary/70 bg-clip-text text-transparent">
+                    <p className="px-4 text-xs font-semibold uppercase tracking-wider gradient-text-accent">
                       Connectors
                     </p>
                   </div>
                   <Link
                     to="/admin/connectors"
-                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-secondary/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
+                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-accent/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
                     onClick={() => setSidebarOpen(false)}
                   >
-                    <Webhook size={20} className="text-secondary" />
+                    <Webhook size={20} className="text-accent" />
                     <span>Webhook Connectors</span>
                   </Link>
                 </>
