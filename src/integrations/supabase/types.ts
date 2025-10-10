@@ -846,6 +846,7 @@ export type Database = {
           template_id: string | null
           total_recipients: number
           updated_at: string
+          variable_mappings: Json | null
         }
         Insert: {
           completed_at?: string | null
@@ -865,6 +866,7 @@ export type Database = {
           template_id?: string | null
           total_recipients?: number
           updated_at?: string
+          variable_mappings?: Json | null
         }
         Update: {
           completed_at?: string | null
@@ -884,6 +886,7 @@ export type Database = {
           template_id?: string | null
           total_recipients?: number
           updated_at?: string
+          variable_mappings?: Json | null
         }
         Relationships: [
           {
@@ -907,6 +910,7 @@ export type Database = {
           campaign_id: string
           contact_id: string | null
           created_at: string
+          custom_data: Json | null
           email: string
           error_message: string | null
           id: string
@@ -918,6 +922,7 @@ export type Database = {
           campaign_id: string
           contact_id?: string | null
           created_at?: string
+          custom_data?: Json | null
           email: string
           error_message?: string | null
           id?: string
@@ -929,6 +934,7 @@ export type Database = {
           campaign_id?: string
           contact_id?: string | null
           created_at?: string
+          custom_data?: Json | null
           email?: string
           error_message?: string | null
           id?: string
@@ -1809,6 +1815,7 @@ export type Database = {
           template_id: string | null
           total_recipients: number
           updated_at: string
+          variable_mappings: Json | null
         }
         Insert: {
           completed_at?: string | null
@@ -1827,6 +1834,7 @@ export type Database = {
           template_id?: string | null
           total_recipients?: number
           updated_at?: string
+          variable_mappings?: Json | null
         }
         Update: {
           completed_at?: string | null
@@ -1845,6 +1853,7 @@ export type Database = {
           template_id?: string | null
           total_recipients?: number
           updated_at?: string
+          variable_mappings?: Json | null
         }
         Relationships: [
           {
@@ -1861,6 +1870,7 @@ export type Database = {
           campaign_id: string
           contact_id: string | null
           created_at: string
+          custom_data: Json | null
           error_message: string | null
           id: string
           last_retry_at: string | null
@@ -1876,6 +1886,7 @@ export type Database = {
           campaign_id: string
           contact_id?: string | null
           created_at?: string
+          custom_data?: Json | null
           error_message?: string | null
           id?: string
           last_retry_at?: string | null
@@ -1891,6 +1902,7 @@ export type Database = {
           campaign_id?: string
           contact_id?: string | null
           created_at?: string
+          custom_data?: Json | null
           error_message?: string | null
           id?: string
           last_retry_at?: string | null

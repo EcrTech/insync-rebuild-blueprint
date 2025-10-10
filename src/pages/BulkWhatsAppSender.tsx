@@ -12,6 +12,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Upload, Users, Send } from "lucide-react";
+import { VariableMappingStep } from "@/components/Campaigns/VariableMappingStep";
+import { TemplateVariable, VariableMapping, detectTemplateVariables } from "@/utils/templateVariables";
+import { ParsedCSVData } from "@/utils/csvParser";
 
 export default function BulkWhatsAppSender() {
   const navigate = useNavigate();
@@ -27,6 +30,9 @@ export default function BulkWhatsAppSender() {
   const [contacts, setContacts] = useState<any[]>([]);
   const [selectedContacts, setSelectedContacts] = useState<Set<string>>(new Set());
   const [csvInput, setCsvInput] = useState("");
+  const [templateVariables, setTemplateVariables] = useState<TemplateVariable[]>([]);
+  const [variableMappings, setVariableMappings] = useState<Record<string, VariableMapping>>({});
+  const [csvData, setCsvData] = useState<ParsedCSVData | null>(null);
 
   const MAX_RECIPIENTS = 50000;
   const MAX_MESSAGE_LENGTH = 1024;
@@ -75,6 +81,14 @@ export default function BulkWhatsAppSender() {
     const template = templates.find(t => t.id === value);
     if (template) {
       setMessageContent(template.content);
+      
+      // Detect variables in template
+      const vars = detectTemplateVariables(
+        template.content,
+        template.header_content,
+        template.footer_text
+      );
+      setTemplateVariables(vars);
     }
   };
 
@@ -108,6 +122,15 @@ export default function BulkWhatsAppSender() {
     });
   };
 
+  const handleVariableMappingComplete = (
+    mappings: Record<string, VariableMapping>,
+    csv: ParsedCSVData | null
+  ) => {
+    setVariableMappings(mappings);
+    setCsvData(csv);
+    setStep(3);
+  };
+
   const handleCreateCampaign = async () => {
     // Validate campaign name
     if (!campaignName || campaignName.length > MAX_CAMPAIGN_NAME_LENGTH) {
@@ -130,7 +153,11 @@ export default function BulkWhatsAppSender() {
     }
 
     // Validate recipient selection
-    if (selectedContacts.size === 0) {
+    const finalRecipients = csvData?.rows.length 
+      ? csvData.rows 
+      : contacts.filter(c => selectedContacts.has(c.id));
+    
+    if (finalRecipients.length === 0) {
       toast({
         title: "Error",
         description: "Please select at least one recipient",
@@ -140,35 +167,13 @@ export default function BulkWhatsAppSender() {
     }
 
     // Check max recipients
-    if (selectedContacts.size > MAX_RECIPIENTS) {
+    if (finalRecipients.length > MAX_RECIPIENTS) {
       toast({
         title: "Error",
         description: `Maximum ${MAX_RECIPIENTS.toLocaleString()} recipients allowed per campaign`,
         variant: "destructive",
       });
       return;
-    }
-
-    // Validate phone numbers
-    const selectedContactsList = contacts.filter(c => selectedContacts.has(c.id));
-    const invalidContacts = selectedContactsList.filter(c => !isValidPhone(c.phone));
-    if (invalidContacts.length > 0) {
-      toast({
-        title: "Error",
-        description: `${invalidContacts.length} contacts have invalid phone numbers`,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Check for duplicates
-    const phoneNumbers = selectedContactsList.map(c => c.phone);
-    const uniquePhones = new Set(phoneNumbers);
-    if (uniquePhones.size !== phoneNumbers.length) {
-      toast({
-        title: "Warning",
-        description: `Found ${phoneNumbers.length - uniquePhones.size} duplicate phone numbers. Only unique numbers will receive messages.`,
-      });
     }
 
     setLoading(true);
@@ -181,30 +186,59 @@ export default function BulkWhatsAppSender() {
       // Create campaign
       const { data: campaign, error: campaignError } = await supabase
         .from("whatsapp_bulk_campaigns")
-        .insert({
+        .insert([{
           org_id: effectiveOrgId,
           name: sanitizedName,
           template_id: templateId || null,
           message_content: messageContent,
           created_by: user?.id,
-          total_recipients: uniquePhones.size,
-          pending_count: uniquePhones.size,
-        })
+          total_recipients: finalRecipients.length,
+          pending_count: finalRecipients.length,
+          variable_mappings: variableMappings as any,
+        }])
         .select()
         .single();
 
       if (campaignError) throw campaignError;
 
-      // Create recipients (deduplicated)
-      const uniqueContacts = selectedContactsList.filter((contact, index, self) => 
-        self.findIndex(c => c.phone === contact.phone) === index
-      );
-      
-      const recipients = uniqueContacts.map(contact => ({
-        campaign_id: campaign.id,
-        contact_id: contact.id,
-        phone_number: contact.phone,
-      }));
+      // Create recipients with custom data from CSV if available
+      let recipients;
+      if (csvData) {
+        // Match CSV data with contacts or use CSV-only data
+        const identifierCol = csvData.identifierColumn;
+        recipients = csvData.rows.map(row => {
+          const identifier = row[identifierCol];
+          const contact = contacts.find(c => c.phone === identifier);
+          
+          // Extract custom data (all columns except identifier)
+          const customData: Record<string, any> = {};
+          Object.keys(row).forEach(key => {
+            if (key !== identifierCol) {
+              customData[key] = row[key];
+            }
+          });
+          
+          return {
+            campaign_id: campaign.id,
+            contact_id: contact?.id || null,
+            phone_number: identifier,
+            custom_data: customData,
+          };
+        });
+      } else {
+        // Use selected contacts from CRM
+        const selectedContactsList = contacts.filter(c => selectedContacts.has(c.id));
+        const uniqueContacts = selectedContactsList.filter((contact, index, self) => 
+          self.findIndex(c => c.phone === contact.phone) === index
+        );
+        
+        recipients = uniqueContacts.map(contact => ({
+          campaign_id: campaign.id,
+          contact_id: contact.id,
+          phone_number: contact.phone,
+          custom_data: {},
+        }));
+      }
 
       const { error: recipientsError } = await supabase
         .from("whatsapp_campaign_recipients")
@@ -221,7 +255,7 @@ export default function BulkWhatsAppSender() {
 
       toast({
         title: "Campaign Started",
-        description: `Sending to ${uniquePhones.size} unique recipients`,
+        description: `Sending to ${finalRecipients.length} recipients`,
       });
 
       navigate(`/whatsapp/campaigns/${campaign.id}`);
@@ -254,14 +288,14 @@ export default function BulkWhatsAppSender() {
 
       {/* Progress Steps */}
       <div className="flex items-center justify-center mb-8 gap-4">
-        {[1, 2, 3].map((s) => (
+        {[1, 2, 3, 4].map((s) => (
           <div key={s} className="flex items-center">
             <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
               step >= s ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
             }`}>
               {s}
             </div>
-            {s < 3 && <div className="w-16 h-1 bg-muted mx-2" />}
+            {s < 4 && <div className="w-16 h-1 bg-muted mx-2" />}
           </div>
         ))}
       </div>
@@ -321,14 +355,37 @@ export default function BulkWhatsAppSender() {
               )}
             </div>
 
-            <Button onClick={() => setStep(2)} className="w-full">
-              Next: Select Recipients
+            <Button 
+              onClick={() => {
+                if (!campaignName.trim() || !messageContent.trim()) {
+                  toast({
+                    title: "Error",
+                    description: "Please fill in campaign name and message content",
+                    variant: "destructive",
+                  });
+                  return;
+                }
+                setStep(2);
+              }} 
+              className="w-full"
+            >
+              Next: Variable Mapping
             </Button>
           </CardContent>
         </Card>
       )}
 
       {step === 2 && (
+        <VariableMappingStep
+          templateVariables={templateVariables}
+          identifierType="phone"
+          orgId={effectiveOrgId}
+          onComplete={handleVariableMappingComplete}
+          onBack={() => setStep(1)}
+        />
+      )}
+
+      {step === 3 && (
         <Card>
           <CardHeader>
             <CardTitle>Select Recipients</CardTitle>
@@ -400,13 +457,13 @@ export default function BulkWhatsAppSender() {
             </div>
 
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setStep(1)} className="flex-1">
+              <Button variant="outline" onClick={() => setStep(2)} className="flex-1">
                 Back
               </Button>
               <Button 
-                onClick={() => setStep(3)} 
+                onClick={() => setStep(4)} 
                 className="flex-1"
-                disabled={selectedContacts.size === 0}
+                disabled={!csvData && selectedContacts.size === 0}
               >
                 Next: Review & Send
               </Button>
@@ -415,7 +472,7 @@ export default function BulkWhatsAppSender() {
         </Card>
       )}
 
-      {step === 3 && (
+      {step === 4 && (
         <Card>
           <CardHeader>
             <CardTitle>Review & Send</CardTitle>
@@ -429,7 +486,13 @@ export default function BulkWhatsAppSender() {
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Recipients:</span>
-                <span className="font-medium">{selectedContacts.size}</span>
+                <span className="font-medium">
+                  {csvData?.rows.length || selectedContacts.size}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Data Source:</span>
+                <span className="font-medium">{csvData ? 'CSV Upload' : 'CRM Contacts'}</span>
               </div>
               <div className="border-t pt-2">
                 <p className="text-sm text-muted-foreground mb-2">Message Preview:</p>
@@ -440,7 +503,7 @@ export default function BulkWhatsAppSender() {
             </div>
 
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setStep(2)} className="flex-1">
+              <Button variant="outline" onClick={() => setStep(3)} className="flex-1">
                 Back
               </Button>
               <Button 

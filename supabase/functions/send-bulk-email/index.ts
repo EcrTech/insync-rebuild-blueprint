@@ -48,15 +48,37 @@ interface RecipientData {
 
 const replaceVariables = (
   html: string,
-  contact: RecipientData["contacts"],
-  email: string
+  contact: RecipientData["contacts"] | null,
+  email: string,
+  customData: any = {},
+  variableMappings: any = null
 ) => {
-  return html
-    .replace(/\{\{first_name\}\}/g, contact.first_name || "")
-    .replace(/\{\{last_name\}\}/g, contact.last_name || "")
-    .replace(/\{\{email\}\}/g, email || "")
-    .replace(/\{\{company\}\}/g, contact.company || "")
-    .replace(/\{\{phone\}\}/g, contact.phone || "");
+  let result = html;
+  
+  if (variableMappings) {
+    for (const [variable, mapping] of Object.entries(variableMappings)) {
+      const mappingObj = mapping as any;
+      let value = '';
+      if (mappingObj.source === 'crm' && contact) {
+        value = (contact as any)[mappingObj.field] || '';
+      } else if (mappingObj.source === 'csv') {
+        value = customData?.[mappingObj.field] || '';
+      } else if (mappingObj.source === 'static') {
+        value = mappingObj.value || '';
+      }
+      result = result.replace(new RegExp(variable.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), value);
+    }
+  } else {
+    // Fallback to old method
+    result = result
+      .replace(/\{\{first_name\}\}/g, contact?.first_name || "")
+      .replace(/\{\{last_name\}\}/g, contact?.last_name || "")
+      .replace(/\{\{email\}\}/g, email || "")
+      .replace(/\{\{company\}\}/g, contact?.company || "")
+      .replace(/\{\{phone\}\}/g, contact?.phone || "");
+  }
+  
+  return result;
 };
 
 serve(async (req) => {
@@ -75,7 +97,7 @@ serve(async (req) => {
 
     console.log("Starting bulk email send for campaign:", campaignId);
 
-    // Fetch campaign details
+    // Fetch campaign details with variable mappings
     const { data: campaign, error: campaignError } = await supabaseClient
       .from("email_bulk_campaigns")
       .select("*")
@@ -154,7 +176,9 @@ serve(async (req) => {
         const personalizedHtml = replaceVariables(
           campaign.html_content,
           recipient.contacts,
-          recipient.email
+          recipient.email,
+          recipient.custom_data || {},
+          campaign.variable_mappings
         );
 
         const emailResult = await sendEmail(

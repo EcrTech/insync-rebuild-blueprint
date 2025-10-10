@@ -12,6 +12,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Send, ArrowRight, ArrowLeft } from "lucide-react";
 import { useOrgContext } from "@/hooks/useOrgContext";
+import { VariableMappingStep } from "@/components/Campaigns/VariableMappingStep";
+import { TemplateVariable, VariableMapping, detectTemplateVariables } from "@/utils/templateVariables";
+import { ParsedCSVData } from "@/utils/csvParser";
 
 interface Contact {
   id: string;
@@ -47,6 +50,11 @@ const BulkEmailSender = () => {
   // Step 2: Recipients
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [selectedContacts, setSelectedContacts] = useState<Set<string>>(new Set());
+
+  // Variable mapping and CSV
+  const [templateVariables, setTemplateVariables] = useState<TemplateVariable[]>([]);
+  const [variableMappings, setVariableMappings] = useState<Record<string, VariableMapping>>({});
+  const [csvData, setCsvData] = useState<ParsedCSVData | null>(null);
 
   useEffect(() => {
     fetchTemplates();
@@ -101,6 +109,13 @@ const BulkEmailSender = () => {
     if (template) {
       setSubject(template.subject);
       setHtmlContent(template.html_content);
+      
+      // Detect variables in template
+      const vars = detectTemplateVariables(
+        template.html_content,
+        template.subject
+      );
+      setTemplateVariables(vars);
     }
   };
 
@@ -122,6 +137,15 @@ const BulkEmailSender = () => {
     }
   };
 
+  const handleVariableMappingComplete = (
+    mappings: Record<string, VariableMapping>,
+    csv: ParsedCSVData | null
+  ) => {
+    setVariableMappings(mappings);
+    setCsvData(csv);
+    setStep(3);
+  };
+
   const handleNext = () => {
     if (step === 1) {
       if (!campaignName.trim()) {
@@ -140,8 +164,13 @@ const BulkEmailSender = () => {
         });
         return;
       }
-    } else if (step === 2) {
-      if (selectedContacts.size === 0) {
+      setStep(2);
+    } else if (step === 3) {
+      const finalRecipients = csvData?.rows.length 
+        ? csvData.rows 
+        : contacts.filter(c => selectedContacts.has(c.id));
+      
+      if (finalRecipients.length === 0) {
         toast({
           title: "Validation Error",
           description: "Please select at least one recipient",
@@ -149,8 +178,8 @@ const BulkEmailSender = () => {
         });
         return;
       }
+      setStep(4);
     }
-    setStep(step + 1);
   };
 
   const handleSendCampaign = async () => {
@@ -159,36 +188,67 @@ const BulkEmailSender = () => {
     try {
       const { data: session } = await supabase.auth.getSession();
 
+      const finalRecipients = csvData?.rows.length 
+        ? csvData.rows 
+        : contacts.filter(c => selectedContacts.has(c.id));
+
       // Create campaign
       const { data: campaign, error: campaignError } = await supabase
         .from("email_bulk_campaigns")
-        .insert({
+        .insert([{
           name: campaignName,
           template_id: selectedTemplateId,
           subject: subject,
           html_content: htmlContent,
-          total_recipients: selectedContacts.size,
-          pending_count: selectedContacts.size,
+          total_recipients: finalRecipients.length,
+          pending_count: finalRecipients.length,
           status: "sending",
           org_id: effectiveOrgId,
           created_by: session.session?.user.id,
           started_at: new Date().toISOString(),
-        })
+          variable_mappings: variableMappings as any,
+        }])
         .select()
         .single();
 
       if (campaignError) throw campaignError;
 
-      // Create recipients
-      const recipients = Array.from(selectedContacts).map((contactId) => {
-        const contact = contacts.find((c) => c.id === contactId);
-        return {
-          campaign_id: campaign.id,
-          contact_id: contactId,
-          email: contact?.email || "",
-          status: "pending",
-        };
-      });
+      // Create recipients with custom data from CSV if available
+      let recipients;
+      if (csvData) {
+        const identifierCol = csvData.identifierColumn;
+        recipients = csvData.rows.map(row => {
+          const identifier = row[identifierCol];
+          const contact = contacts.find(c => c.email === identifier);
+          
+          // Extract custom data
+          const customData: Record<string, any> = {};
+          Object.keys(row).forEach(key => {
+            if (key !== identifierCol) {
+              customData[key] = row[key];
+            }
+          });
+          
+          return {
+            campaign_id: campaign.id,
+            contact_id: contact?.id || null,
+            email: identifier,
+            status: "pending",
+            custom_data: customData as any,
+          };
+        });
+      } else {
+        recipients = Array.from(selectedContacts).map((contactId) => {
+          const contact = contacts.find((c) => c.id === contactId);
+          return {
+            campaign_id: campaign.id,
+            contact_id: contactId,
+            email: contact?.email || "",
+            status: "pending",
+            custom_data: {} as any,
+          };
+        });
+      }
 
       const { error: recipientsError } = await supabase
         .from("email_campaign_recipients")
@@ -247,7 +307,7 @@ const BulkEmailSender = () => {
 
         {/* Progress Steps */}
         <div className="flex items-center justify-center space-x-4">
-          {[1, 2, 3].map((s) => (
+          {[1, 2, 3, 4].map((s) => (
             <div key={s} className="flex items-center">
               <div
                 className={`w-10 h-10 rounded-full flex items-center justify-center ${
@@ -258,7 +318,7 @@ const BulkEmailSender = () => {
               >
                 {s}
               </div>
-              {s < 3 && (
+              {s < 4 && (
                 <div
                   className={`w-20 h-1 ${
                     step > s ? "bg-primary" : "bg-muted"
@@ -324,7 +384,7 @@ const BulkEmailSender = () => {
 
               <div className="flex justify-end">
                 <Button onClick={handleNext}>
-                  Next
+                  Next: Variable Mapping
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </div>
@@ -332,13 +392,24 @@ const BulkEmailSender = () => {
           </Card>
         )}
 
-        {/* Step 2: Select Recipients */}
+        {/* Step 2: Variable Mapping */}
         {step === 2 && (
+          <VariableMappingStep
+            templateVariables={templateVariables}
+            identifierType="email"
+            orgId={effectiveOrgId}
+            onComplete={handleVariableMappingComplete}
+            onBack={() => setStep(1)}
+          />
+        )}
+
+        {/* Step 3: Select Recipients */}
+        {step === 3 && (
           <Card>
             <CardHeader>
               <CardTitle>Step 2: Select Recipients</CardTitle>
               <p className="text-sm text-muted-foreground">
-                {selectedContacts.size} of {contacts.length} contacts selected
+                {csvData ? `${csvData.rows.length} rows from CSV` : `${selectedContacts.size} of ${contacts.length} contacts selected`}
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -384,12 +455,12 @@ const BulkEmailSender = () => {
               </div>
 
               <div className="flex justify-between">
-                <Button variant="outline" onClick={() => setStep(1)}>
+                <Button variant="outline" onClick={() => setStep(2)}>
                   <ArrowLeft className="mr-2 h-4 w-4" />
                   Back
                 </Button>
                 <Button onClick={handleNext}>
-                  Next
+                  Next: Review & Send
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </div>
@@ -397,8 +468,8 @@ const BulkEmailSender = () => {
           </Card>
         )}
 
-        {/* Step 3: Review & Send */}
-        {step === 3 && (
+        {/* Step 4: Review & Send */}
+        {step === 4 && (
           <Card>
             <CardHeader>
               <CardTitle>Step 3: Review & Send</CardTitle>
@@ -418,7 +489,8 @@ const BulkEmailSender = () => {
                 <div>
                   <h3 className="font-semibold">Recipients</h3>
                   <p className="text-muted-foreground">
-                    {selectedContacts.size} contacts
+                    {csvData?.rows.length || selectedContacts.size} contacts
+                    {csvData && ' (from CSV)'}
                   </p>
                 </div>
 
@@ -435,7 +507,7 @@ const BulkEmailSender = () => {
               </div>
 
               <div className="flex justify-between">
-                <Button variant="outline" onClick={() => setStep(2)}>
+                <Button variant="outline" onClick={() => setStep(3)}>
                   <ArrowLeft className="mr-2 h-4 w-4" />
                   Back
                 </Button>
