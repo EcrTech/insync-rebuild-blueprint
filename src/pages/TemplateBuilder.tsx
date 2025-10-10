@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/Layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
@@ -39,6 +39,38 @@ export default function TemplateBuilder() {
   const [sampleBody, setSampleBody] = useState<string[]>([]);
   const [mediaUrl, setMediaUrl] = useState("");
   const [uploading, setUploading] = useState(false);
+
+  // Auto-sync sample values with body content variables
+  useEffect(() => {
+    const bodyVars = (bodyContent.match(/\{\{(\d+)\}\}/g) || [])
+      .map(v => parseInt(v.replace(/[{}]/g, '')))
+      .filter(n => !isNaN(n));
+    
+    const maxBodyVar = bodyVars.length > 0 ? Math.max(...bodyVars) : 0;
+    
+    if (maxBodyVar !== sampleBody.length) {
+      const newSampleBody = Array(maxBodyVar).fill('').map((_, idx) => 
+        sampleBody[idx] || ''
+      );
+      setSampleBody(newSampleBody);
+    }
+  }, [bodyContent]);
+
+  // Auto-sync sample values with header content variables
+  useEffect(() => {
+    const headerVars = (headerContent.match(/\{\{(\d+)\}\}/g) || [])
+      .map(v => parseInt(v.replace(/[{}]/g, '')))
+      .filter(n => !isNaN(n));
+    
+    const maxHeaderVar = headerVars.length > 0 ? Math.max(...headerVars) : 0;
+    
+    if (maxHeaderVar !== sampleHeader.length) {
+      const newSampleHeader = Array(maxHeaderVar).fill('').map((_, idx) => 
+        sampleHeader[idx] || ''
+      );
+      setSampleHeader(newSampleHeader);
+    }
+  }, [headerContent]);
 
   const insertVariable = (location: 'header' | 'body') => {
     if (location === 'header') {
