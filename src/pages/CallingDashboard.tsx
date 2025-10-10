@@ -3,10 +3,12 @@ import { supabase } from "@/integrations/supabase/client";
 import DashboardLayout from "@/components/Layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Phone, Clock, TrendingUp, Users, PhoneCall, CheckCircle, XCircle } from "lucide-react";
+import { Phone, Clock, TrendingUp, Users, PhoneCall, CheckCircle, XCircle, Activity } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 interface AgentStats {
   agent_id: string;
@@ -54,6 +56,8 @@ export default function CallingDashboard() {
   const [selectedUser, setSelectedUser] = useState<string>("all");
   const [users, setUsers] = useState<User[]>([]);
   const [teamMemberIds, setTeamMemberIds] = useState<string[]>([]);
+  const [useCallLogs, setUseCallLogs] = useState(true);
+  const [activeCallsCount, setActiveCallsCount] = useState(0);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -70,7 +74,28 @@ export default function CallingDashboard() {
 
   useEffect(() => {
     fetchDashboardData();
-  }, [timeRange, selectedUser, teamMemberIds]);
+    fetchActiveCalls();
+  }, [timeRange, selectedUser, teamMemberIds, useCallLogs]);
+
+  const fetchActiveCalls = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profile } = await supabase.from("profiles").select("org_id").eq("id", user.id).single();
+      if (!profile?.org_id) return;
+
+      const { count } = await supabase
+        .from("agent_call_sessions")
+        .select("*", { count: "exact", head: true })
+        .eq("org_id", profile.org_id)
+        .in("status", ["initiating", "ringing", "connected"]);
+
+      setActiveCallsCount(count || 0);
+    } catch (error) {
+      console.error("Error fetching active calls:", error);
+    }
+  };
 
   const fetchUsers = async () => {
     try {
@@ -153,27 +178,56 @@ export default function CallingDashboard() {
       const daysAgo = new Date();
       daysAgo.setDate(daysAgo.getDate() - parseInt(timeRange));
 
-      // Build query for activities
-      let activitiesQuery = supabase
-        .from("contact_activities")
-        .select(`
-          *,
-          profiles!contact_activities_created_by_fkey(id, first_name, last_name),
-          call_dispositions(name, category)
-        `)
-        .eq("org_id", profile.org_id)
-        .eq("activity_type", "call")
-        .gte("created_at", daysAgo.toISOString())
-        .not("call_duration", "is", null);
+      let activities: any[] = [];
 
-      // Apply user/team filter
-      if (selectedUser !== "all" && teamMemberIds.length > 0) {
-        activitiesQuery = activitiesQuery.in("created_by", teamMemberIds);
+      if (useCallLogs) {
+        // Fetch from call_logs table
+        let callLogsQuery = supabase
+          .from("call_logs")
+          .select(`
+            *,
+            profiles!call_logs_agent_id_fkey(id, first_name, last_name),
+            call_dispositions(name, category)
+          `)
+          .eq("org_id", profile.org_id)
+          .gte("created_at", daysAgo.toISOString())
+          .not("conversation_duration", "is", null);
+
+        if (selectedUser !== "all" && teamMemberIds.length > 0) {
+          callLogsQuery = callLogsQuery.in("agent_id", teamMemberIds);
+        }
+
+        const { data: callLogs, error: callLogsError } = await callLogsQuery;
+        if (callLogsError) throw callLogsError;
+
+        // Transform call_logs to activities format
+        activities = callLogs?.map(log => ({
+          ...log,
+          created_by: log.agent_id,
+          call_duration: log.conversation_duration,
+        })) || [];
+      } else {
+        // Fetch from contact_activities table
+        let activitiesQuery = supabase
+          .from("contact_activities")
+          .select(`
+            *,
+            profiles!contact_activities_created_by_fkey(id, first_name, last_name),
+            call_dispositions(name, category)
+          `)
+          .eq("org_id", profile.org_id)
+          .eq("activity_type", "call")
+          .gte("created_at", daysAgo.toISOString())
+          .not("call_duration", "is", null);
+
+        if (selectedUser !== "all" && teamMemberIds.length > 0) {
+          activitiesQuery = activitiesQuery.in("created_by", teamMemberIds);
+        }
+
+        const { data: activitiesData, error: activitiesError } = await activitiesQuery;
+        if (activitiesError) throw activitiesError;
+        activities = activitiesData || [];
       }
-
-      const { data: activities, error: activitiesError } = await activitiesQuery;
-
-      if (activitiesError) throw activitiesError;
 
       // Calculate overall stats
       const totalCalls = activities?.length || 0;
@@ -313,7 +367,13 @@ export default function CallingDashboard() {
             <h1 className="text-3xl font-bold">Calling Dashboard</h1>
             <p className="text-muted-foreground">Monitor and assess agent call performance</p>
           </div>
-          <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex flex-col sm:flex-row gap-3 items-center">
+            <div className="flex items-center gap-2">
+              <Switch id="data-source" checked={useCallLogs} onCheckedChange={setUseCallLogs} />
+              <Label htmlFor="data-source" className="text-sm">
+                {useCallLogs ? "Exotel Logs" : "Manual Logs"}
+              </Label>
+            </div>
             <Select value={selectedUser} onValueChange={setSelectedUser}>
               <SelectTrigger className="w-48">
                 <SelectValue placeholder="All Users" />
@@ -342,7 +402,17 @@ export default function CallingDashboard() {
         </div>
 
         {/* Overview Cards */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Active Calls</CardTitle>
+              <Activity className="h-4 w-4 text-green-500 animate-pulse" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{activeCallsCount}</div>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Calls</CardTitle>
