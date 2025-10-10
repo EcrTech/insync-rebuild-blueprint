@@ -37,6 +37,7 @@ export default function TemplateBuilder() {
   const [sampleHeader, setSampleHeader] = useState<string[]>([]);
   const [sampleBody, setSampleBody] = useState<string[]>([]);
   const [mediaUrl, setMediaUrl] = useState("");
+  const [uploading, setUploading] = useState(false);
 
   const insertVariable = (location: 'header' | 'body') => {
     if (location === 'header') {
@@ -81,6 +82,84 @@ export default function TemplateBuilder() {
 
   const removeButton = (index: number) => {
     setButtons(buttons.filter((_, i) => i !== index));
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type based on header type
+    const validTypes: Record<string, string[]> = {
+      image: ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'],
+      video: ['video/mp4', 'video/3gpp'],
+      document: ['application/pdf']
+    };
+
+    if (headerType !== 'none' && headerType !== 'text') {
+      const allowedTypes = validTypes[headerType] || [];
+      if (!allowedTypes.includes(file.type)) {
+        toast({
+          title: "Invalid File Type",
+          description: `Please upload a valid ${headerType} file`,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    // Validate file size (max 5MB for images, 16MB for videos, 100MB for documents)
+    const maxSizes: Record<string, number> = {
+      image: 5 * 1024 * 1024,
+      video: 16 * 1024 * 1024,
+      document: 100 * 1024 * 1024
+    };
+
+    const maxSize = maxSizes[headerType] || 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      toast({
+        title: "File Too Large",
+        description: `File size must be less than ${maxSize / (1024 * 1024)}MB`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setUploading(true);
+
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${effectiveOrgId}/${Date.now()}.${fileExt}`;
+      const filePath = `template-media/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('whatsapp-templates')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('whatsapp-templates')
+        .getPublicUrl(filePath);
+
+      setMediaUrl(publicUrl);
+
+      toast({
+        title: "Upload Successful",
+        description: "File uploaded successfully",
+      });
+    } catch (error: any) {
+      console.error('Error uploading file:', error);
+      toast({
+        title: "Upload Failed",
+        description: error.message || "Failed to upload file",
+        variant: "destructive",
+      });
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -298,15 +377,37 @@ export default function TemplateBuilder() {
                 )}
 
                 {headerType !== 'none' && headerType !== 'text' && (
-                  <div>
-                    <Label htmlFor="mediaUrl">Media URL</Label>
-                    <Input
-                      id="mediaUrl"
-                      value={mediaUrl}
-                      onChange={(e) => setMediaUrl(e.target.value)}
-                      placeholder="https://example.com/image.jpg"
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">Provide a publicly accessible URL</p>
+                  <div className="space-y-3">
+                    <Label htmlFor="mediaUpload">Upload {headerType}</Label>
+                    <div className="flex items-center gap-3">
+                      <Input
+                        id="mediaUpload"
+                        type="file"
+                        onChange={handleFileUpload}
+                        accept={
+                          headerType === 'image' ? 'image/jpeg,image/png,image/jpg,image/webp' :
+                          headerType === 'video' ? 'video/mp4,video/3gpp' :
+                          headerType === 'document' ? 'application/pdf' : ''
+                        }
+                        className="hidden"
+                        disabled={uploading}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => document.getElementById('mediaUpload')?.click()}
+                        disabled={uploading}
+                        className="w-full"
+                      >
+                        <Upload className="h-4 w-4 mr-2" />
+                        {uploading ? 'Uploading...' : mediaUrl ? 'Change File' : 'Upload File'}
+                      </Button>
+                    </div>
+                    {mediaUrl && (
+                      <p className="text-xs text-muted-foreground">
+                        ✓ File uploaded successfully
+                      </p>
+                    )}
                   </div>
                 )}
               </CardContent>
