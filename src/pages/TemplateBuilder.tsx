@@ -17,6 +17,7 @@ interface Button {
   type: string;
   text: string;
   url?: string;
+  phone_code?: string;
   phone_number?: string;
 }
 
@@ -69,7 +70,7 @@ export default function TemplateBuilder() {
         type,
         text: "",
         ...(type === "URL" && { url: "" }),
-        ...(type === "PHONE_NUMBER" && { phone_number: "+1" }),
+        ...(type === "PHONE_NUMBER" && { phone_code: "+1", phone_number: "" }),
       },
     ]);
   };
@@ -184,7 +185,13 @@ export default function TemplateBuilder() {
           header_content: headerType === 'text' ? headerContent : (headerType !== 'none' ? mediaUrl : null),
           body_content: bodyContent,
           footer_text: footerText || null,
-          buttons: buttons.length > 0 ? buttons : null,
+          buttons: buttons.length > 0 ? buttons.map(btn => ({
+            ...btn,
+            ...(btn.type === "PHONE_NUMBER" && { 
+              phone_number: (btn.phone_code || "+1") + (btn.phone_number || ""),
+              phone_code: undefined 
+            }),
+          })) : null,
           sample_values: {
             ...(sampleHeader.length > 0 && { header: sampleHeader }),
             ...(sampleBody.length > 0 && { body: sampleBody }),
@@ -525,11 +532,9 @@ export default function TemplateBuilder() {
                       {btn.type === "PHONE_NUMBER" && (
                         <div className="flex gap-2">
                           <Select 
-                            value={btn.phone_number?.match(/^\+\d+/)?.[0] || "+1"}
+                            value={btn.phone_code || "+1"}
                             onValueChange={(code) => {
-                              const currentNumber = btn.phone_number || '+1';
-                              const number = currentNumber.replace(/^\+\d+/, '');
-                              updateButton(idx, 'phone_number', code + number);
+                              updateButton(idx, 'phone_code', code);
                             }}
                           >
                             <SelectTrigger className="w-32">
@@ -551,12 +556,10 @@ export default function TemplateBuilder() {
                           <Input
                             placeholder="1234567890"
                             type="tel"
-                            value={(btn.phone_number || '+1').replace(/^\+\d+/, '')}
+                            value={btn.phone_number || ""}
                             onChange={(e) => {
-                              const currentNumber = btn.phone_number || '+1';
-                              const code = currentNumber.match(/^\+\d+/)?.[0] || "+1";
                               const cleanedValue = e.target.value.replace(/\D/g, '');
-                              updateButton(idx, 'phone_number', code + cleanedValue);
+                              updateButton(idx, 'phone_number', cleanedValue);
                             }}
                             className="flex-1"
                           />
