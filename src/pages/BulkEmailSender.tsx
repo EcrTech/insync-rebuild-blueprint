@@ -409,50 +409,105 @@ const BulkEmailSender = () => {
             <CardHeader>
               <CardTitle>Step 2: Select Recipients</CardTitle>
               <p className="text-sm text-muted-foreground">
-                {csvData ? `${csvData.rows.length} rows from CSV` : `${selectedContacts.size} of ${contacts.length} contacts selected`}
+                {csvData 
+                  ? `Using ${csvData.rows.length} recipients from CSV upload (promotional list - not added to CRM)` 
+                  : `${selectedContacts.size} of ${contacts.length} contacts selected from CRM`}
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="select-all"
-                  checked={selectedContacts.size === contacts.length}
-                  onCheckedChange={handleSelectAll}
-                />
-                <Label htmlFor="select-all" className="cursor-pointer">
-                  Select All
-                </Label>
-              </div>
+              {csvData ? (
+                // CSV Upload Mode
+                <div className="space-y-4">
+                  <div className="bg-muted p-4 rounded-lg">
+                    <div className="flex items-center justify-between mb-2">
+                      <div>
+                        <h3 className="font-semibold">CSV List Uploaded</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {csvData.rows.length} recipients • These contacts will NOT be added to your CRM
+                        </p>
+                      </div>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          setCsvData(null);
+                          setVariableMappings({});
+                        }}
+                      >
+                        Clear & Use CRM Contacts
+                      </Button>
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-2">
+                      ✓ Variables mapped • ✓ Ready to send
+                    </div>
+                  </div>
 
-              <div className="border rounded-lg">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-12"></TableHead>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Company</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {contacts.map((contact) => (
-                      <TableRow key={contact.id}>
-                        <TableCell>
-                          <Checkbox
-                            checked={selectedContacts.has(contact.id)}
-                            onCheckedChange={() => handleContactToggle(contact.id)}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          {contact.first_name} {contact.last_name}
-                        </TableCell>
-                        <TableCell>{contact.email}</TableCell>
-                        <TableCell>{contact.company}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+                  <div className="border rounded-lg p-4 max-h-[300px] overflow-auto">
+                    <p className="text-sm font-medium mb-2">Preview (first 5 rows):</p>
+                    <div className="space-y-2">
+                      {csvData.rows.slice(0, 5).map((row, idx) => (
+                        <div key={idx} className="text-sm border-b pb-2">
+                          <span className="font-medium">{row[csvData.identifierColumn]}</span>
+                          {Object.keys(row).filter(k => k !== csvData.identifierColumn).length > 0 && (
+                            <span className="text-muted-foreground ml-2">
+                              + {Object.keys(row).filter(k => k !== csvData.identifierColumn).length} custom fields
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                      {csvData.rows.length > 5 && (
+                        <p className="text-xs text-muted-foreground">
+                          ...and {csvData.rows.length - 5} more
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                // CRM Selection Mode
+                <>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="select-all"
+                      checked={selectedContacts.size === contacts.length}
+                      onCheckedChange={handleSelectAll}
+                    />
+                    <Label htmlFor="select-all" className="cursor-pointer">
+                      Select All
+                    </Label>
+                  </div>
+
+                  <div className="border rounded-lg">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-12"></TableHead>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Company</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {contacts.map((contact) => (
+                          <TableRow key={contact.id}>
+                            <TableCell>
+                              <Checkbox
+                                checked={selectedContacts.has(contact.id)}
+                                onCheckedChange={() => handleContactToggle(contact.id)}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              {contact.first_name} {contact.last_name}
+                            </TableCell>
+                            <TableCell>{contact.email}</TableCell>
+                            <TableCell>{contact.company}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </>
+              )}
 
               <div className="flex justify-between">
                 <Button variant="outline" onClick={() => setStep(2)}>
@@ -490,8 +545,13 @@ const BulkEmailSender = () => {
                   <h3 className="font-semibold">Recipients</h3>
                   <p className="text-muted-foreground">
                     {csvData?.rows.length || selectedContacts.size} contacts
-                    {csvData && ' (from CSV)'}
+                    {csvData && ' (from CSV upload)'}
                   </p>
+                  {csvData && (
+                    <p className="text-sm text-muted-foreground mt-1">
+                      ℹ️ These recipients will NOT be added to your CRM
+                    </p>
+                  )}
                 </div>
 
                 <div>

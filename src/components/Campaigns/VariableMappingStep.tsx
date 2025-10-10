@@ -273,9 +273,9 @@ export function VariableMappingStep({
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-semibold">CSV Upload (Optional)</h3>
+              <h3 className="font-semibold">CSV Upload for Promotional Lists</h3>
               <p className="text-sm text-muted-foreground">
-                Upload custom data for CSV-mapped variables
+                Upload custom recipient lists without adding them to your CRM
               </p>
             </div>
             <Button variant="outline" size="sm" onClick={downloadTemplate}>
@@ -283,6 +283,13 @@ export function VariableMappingStep({
               Download Template
             </Button>
           </div>
+
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription className="text-sm">
+              <strong>Note:</strong> Recipients from CSV uploads will be used for this campaign only and will NOT be added to your CRM contacts. Perfect for promotional campaigns to external lists.
+            </AlertDescription>
+          </Alert>
 
           <div className="border-2 border-dashed rounded-lg p-8 text-center">
             <input

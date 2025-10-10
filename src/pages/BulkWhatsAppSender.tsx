@@ -389,72 +389,115 @@ export default function BulkWhatsAppSender() {
         <Card>
           <CardHeader>
             <CardTitle>Select Recipients</CardTitle>
-            <CardDescription>Choose who will receive your message</CardDescription>
+            <CardDescription>
+              {csvData 
+                ? `Using ${csvData.rows.length} recipients from CSV upload (promotional list - not added to CRM)`
+                : 'Choose contacts from your CRM or upload a CSV file for promotional campaigns'}
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4" />
-                <span className="text-sm">
-                  {selectedContacts.size} of {contacts.length} selected
-                  {selectedContacts.size > MAX_RECIPIENTS && (
-                    <span className="text-destructive ml-2">
-                      (exceeds limit of {MAX_RECIPIENTS.toLocaleString()})
-                    </span>
-                  )}
-                </span>
+            {csvData ? (
+              // CSV Upload Mode
+              <div className="space-y-4">
+                <div className="bg-muted p-4 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <h3 className="font-semibold">CSV List Uploaded</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {csvData.rows.length} recipients • These contacts will NOT be added to your CRM
+                      </p>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        setCsvData(null);
+                        setVariableMappings({});
+                      }}
+                    >
+                      Clear & Use CRM Contacts
+                    </Button>
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-2">
+                    ✓ Variables mapped • ✓ Ready to send
+                  </div>
+                </div>
+
+                <div className="border rounded-lg p-4 max-h-[300px] overflow-auto">
+                  <p className="text-sm font-medium mb-2">Preview (first 5 rows):</p>
+                  <div className="space-y-2">
+                    {csvData.rows.slice(0, 5).map((row, idx) => (
+                      <div key={idx} className="text-sm border-b pb-2">
+                        <span className="font-medium">{row[csvData.identifierColumn]}</span>
+                        {Object.keys(row).filter(k => k !== csvData.identifierColumn).length > 0 && (
+                          <span className="text-muted-foreground ml-2">
+                            + {Object.keys(row).filter(k => k !== csvData.identifierColumn).length} custom fields
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                    {csvData.rows.length > 5 && (
+                      <p className="text-xs text-muted-foreground">
+                        ...and {csvData.rows.length - 5} more
+                      </p>
+                    )}
+                  </div>
+                </div>
               </div>
-              <Button variant="outline" size="sm" onClick={handleSelectAll}>
-                {selectedContacts.size === contacts.length ? "Deselect All" : "Select All"}
-              </Button>
-            </div>
+            ) : (
+              // CRM Selection Mode
+              <>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    <span className="text-sm">
+                      {selectedContacts.size} of {contacts.length} selected
+                      {selectedContacts.size > MAX_RECIPIENTS && (
+                        <span className="text-destructive ml-2">
+                          (exceeds limit of {MAX_RECIPIENTS.toLocaleString()})
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={handleSelectAll}>
+                    {selectedContacts.size === contacts.length ? "Deselect All" : "Select All"}
+                  </Button>
+                </div>
 
-            <div className="border rounded-lg max-h-[400px] overflow-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-12">
-                      <Checkbox
-                        checked={selectedContacts.size === contacts.length && contacts.length > 0}
-                        onCheckedChange={handleSelectAll}
-                      />
-                    </TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Phone</TableHead>
-                    <TableHead>Email</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {contacts.map((contact) => (
-                    <TableRow key={contact.id}>
-                      <TableCell>
-                        <Checkbox
-                          checked={selectedContacts.has(contact.id)}
-                          onCheckedChange={() => handleContactToggle(contact.id)}
-                        />
-                      </TableCell>
-                      <TableCell>{contact.first_name} {contact.last_name}</TableCell>
-                      <TableCell>{contact.phone}</TableCell>
-                      <TableCell>{contact.email}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-
-            <div className="border-t pt-4">
-              <Label>Or Add Phone Numbers (CSV)</Label>
-              <Textarea
-                value={csvInput}
-                onChange={(e) => setCsvInput(e.target.value)}
-                placeholder="+1234567890, +0987654321&#10;or one per line"
-                rows={3}
-              />
-              <Button variant="outline" onClick={handleCsvUpload} className="mt-2">
-                <Upload className="mr-2 h-4 w-4" />
-                Parse CSV
-              </Button>
-            </div>
+                <div className="border rounded-lg max-h-[400px] overflow-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-12">
+                          <Checkbox
+                            checked={selectedContacts.size === contacts.length && contacts.length > 0}
+                            onCheckedChange={handleSelectAll}
+                          />
+                        </TableHead>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Phone</TableHead>
+                        <TableHead>Email</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {contacts.map((contact) => (
+                        <TableRow key={contact.id}>
+                          <TableCell>
+                            <Checkbox
+                              checked={selectedContacts.has(contact.id)}
+                              onCheckedChange={() => handleContactToggle(contact.id)}
+                            />
+                          </TableCell>
+                          <TableCell>{contact.first_name} {contact.last_name}</TableCell>
+                          <TableCell>{contact.phone}</TableCell>
+                          <TableCell>{contact.email}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </>
+            )}
 
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setStep(2)} className="flex-1">
@@ -494,6 +537,13 @@ export default function BulkWhatsAppSender() {
                 <span className="text-muted-foreground">Data Source:</span>
                 <span className="font-medium">{csvData ? 'CSV Upload' : 'CRM Contacts'}</span>
               </div>
+              {csvData && (
+                <div className="bg-muted p-3 rounded-lg">
+                  <p className="text-sm text-muted-foreground">
+                    ℹ️ Recipients from CSV will be used for this campaign only and will NOT be added to your CRM
+                  </p>
+                </div>
+              )}
               <div className="border-t pt-2">
                 <p className="text-sm text-muted-foreground mb-2">Message Preview:</p>
                 <div className="bg-muted p-3 rounded-lg">
