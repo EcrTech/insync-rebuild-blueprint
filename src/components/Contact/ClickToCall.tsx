@@ -289,18 +289,17 @@ export const ClickToCall = ({ contactId, phoneNumber, contactName }: ClickToCall
   return (
     <>
       <Button
-        size="sm"
-        variant="outline"
+        size="icon"
+        variant="default"
         onClick={makeCall}
         disabled={isLoading}
-        className="gap-2"
+        title="Call"
       >
         {isLoading ? (
           <Loader2 className="h-4 w-4 animate-spin" />
         ) : (
           <Phone className="h-4 w-4" />
         )}
-        Call
       </Button>
 
       <Dialog open={showDisposition} onOpenChange={setShowDisposition}>
