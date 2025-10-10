@@ -15,6 +15,43 @@ interface SendMessageRequest {
   delayMs?: number;
 }
 
+// Variable replacement function
+function replaceVariables(
+  template: string,
+  contact: any,
+  customData: any = {},
+  variableMappings: any = null,
+  phoneNumber: string
+): string {
+  let result = template;
+  
+  if (variableMappings) {
+    for (const [variable, mapping] of Object.entries(variableMappings)) {
+      const mappingObj = mapping as any;
+      let value = '';
+      if (mappingObj.source === 'crm' && contact) {
+        value = contact[mappingObj.field] || '';
+      } else if (mappingObj.source === 'csv') {
+        value = customData?.[mappingObj.field] || '';
+      } else if (mappingObj.source === 'static') {
+        value = mappingObj.value || '';
+      }
+      result = result.replace(new RegExp(variable.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), value);
+    }
+  } else {
+    // Fallback - replace numbered variables {{1}}, {{2}} with basic contact data if available
+    if (contact) {
+      result = result
+        .replace(/\{\{1\}\}/g, contact.first_name || '')
+        .replace(/\{\{2\}\}/g, contact.last_name || '')
+        .replace(/\{\{3\}\}/g, contact.company || '')
+        .replace(/\{\{4\}\}/g, phoneNumber || '');
+    }
+  }
+  
+  return result;
+}
+
 // Rate limiting check
 async function checkRateLimit(supabaseClient: any, orgId: string): Promise<boolean> {
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
@@ -172,10 +209,10 @@ Deno.serve(async (req) => {
       .update({ status: 'processing', started_at: new Date().toISOString() })
       .eq('id', campaignId);
 
-    // Get pending recipients
+    // Get pending recipients with contact data
     const { data: recipients, error: recipientsError } = await supabaseClient
       .from('whatsapp_campaign_recipients')
-      .select('*')
+      .select('*, contacts(*)')
       .eq('campaign_id', campaignId)
       .in('status', ['pending', 'retrying'])
       .order('created_at');
@@ -208,6 +245,15 @@ Deno.serve(async (req) => {
             // Format phone number
             const phoneNumber = recipient.phone_number.replace(/[^\d]/g, '');
             
+            // Replace variables in message content
+            const personalizedMessage = replaceVariables(
+              campaign.message_content,
+              recipient.contacts,
+              recipient.custom_data || {},
+              campaign.variable_mappings,
+              phoneNumber
+            );
+            
             // Prepare Gupshup payload
             const gupshupPayload = new URLSearchParams({
               channel: 'whatsapp',
@@ -215,7 +261,7 @@ Deno.serve(async (req) => {
               destination: phoneNumber,
               message: JSON.stringify({
                 type: 'text',
-                text: campaign.message_content,
+                text: personalizedMessage,
               }),
               'src.name': campaign.whatsapp_settings.app_name,
             });
