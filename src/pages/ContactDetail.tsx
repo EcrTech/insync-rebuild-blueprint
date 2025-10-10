@@ -260,13 +260,13 @@ export default function ContactDetail() {
               <div className="flex items-center justify-between">
                 <CardTitle>Activities & Notes</CardTitle>
                 <div className="flex gap-2">
-                  <Button 
-                    size="sm" 
-                    variant="outline"
-                    onClick={() => { setActivityType("call"); setIsLogActivityOpen(true); }}
-                  >
-                    <PhoneCall className="h-4 w-4" />
-                  </Button>
+                  {contact.phone && (
+                    <ClickToCall
+                      contactId={id!}
+                      phoneNumber={contact.phone}
+                      contactName={`${contact.first_name} ${contact.last_name || ''}`}
+                    />
+                  )}
                   <Button 
                     size="sm" 
                     variant="outline"
