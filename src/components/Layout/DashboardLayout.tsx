@@ -204,6 +204,15 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                 <span>AI Insights</span>
               </Link>
 
+              <Link
+                to="/documentation"
+                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
+                onClick={() => setSidebarOpen(false)}
+              >
+                <FileText size={20} />
+                <span>Documentation</span>
+              </Link>
+
               {isPlatformAdmin && (
                 <Link
                   to="/platform-admin"
