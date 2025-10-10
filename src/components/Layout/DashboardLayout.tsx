@@ -230,14 +230,6 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                 <span>Communications</span>
               </Link>
               <Link
-                to="/bulk-email"
-                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-accent/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
-                onClick={() => setSidebarOpen(false)}
-              >
-                <Send size={20} className="text-accent" />
-                <span>Bulk Email</span>
-              </Link>
-              <Link
                 to="/email-campaigns"
                 className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gradient-to-r hover:from-accent/10 hover:to-transparent transition-all duration-200 hover:shadow-md hover:translate-x-1"
                 onClick={() => setSidebarOpen(false)}
