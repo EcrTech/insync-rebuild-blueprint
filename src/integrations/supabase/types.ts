@@ -14,6 +14,54 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_call_sessions: {
+        Row: {
+          agent_id: string
+          contact_id: string | null
+          ended_at: string | null
+          exotel_call_sid: string | null
+          id: string
+          org_id: string
+          started_at: string | null
+          status: string
+        }
+        Insert: {
+          agent_id: string
+          contact_id?: string | null
+          ended_at?: string | null
+          exotel_call_sid?: string | null
+          id?: string
+          org_id: string
+          started_at?: string | null
+          status?: string
+        }
+        Update: {
+          agent_id?: string
+          contact_id?: string | null
+          ended_at?: string | null
+          exotel_call_sid?: string | null
+          id?: string
+          org_id?: string
+          started_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_call_sessions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_call_sessions_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       call_dispositions: {
         Row: {
           category: string | null
@@ -51,6 +99,126 @@ export type Database = {
             columns: ["org_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      call_logs: {
+        Row: {
+          activity_id: string | null
+          agent_id: string | null
+          answered_at: string | null
+          call_duration: number | null
+          call_type: string
+          contact_id: string | null
+          conversation_duration: number | null
+          created_at: string | null
+          direction: string
+          disposition_id: string | null
+          ended_at: string | null
+          exotel_call_sid: string
+          exotel_conversation_uuid: string | null
+          exotel_raw_data: Json | null
+          from_number: string
+          id: string
+          notes: string | null
+          org_id: string
+          recording_duration: number | null
+          recording_url: string | null
+          ring_duration: number | null
+          started_at: string | null
+          status: string
+          sub_disposition_id: string | null
+          to_number: string
+        }
+        Insert: {
+          activity_id?: string | null
+          agent_id?: string | null
+          answered_at?: string | null
+          call_duration?: number | null
+          call_type: string
+          contact_id?: string | null
+          conversation_duration?: number | null
+          created_at?: string | null
+          direction: string
+          disposition_id?: string | null
+          ended_at?: string | null
+          exotel_call_sid: string
+          exotel_conversation_uuid?: string | null
+          exotel_raw_data?: Json | null
+          from_number: string
+          id?: string
+          notes?: string | null
+          org_id: string
+          recording_duration?: number | null
+          recording_url?: string | null
+          ring_duration?: number | null
+          started_at?: string | null
+          status: string
+          sub_disposition_id?: string | null
+          to_number: string
+        }
+        Update: {
+          activity_id?: string | null
+          agent_id?: string | null
+          answered_at?: string | null
+          call_duration?: number | null
+          call_type?: string
+          contact_id?: string | null
+          conversation_duration?: number | null
+          created_at?: string | null
+          direction?: string
+          disposition_id?: string | null
+          ended_at?: string | null
+          exotel_call_sid?: string
+          exotel_conversation_uuid?: string | null
+          exotel_raw_data?: Json | null
+          from_number?: string
+          id?: string
+          notes?: string | null
+          org_id?: string
+          recording_duration?: number | null
+          recording_url?: string | null
+          ring_duration?: number | null
+          started_at?: string | null
+          status?: string
+          sub_disposition_id?: string | null
+          to_number?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_logs_activity_id_fkey"
+            columns: ["activity_id"]
+            isOneToOne: false
+            referencedRelation: "contact_activities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_logs_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_logs_disposition_id_fkey"
+            columns: ["disposition_id"]
+            isOneToOne: false
+            referencedRelation: "call_dispositions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_logs_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_logs_sub_disposition_id_fkey"
+            columns: ["sub_disposition_id"]
+            isOneToOne: false
+            referencedRelation: "call_sub_dispositions"
             referencedColumns: ["id"]
           },
         ]
@@ -1221,6 +1389,56 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exotel_settings: {
+        Row: {
+          account_sid: string
+          api_key: string
+          api_token: string
+          call_recording_enabled: boolean | null
+          caller_id: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          org_id: string
+          subdomain: string
+          updated_at: string | null
+        }
+        Insert: {
+          account_sid: string
+          api_key: string
+          api_token: string
+          call_recording_enabled?: boolean | null
+          caller_id: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          org_id: string
+          subdomain?: string
+          updated_at?: string | null
+        }
+        Update: {
+          account_sid?: string
+          api_key?: string
+          api_token?: string
+          call_recording_enabled?: boolean | null
+          caller_id?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          org_id?: string
+          subdomain?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exotel_settings_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]

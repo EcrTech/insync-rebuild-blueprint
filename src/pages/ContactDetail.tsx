@@ -21,6 +21,7 @@ import { FillFormDialog } from "@/components/Contact/FillFormDialog";
 import { SendWhatsAppDialog } from "@/components/Contact/SendWhatsAppDialog";
 import { SendEmailDialog } from "@/components/Contact/SendEmailDialog";
 import { WhatsAppHistory } from "@/components/Contact/WhatsAppHistory";
+import { ClickToCall } from "@/components/Contact/ClickToCall";
 
 interface Contact {
   id: string;

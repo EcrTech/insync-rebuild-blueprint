@@ -26,6 +26,7 @@ import Forms from "./pages/Forms";
 import Connectors from "./pages/Connectors";
 import CallingDashboard from "./pages/CallingDashboard";
 import CallLogs from "./pages/CallLogs";
+import ExotelSettings from "./pages/ExotelSettings";
 import PublicForm from "./pages/PublicForm";
 import PlatformAdmin from "./pages/PlatformAdmin";
 import WhatsAppSettings from "./pages/WhatsAppSettings";

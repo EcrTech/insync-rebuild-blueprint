@@ -13,14 +13,27 @@ import { format } from "date-fns";
 
 interface CallLog {
   id: string;
-  contact_name: string;
-  phone_number: string;
-  agent_name: string;
-  call_type: "inbound" | "outbound";
-  disposition: string;
-  duration: number;
-  timestamp: string;
-  recording_url?: string;
+  contact_id: string | null;
+  agent_id: string | null;
+  exotel_call_sid: string;
+  call_type: string;
+  from_number: string;
+  to_number: string;
+  status: string;
+  call_duration: number | null;
+  conversation_duration: number | null;
+  started_at: string | null;
+  ended_at: string | null;
+  recording_url: string | null;
+  disposition_id: string | null;
+  contacts?: {
+    first_name: string;
+    last_name: string | null;
+  };
+  call_dispositions?: {
+    name: string;
+    category: string;
+  };
 }
 
 export default function CallLogs() {
@@ -39,18 +52,40 @@ export default function CallLogs() {
     try {
       setLoading(true);
       
-      // TODO: Replace with actual API call when provided
-      // This is a placeholder structure ready for API integration
-      const mockData: CallLog[] = [
-        // Mock data will be replaced with actual API data
-      ];
-      
-      setCallLogs(mockData);
-      
-      toast({
-        title: "Info",
-        description: "Call logs API integration pending. Ready for your API endpoints.",
-      });
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('org_id')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile) return;
+
+      // Calculate date filter
+      const fromDate = new Date();
+      fromDate.setDate(fromDate.getDate() - parseInt(dateFilter));
+
+      let query = supabase
+        .from('call_logs')
+        .select(`
+          *,
+          contacts (first_name, last_name),
+          call_dispositions (name, category)
+        `)
+        .eq('org_id', profile.org_id)
+        .gte('created_at', fromDate.toISOString())
+        .order('created_at', { ascending: false });
+
+      if (callTypeFilter !== 'all') {
+        query = query.eq('call_type', callTypeFilter);
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+      setCallLogs((data || []) as CallLog[]);
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -76,10 +111,14 @@ export default function CallLogs() {
   };
 
   const filteredLogs = callLogs.filter((log) => {
+    const contactName = log.contacts 
+      ? `${log.contacts.first_name} ${log.contacts.last_name || ''}`.toLowerCase()
+      : '';
+
     const matchesSearch =
-      log.contact_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      log.phone_number.includes(searchQuery) ||
-      log.agent_name.toLowerCase().includes(searchQuery.toLowerCase());
+      contactName.includes(searchQuery.toLowerCase()) ||
+      log.from_number.includes(searchQuery) ||
+      log.to_number.includes(searchQuery);
 
     const matchesCallType =
       callTypeFilter === "all" || log.call_type === callTypeFilter;
@@ -206,19 +245,19 @@ export default function CallLogs() {
                       <TableRow key={log.id}>
                         <TableCell>
                           <div className="text-sm">
-                            {format(new Date(log.timestamp), "MMM d, yyyy")}
+                            {log.started_at && format(new Date(log.started_at), "MMM d, yyyy")}
                             <div className="text-xs text-muted-foreground">
-                              {format(new Date(log.timestamp), "h:mm a")}
+                              {log.started_at && format(new Date(log.started_at), "h:mm a")}
                             </div>
                           </div>
                         </TableCell>
                         <TableCell className="font-medium">
-                          {log.contact_name}
+                          {log.contacts ? `${log.contacts.first_name} ${log.contacts.last_name || ''}` : 'Unknown'}
                         </TableCell>
                         <TableCell className="font-mono text-sm">
-                          {log.phone_number}
+                          {log.call_type === 'outbound' ? log.to_number : log.from_number}
                         </TableCell>
-                        <TableCell>{log.agent_name}</TableCell>
+                        <TableCell>Agent</TableCell>
                         <TableCell>
                           <Badge
                             variant={
@@ -230,13 +269,37 @@ export default function CallLogs() {
                             {log.call_type}
                           </Badge>
                         </TableCell>
-                        <TableCell>{formatDuration(log.duration)}</TableCell>
                         <TableCell>
-                          <Badge variant="outline">{log.disposition}</Badge>
+                          {log.conversation_duration ? formatDuration(log.conversation_duration) : 'N/A'}
+                        </TableCell>
+                        <TableCell>
+                          {log.call_dispositions ? (
+                            <Badge variant="outline">{log.call_dispositions.name}</Badge>
+                          ) : (
+                            <Badge variant="outline" className="opacity-50">Pending</Badge>
+                          )}
                         </TableCell>
                         <TableCell>
                           {log.recording_url ? (
-                            <Button variant="ghost" size="sm">
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={async () => {
+                                try {
+                                  const { data, error } = await supabase.functions.invoke('exotel-get-recording', {
+                                    body: { callLogId: log.id }
+                                  });
+                                  if (error) throw error;
+                                  // Handle recording playback
+                                } catch (error: any) {
+                                  toast({
+                                    title: "Error",
+                                    description: "Failed to load recording",
+                                    variant: "destructive"
+                                  });
+                                }
+                              }}
+                            >
                               <Phone className="h-4 w-4" />
                             </Button>
                           ) : (
