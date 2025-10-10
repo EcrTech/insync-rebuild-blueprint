@@ -237,7 +237,7 @@ export default function ExotelSettings() {
           <CardHeader>
             <CardTitle>Webhook Configuration</CardTitle>
             <CardDescription>
-              Copy this URL and add it to your Exotel dashboard as the StatusCallback URL
+              This webhook URL is automatically included in all Exotel API calls (no configuration needed in Exotel portal)
             </CardDescription>
           </CardHeader>
           <CardContent>

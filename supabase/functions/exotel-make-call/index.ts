@@ -81,20 +81,27 @@ serve(async (req) => {
 
     const webhookUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/exotel-webhook`;
 
+    const params = new URLSearchParams({
+      From: agentPhoneNumber,
+      To: contact.phone,
+      CallerId: exotelSettings.caller_id,
+      CallType: 'trans',
+      Record: exotelSettings.call_recording_enabled ? 'true' : 'false',
+      StatusCallback: webhookUrl,
+    });
+    
+    // Add StatusCallbackEvents
+    params.append('StatusCallbackEvents[]', 'initiated');
+    params.append('StatusCallbackEvents[]', 'answered');
+    params.append('StatusCallbackEvents[]', 'completed');
+    
     const exotelResponse = await fetch(exotelUrl, {
       method: 'POST',
       headers: {
         'Authorization': `Basic ${auth}`,
         'Content-Type': 'application/x-www-form-urlencoded',
       },
-      body: new URLSearchParams({
-        From: agentPhoneNumber,
-        To: contact.phone,
-        CallerId: exotelSettings.caller_id,
-        CallType: 'trans',
-        Record: exotelSettings.call_recording_enabled ? 'true' : 'false',
-        StatusCallback: webhookUrl,
-      }),
+      body: params,
     });
 
     if (!exotelResponse.ok) {
