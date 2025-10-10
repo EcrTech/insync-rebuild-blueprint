@@ -395,6 +395,14 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                     <span>Email Settings</span>
                   </Link>
                   <Link
+                    to="/admin/exotel-settings"
+                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    <PhoneCall size={20} />
+                    <span>Exotel Settings</span>
+                  </Link>
+                  <Link
                     to="/templates"
                     className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
                     onClick={() => setSidebarOpen(false)}

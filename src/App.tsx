@@ -194,6 +194,12 @@ const App = () => (
             </ProtectedRoute>
           } />
           
+          <Route path="/admin/exotel-settings" element={
+            <ProtectedRoute requiredRole="admin">
+              <ExotelSettings />
+            </ProtectedRoute>
+          } />
+          
           <Route path="/whatsapp-settings" element={
             <ProtectedRoute requiredRole="admin">
               <WhatsAppSettings />
