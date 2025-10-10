@@ -7,8 +7,6 @@ import { Phone, Clock, TrendingUp, Users, PhoneCall, CheckCircle, XCircle, Activ
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 
 interface AgentStats {
   agent_id: string;
@@ -56,7 +54,6 @@ export default function CallingDashboard() {
   const [selectedUser, setSelectedUser] = useState<string>("all");
   const [users, setUsers] = useState<User[]>([]);
   const [teamMemberIds, setTeamMemberIds] = useState<string[]>([]);
-  const [useCallLogs, setUseCallLogs] = useState(true);
   const [activeCallsCount, setActiveCallsCount] = useState(0);
   const { toast } = useToast();
 
@@ -75,7 +72,7 @@ export default function CallingDashboard() {
   useEffect(() => {
     fetchDashboardData();
     fetchActiveCalls();
-  }, [timeRange, selectedUser, teamMemberIds, useCallLogs]);
+  }, [timeRange, selectedUser, teamMemberIds]);
 
   const fetchActiveCalls = async () => {
     try {
@@ -178,56 +175,31 @@ export default function CallingDashboard() {
       const daysAgo = new Date();
       daysAgo.setDate(daysAgo.getDate() - parseInt(timeRange));
 
-      let activities: any[] = [];
+      // Fetch from call_logs table
+      let callLogsQuery = supabase
+        .from("call_logs")
+        .select(`
+          *,
+          profiles!call_logs_agent_id_fkey(id, first_name, last_name),
+          call_dispositions(name, category)
+        `)
+        .eq("org_id", profile.org_id)
+        .gte("created_at", daysAgo.toISOString())
+        .not("conversation_duration", "is", null);
 
-      if (useCallLogs) {
-        // Fetch from call_logs table
-        let callLogsQuery = supabase
-          .from("call_logs")
-          .select(`
-            *,
-            profiles!call_logs_agent_id_fkey(id, first_name, last_name),
-            call_dispositions(name, category)
-          `)
-          .eq("org_id", profile.org_id)
-          .gte("created_at", daysAgo.toISOString())
-          .not("conversation_duration", "is", null);
-
-        if (selectedUser !== "all" && teamMemberIds.length > 0) {
-          callLogsQuery = callLogsQuery.in("agent_id", teamMemberIds);
-        }
-
-        const { data: callLogs, error: callLogsError } = await callLogsQuery;
-        if (callLogsError) throw callLogsError;
-
-        // Transform call_logs to activities format
-        activities = callLogs?.map(log => ({
-          ...log,
-          created_by: log.agent_id,
-          call_duration: log.conversation_duration,
-        })) || [];
-      } else {
-        // Fetch from contact_activities table
-        let activitiesQuery = supabase
-          .from("contact_activities")
-          .select(`
-            *,
-            profiles!contact_activities_created_by_fkey(id, first_name, last_name),
-            call_dispositions(name, category)
-          `)
-          .eq("org_id", profile.org_id)
-          .eq("activity_type", "call")
-          .gte("created_at", daysAgo.toISOString())
-          .not("call_duration", "is", null);
-
-        if (selectedUser !== "all" && teamMemberIds.length > 0) {
-          activitiesQuery = activitiesQuery.in("created_by", teamMemberIds);
-        }
-
-        const { data: activitiesData, error: activitiesError } = await activitiesQuery;
-        if (activitiesError) throw activitiesError;
-        activities = activitiesData || [];
+      if (selectedUser !== "all" && teamMemberIds.length > 0) {
+        callLogsQuery = callLogsQuery.in("agent_id", teamMemberIds);
       }
+
+      const { data: callLogs, error: callLogsError } = await callLogsQuery;
+      if (callLogsError) throw callLogsError;
+
+      // Transform call_logs to activities format
+      const activities = callLogs?.map(log => ({
+        ...log,
+        created_by: log.agent_id,
+        call_duration: log.conversation_duration,
+      })) || [];
 
       // Calculate overall stats
       const totalCalls = activities?.length || 0;
@@ -255,7 +227,7 @@ export default function CallingDashboard() {
       // Calculate agent statistics
       const agentMap = new Map<string, AgentStats>();
       
-      activities?.forEach(activity => {
+      activities?.forEach((activity: any) => {
         if (!activity.created_by || !activity.profiles) return;
         
         const agentId = activity.created_by;
@@ -303,7 +275,7 @@ export default function CallingDashboard() {
       // Calculate disposition statistics
       const dispositionMap = new Map<string, DispositionStats>();
       
-      activities?.forEach(activity => {
+      activities?.forEach((activity: any) => {
         if (!activity.call_dispositions) return;
         
         const dispositionName = activity.call_dispositions.name;
@@ -365,15 +337,9 @@ export default function CallingDashboard() {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-3xl font-bold">Calling Dashboard</h1>
-            <p className="text-muted-foreground">Monitor and assess agent call performance</p>
+            <p className="text-muted-foreground">Monitor real-time Exotel call performance and analytics</p>
           </div>
           <div className="flex flex-col sm:flex-row gap-3 items-center">
-            <div className="flex items-center gap-2">
-              <Switch id="data-source" checked={useCallLogs} onCheckedChange={setUseCallLogs} />
-              <Label htmlFor="data-source" className="text-sm">
-                {useCallLogs ? "Exotel Logs" : "Manual Logs"}
-              </Label>
-            </div>
             <Select value={selectedUser} onValueChange={setSelectedUser}>
               <SelectTrigger className="w-48">
                 <SelectValue placeholder="All Users" />
