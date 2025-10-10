@@ -69,7 +69,7 @@ export default function TemplateBuilder() {
         type,
         text: "",
         ...(type === "URL" && { url: "" }),
-        ...(type === "PHONE_NUMBER" && { phone_number: "" }),
+        ...(type === "PHONE_NUMBER" && { phone_number: "+1" }),
       },
     ]);
   };
@@ -527,12 +527,13 @@ export default function TemplateBuilder() {
                           <Select 
                             value={btn.phone_number?.match(/^\+\d+/)?.[0] || "+1"}
                             onValueChange={(code) => {
-                              const number = btn.phone_number?.replace(/^\+\d+/, '') || '';
+                              const currentNumber = btn.phone_number || '+1';
+                              const number = currentNumber.replace(/^\+\d+/, '');
                               updateButton(idx, 'phone_number', code + number);
                             }}
                           >
                             <SelectTrigger className="w-32">
-                              <SelectValue />
+                              <SelectValue placeholder="Code" />
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="+1">🇺🇸 +1</SelectItem>
@@ -549,10 +550,13 @@ export default function TemplateBuilder() {
                           </Select>
                           <Input
                             placeholder="1234567890"
-                            value={btn.phone_number?.replace(/^\+\d+/, '') || ""}
+                            type="tel"
+                            value={(btn.phone_number || '+1').replace(/^\+\d+/, '')}
                             onChange={(e) => {
-                              const code = btn.phone_number?.match(/^\+\d+/)?.[0] || "+1";
-                              updateButton(idx, 'phone_number', code + e.target.value);
+                              const currentNumber = btn.phone_number || '+1';
+                              const code = currentNumber.match(/^\+\d+/)?.[0] || "+1";
+                              const cleanedValue = e.target.value.replace(/\D/g, '');
+                              updateButton(idx, 'phone_number', code + cleanedValue);
                             }}
                             className="flex-1"
                           />
