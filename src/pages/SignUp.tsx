@@ -96,6 +96,7 @@ export default function SignUp() {
     }
 
     setLoading(true);
+    let createdUserId: string | null = null;
 
     try {
       if (inviteData) {
@@ -130,7 +131,28 @@ export default function SignUp() {
           description: `Welcome to ${inviteData.organizations.name}`,
         });
       } else {
-        // Create new organization (original flow)
+        // Create new organization (original flow with improved error handling)
+        
+        // Step 1: Check if slug already exists and generate unique one
+        console.log("Checking slug uniqueness for:", formData.organizationSlug);
+        const { data: uniqueSlug, error: slugError } = await supabase
+          .rpc("generate_unique_slug", { base_slug: formData.organizationSlug });
+
+        if (slugError) {
+          console.error("Slug generation error:", slugError);
+          throw new Error("Failed to generate organization URL");
+        }
+
+        if (uniqueSlug !== formData.organizationSlug) {
+          console.log("Slug was taken, using unique slug:", uniqueSlug);
+          toast({
+            title: "Organization URL adjusted",
+            description: `Using "${uniqueSlug}" as your organization URL was already taken`,
+          });
+        }
+
+        // Step 2: Create auth user
+        console.log("Creating auth user...");
         const { data: authData, error: authError } = await supabase.auth.signUp({
           email: formData.email,
           password: formData.password,
@@ -143,30 +165,56 @@ export default function SignUp() {
           },
         });
 
-        if (authError) throw authError;
-        if (!authData.user) throw new Error("No user returned");
+        if (authError) {
+          console.error("Auth error:", authError);
+          throw new Error(`Failed to create account: ${authError.message}`);
+        }
+        if (!authData.user) throw new Error("No user returned from signup");
 
-        // Create organization
+        createdUserId = authData.user.id;
+        console.log("Auth user created successfully:", createdUserId);
+
+        // Step 3: Create organization
+        console.log("Creating organization with slug:", uniqueSlug);
         const { data: orgData, error: orgError } = await supabase
           .from("organizations")
           .insert({
             name: formData.organizationName,
-            slug: formData.organizationSlug,
+            slug: uniqueSlug,
           })
           .select()
           .single();
 
-        if (orgError) throw orgError;
+        if (orgError) {
+          console.error("Organization creation error:", orgError);
+          
+          // Cleanup: Delete the auth user we just created
+          console.log("Cleaning up orphaned user account...");
+          await supabase.rpc("cleanup_orphaned_profile", { user_id: createdUserId });
+          
+          // Show user-friendly error
+          if (orgError.code === "23505") { // Unique constraint violation
+            throw new Error("Organization name or URL is already taken. Please try a different name.");
+          }
+          throw new Error(`Failed to create organization: ${orgError.message}`);
+        }
 
-        // Update profile with org_id
+        console.log("Organization created successfully:", orgData.id);
+
+        // Step 4: Update profile with org_id
+        console.log("Updating profile with org_id...");
         const { error: profileError } = await supabase
           .from("profiles")
           .update({ org_id: orgData.id })
           .eq("id", authData.user.id);
 
-        if (profileError) throw profileError;
+        if (profileError) {
+          console.error("Profile update error:", profileError);
+          throw new Error(`Failed to link account to organization: ${profileError.message}`);
+        }
 
-        // Assign admin role
+        // Step 5: Assign admin role
+        console.log("Assigning admin role...");
         const { error: roleError } = await supabase
           .from("user_roles")
           .insert({
@@ -175,12 +223,26 @@ export default function SignUp() {
             role: "admin",
           });
 
-        if (roleError) throw roleError;
+        if (roleError) {
+          console.error("Role assignment error:", roleError);
+          throw new Error(`Failed to assign admin role: ${roleError.message}`);
+        }
 
-        // Create default pipeline stages and dispositions
-        await supabase.rpc("create_default_pipeline_stages", { _org_id: orgData.id });
-        await supabase.rpc("create_default_call_dispositions", { _org_id: orgData.id });
+        // Step 6: Create default pipeline stages and dispositions
+        console.log("Creating default data...");
+        const [pipelineResult, dispositionsResult] = await Promise.allSettled([
+          supabase.rpc("create_default_pipeline_stages", { _org_id: orgData.id }),
+          supabase.rpc("create_default_call_dispositions", { _org_id: orgData.id })
+        ]);
 
+        if (pipelineResult.status === "rejected") {
+          console.error("Failed to create default pipeline stages:", pipelineResult.reason);
+        }
+        if (dispositionsResult.status === "rejected") {
+          console.error("Failed to create default dispositions:", dispositionsResult.reason);
+        }
+
+        console.log("Signup completed successfully!");
         toast({
           title: "Account created!",
           description: "Welcome to In-Sync",
@@ -189,10 +251,12 @@ export default function SignUp() {
 
       navigate("/dashboard");
     } catch (error: any) {
+      console.error("Signup error:", error);
+      
       toast({
         variant: "destructive",
         title: "Sign up failed",
-        description: error.message,
+        description: error.message || "An unexpected error occurred. Please try again.",
       });
     } finally {
       setLoading(false);

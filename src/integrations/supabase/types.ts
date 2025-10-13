@@ -2317,6 +2317,10 @@ export type Database = {
         Args: { _form_id: string; _limit: number }
         Returns: boolean
       }
+      cleanup_orphaned_profile: {
+        Args: { user_id: string }
+        Returns: undefined
+      }
       create_default_call_dispositions: {
         Args: { _org_id: string }
         Returns: undefined
@@ -2337,9 +2341,23 @@ export type Database = {
         }
         Returns: boolean
       }
+      generate_unique_slug: {
+        Args: { base_slug: string }
+        Returns: string
+      }
       generate_webhook_token: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      get_orphaned_profiles: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          created_at: string
+          email: string
+          first_name: string
+          last_name: string
+          user_id: string
+        }[]
       }
       get_reporting_chain: {
         Args: { p_designation_id: string }

@@ -77,6 +77,14 @@ interface OrgStats {
   emailVolume: number;
 }
 
+interface OrphanedProfile {
+  user_id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  created_at: string;
+}
+
 export default function PlatformAdmin() {
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [stats, setStats] = useState<OrgStats>({
@@ -99,12 +107,15 @@ export default function PlatformAdmin() {
   const [totalPages, setTotalPages] = useState(1);
   const pageSize = 20;
   const [showErrorLogs, setShowErrorLogs] = useState(false);
+  const [orphanedProfiles, setOrphanedProfiles] = useState<OrphanedProfile[]>([]);
+  const [loadingOrphaned, setLoadingOrphaned] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
     checkPlatformAdmin();
     fetchErrorLogs();
+    fetchOrphanedProfiles();
   }, []);
 
   const checkPlatformAdmin = async () => {
@@ -417,6 +428,45 @@ export default function PlatformAdmin() {
     }
   };
 
+  const fetchOrphanedProfiles = async () => {
+    try {
+      setLoadingOrphaned(true);
+      const { data, error } = await supabase.rpc("get_orphaned_profiles");
+      
+      if (error) throw error;
+      setOrphanedProfiles(data || []);
+    } catch (error: any) {
+      console.error("Error fetching orphaned profiles:", error);
+    } finally {
+      setLoadingOrphaned(false);
+    }
+  };
+
+  const cleanupOrphanedProfile = async (userId: string, userName: string) => {
+    if (!confirm(`Are you sure you want to delete the orphaned account for ${userName}? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase.rpc("cleanup_orphaned_profile", { user_id: userId });
+      
+      if (error) throw error;
+
+      toast({
+        title: "Account deleted",
+        description: `Orphaned account for ${userName} has been removed`,
+      });
+
+      fetchOrphanedProfiles();
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message,
+      });
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -426,8 +476,14 @@ export default function PlatformAdmin() {
         </div>
 
         <Tabs defaultValue="overview" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="orphaned-users">
+              Orphaned Users
+              {orphanedProfiles.length > 0 && (
+                <Badge variant="destructive" className="ml-2">{orphanedProfiles.length}</Badge>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="feature-access">Feature Access</TabsTrigger>
             <TabsTrigger value="permissions">Permissions</TabsTrigger>
             <TabsTrigger value="error-logs">Error Logs</TabsTrigger>
@@ -627,6 +683,66 @@ export default function PlatformAdmin() {
             )}
           </CardContent>
          </Card>
+           </TabsContent>
+
+          <TabsContent value="orphaned-users" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-destructive" />
+                  <CardTitle>Orphaned User Accounts</CardTitle>
+                </div>
+                <CardDescription>
+                  These accounts were created but don't have an associated organization. 
+                  This usually happens when organization creation fails during signup.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {loadingOrphaned ? (
+                  <div className="text-center py-8 text-muted-foreground">Loading...</div>
+                ) : orphanedProfiles.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No orphaned accounts found. All users are properly linked to organizations.
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Created</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {orphanedProfiles.map((profile) => (
+                        <TableRow key={profile.user_id}>
+                          <TableCell className="font-medium">
+                            {profile.first_name} {profile.last_name}
+                          </TableCell>
+                          <TableCell>{profile.email}</TableCell>
+                          <TableCell>
+                            {new Date(profile.created_at).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => cleanupOrphanedProfile(
+                                profile.user_id,
+                                `${profile.first_name} ${profile.last_name}`
+                              )}
+                            >
+                              Delete Account
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="feature-access" className="space-y-4">
