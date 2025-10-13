@@ -182,25 +182,25 @@ export function ImportProgressCard({ job, onCancel }: ImportProgressCardProps) {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Badge variant={job.status === 'completed' ? 'default' : 'secondary'}>
-                {job.status}
-              </Badge>
-              {(job.status === 'pending' || job.status === 'processing') && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleCancelClick}
-                  disabled={isCancelling}
-                >
-                  {isCancelling ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    'Cancel'
-                  )}
-                </Button>
-              )}
-            </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <Badge variant={job.status === 'completed' ? 'default' : 'secondary'}>
+              {job.status}
+            </Badge>
+            {['pending', 'processing'].includes(job.status) && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCancelClick}
+                disabled={isCancelling}
+              >
+                {isCancelling ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  'Cancel'
+                )}
+              </Button>
+            )}
+          </div>
           </div>
 
         {job.total_rows > 0 && (
