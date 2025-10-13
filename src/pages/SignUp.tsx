@@ -157,7 +157,7 @@ export default function SignUp() {
         console.log("Auth user created successfully:", createdUserId);
 
         // Wait for profile trigger to complete
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, 3000));
 
         // Step 2: Create organization and all related data using secure function
         console.log("Creating organization:", formData.organizationName);
