@@ -2329,6 +2329,10 @@ export type Database = {
         Args: { _org_id: string }
         Returns: undefined
       }
+      create_organization_for_user: {
+        Args: { p_org_name: string; p_org_slug: string; p_user_id: string }
+        Returns: string
+      }
       delete_user_data: {
         Args: { user_email: string }
         Returns: undefined
