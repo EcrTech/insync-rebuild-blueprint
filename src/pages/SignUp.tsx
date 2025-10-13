@@ -156,6 +156,9 @@ export default function SignUp() {
         createdUserId = authData.user.id;
         console.log("Auth user created successfully:", createdUserId);
 
+        // Wait for profile trigger to complete
+        await new Promise(resolve => setTimeout(resolve, 500));
+
         // Step 2: Create organization and all related data using secure function
         console.log("Creating organization:", formData.organizationName);
         const { data: orgId, error: orgError } = await supabase.rpc(
