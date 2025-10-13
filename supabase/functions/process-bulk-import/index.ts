@@ -176,6 +176,32 @@ serve(async (req) => {
       const line = lines[i].trim();
       if (!line) continue;
 
+      // Check if job was cancelled every 100 rows
+      if (i % 100 === 0) {
+        const { data: jobCheck } = await supabase
+          .from('import_jobs')
+          .select('status')
+          .eq('id', importJobId)
+          .single();
+        
+        if (jobCheck?.status === 'cancelled') {
+          console.log('[CANCELLED] Import job was cancelled by user');
+          await updateJobStage(supabase, importJobId, 'cancelled', {
+            message: 'Import cancelled by user',
+            processed_at_cancellation: i - 1
+          });
+          return new Response(JSON.stringify({
+            success: false,
+            message: 'Import cancelled by user',
+            processed: successCount,
+            errors: errorCount
+          }), {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+      }
+
       try {
         const values = parseCSVLine(line);
         const row: any = {};

@@ -33,6 +33,7 @@ interface ImportJob {
   created_at: string;
   started_at: string;
   completed_at: string;
+  import_type: string;
 }
 
 export function BulkImportUploader({
@@ -302,7 +303,10 @@ export function BulkImportUploader({
       </Card>
 
       {activeJob && (
-        <ImportProgressCard job={activeJob} />
+        <ImportProgressCard 
+          job={activeJob} 
+          onCancel={loadImportJobs}
+        />
       )}
 
       {importJobs.length > 0 && (
