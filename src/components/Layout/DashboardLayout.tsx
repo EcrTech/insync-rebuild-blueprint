@@ -34,6 +34,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { PlatformAdminBanner } from "@/components/PlatformAdminBanner";
 import { OnboardingDialog } from "@/components/Onboarding/OnboardingDialog";
+import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -49,6 +50,7 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
   const [isPlatformAdmin, setIsPlatformAdmin] = useState<boolean>(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingChecked, setOnboardingChecked] = useState(false);
+  const { canAccessFeature, loading: featureAccessLoading } = useFeatureAccess();
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -111,6 +113,20 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
   };
 
   const isAdmin = userRole === "admin" || userRole === "super_admin";
+  const isManager = userRole === "admin" || userRole === "super_admin" || userRole === "sales_manager" || userRole === "support_manager";
+
+  // Check if sections should be visible
+  const showDashboardsSection = canAccessFeature("analytics") || canAccessFeature("calling") || 
+    canAccessFeature("campaigns_email") || canAccessFeature("campaigns_whatsapp") || canAccessFeature("ai_insights");
+  
+  const showOperationsSection = canAccessFeature("campaigns_email") || canAccessFeature("contacts") || 
+    canAccessFeature("pipeline") || canAccessFeature("calling");
+  
+  const showAdminCommunicationSection = isAdmin && (canAccessFeature("campaigns_whatsapp") || 
+    canAccessFeature("calling") || canAccessFeature("templates"));
+  
+  const showAdminMainSection = isAdmin && (canAccessFeature("pipeline") || canAccessFeature("calling") || 
+    canAccessFeature("designations") || canAccessFeature("custom_fields") || canAccessFeature("forms"));
 
   return (
     <div className="min-h-screen bg-background">
@@ -154,11 +170,14 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
             {/* Navigation */}
             <nav className="flex-1 p-4 space-y-2">
               {/* Dashboards & Reports Section */}
-              <div className="pb-2 section-accent-teal pl-4">
-                <p className="px-4 text-xs font-semibold uppercase tracking-wider gradient-text-primary">
-                  Dashboards & Reports
-                </p>
-              </div>
+              {showDashboardsSection && (
+                <div className="pb-2 section-accent-teal pl-4">
+                  <p className="px-4 text-xs font-semibold uppercase tracking-wider gradient-text-primary">
+                    Dashboards & Reports
+                  </p>
+                </div>
+              )}
+              
               <Link
                 to="/dashboard"
                 className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
@@ -168,41 +187,49 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                 <span>Dashboard</span>
               </Link>
 
-              <Link
-                to="/reports"
-                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-                onClick={() => setSidebarOpen(false)}
-              >
-                <BarChart3 size={20} />
-                <span>Reports</span>
-              </Link>
+              {canAccessFeature("analytics") && (
+                <Link
+                  to="/reports"
+                  className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  <BarChart3 size={20} />
+                  <span>Reports</span>
+                </Link>
+              )}
 
-              <Link
-                to="/calling-dashboard"
-                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-                onClick={() => setSidebarOpen(false)}
-              >
-                <PhoneCall size={20} />
-                <span>Calling Dashboard</span>
-              </Link>
+              {canAccessFeature("calling") && (
+                <Link
+                  to="/calling-dashboard"
+                  className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  <PhoneCall size={20} />
+                  <span>Calling Dashboard</span>
+                </Link>
+              )}
 
-              <Link
-                to="/campaigns/overview"
-                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-                onClick={() => setSidebarOpen(false)}
-              >
-                <TrendingUp size={20} />
-                <span>Campaign Overview</span>
-              </Link>
+              {(canAccessFeature("campaigns_email") || canAccessFeature("campaigns_whatsapp")) && (
+                <Link
+                  to="/campaigns/overview"
+                  className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  <TrendingUp size={20} />
+                  <span>Campaign Overview</span>
+                </Link>
+              )}
 
-              <Link
-                to="/campaigns/insights"
-                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-                onClick={() => setSidebarOpen(false)}
-              >
-                <Lightbulb size={20} />
-                <span>AI Insights</span>
-              </Link>
+              {canAccessFeature("ai_insights") && (
+                <Link
+                  to="/campaigns/insights"
+                  className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  <Lightbulb size={20} />
+                  <span>AI Insights</span>
+                </Link>
+              )}
 
               <Link
                 to="/documentation"
@@ -225,11 +252,14 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
               )}
 
               {/* Operations Section */}
-              <div className="pt-4 pb-2 section-accent-coral pl-4">
-                <p className="px-4 text-xs font-semibold uppercase tracking-wider gradient-text-accent">
-                  Operations
-                </p>
-              </div>
+              {showOperationsSection && (
+                <div className="pt-4 pb-2 section-accent-coral pl-4">
+                  <p className="px-4 text-xs font-semibold uppercase tracking-wider gradient-text-accent">
+                    Operations
+                  </p>
+                </div>
+              )}
+              
               <Link
                 to="/communications"
                 className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
@@ -238,40 +268,50 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                 <MessageSquare size={20} />
                 <span>Communications</span>
               </Link>
-              <Link
-                to="/email-campaigns"
-                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-                onClick={() => setSidebarOpen(false)}
-              >
-                <Mail size={20} />
-                <span>Email Campaigns</span>
-              </Link>
-              <Link
-                to="/contacts"
-                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-                onClick={() => setSidebarOpen(false)}
-              >
-                <Contact size={20} />
-                <span>Contacts</span>
-              </Link>
+              
+              {canAccessFeature("campaigns_email") && (
+                <Link
+                  to="/email-campaigns"
+                  className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  <Mail size={20} />
+                  <span>Email Campaigns</span>
+                </Link>
+              )}
+              
+              {canAccessFeature("contacts") && (
+                <Link
+                  to="/contacts"
+                  className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  <Contact size={20} />
+                  <span>Contacts</span>
+                </Link>
+              )}
 
-              <Link
-                to="/pipeline"
-                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-                onClick={() => setSidebarOpen(false)}
-              >
-                <GitBranch size={20} />
-                <span>Pipeline</span>
-              </Link>
+              {canAccessFeature("pipeline") && (
+                <Link
+                  to="/pipeline"
+                  className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  <GitBranch size={20} />
+                  <span>Pipeline</span>
+                </Link>
+              )}
 
-              <Link
-                to="/call-logs"
-                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-                onClick={() => setSidebarOpen(false)}
-              >
-                <List size={20} />
-                <span>Call Logs</span>
-              </Link>
+              {canAccessFeature("calling") && (
+                <Link
+                  to="/call-logs"
+                  className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  <List size={20} />
+                  <span>Call Logs</span>
+                </Link>
+              )}
 
               <Link
                 to="/org-chart"
@@ -282,7 +322,7 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                 <span>Org Chart</span>
               </Link>
 
-              {(userRole === "admin" || userRole === "super_admin" || userRole === "sales_manager" || userRole === "support_manager") && (
+              {isManager && (
                 <>
                   <div className="pt-4 pb-2 section-accent-purple pl-4">
                     <p className="px-4 text-xs font-semibold uppercase tracking-wider gradient-text-accent">
@@ -297,25 +337,30 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                     <UserCog size={20} />
                     <span>Users</span>
                   </Link>
-                  <Link
-                    to="/teams"
-                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-                    onClick={() => setSidebarOpen(false)}
-                  >
-                    <UsersRound size={20} />
-                    <span>Teams</span>
-                  </Link>
+                  {canAccessFeature("teams") && (
+                    <Link
+                      to="/teams"
+                      className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
+                      onClick={() => setSidebarOpen(false)}
+                    >
+                      <UsersRound size={20} />
+                      <span>Teams</span>
+                    </Link>
+                  )}
                 </>
               )}
 
 
               {isAdmin && (
                 <>
-                  <div className="pt-4 pb-2 section-accent-teal pl-4">
-                    <p className="px-4 text-xs font-semibold uppercase tracking-wider gradient-text-accent">
-                      Admin
-                    </p>
-                  </div>
+                  {showAdminMainSection && (
+                    <div className="pt-4 pb-2 section-accent-teal pl-4">
+                      <p className="px-4 text-xs font-semibold uppercase tracking-wider gradient-text-accent">
+                        Admin
+                      </p>
+                    </div>
+                  )}
+                  
                   <Link
                     to="/admin"
                     className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
@@ -324,22 +369,29 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                     <Building2 size={20} />
                     <span>Organization Settings</span>
                   </Link>
-                  <Link
-                    to="/admin/pipeline-stages"
-                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-                    onClick={() => setSidebarOpen(false)}
-                  >
-                    <Layers size={20} />
-                    <span>Pipeline Stages</span>
-                  </Link>
-                  <Link
-                    to="/admin/call-dispositions"
-                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-                    onClick={() => setSidebarOpen(false)}
-                  >
-                    <PhoneCall size={20} />
-                    <span>Call Dispositions</span>
-                  </Link>
+                  
+                  {canAccessFeature("pipeline") && (
+                    <Link
+                      to="/admin/pipeline-stages"
+                      className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
+                      onClick={() => setSidebarOpen(false)}
+                    >
+                      <Layers size={20} />
+                      <span>Pipeline Stages</span>
+                    </Link>
+                  )}
+                  
+                  {canAccessFeature("calling") && (
+                    <Link
+                      to="/admin/call-dispositions"
+                      className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
+                      onClick={() => setSidebarOpen(false)}
+                    >
+                      <PhoneCall size={20} />
+                      <span>Call Dispositions</span>
+                    </Link>
+                  )}
+                  
                   <Link
                     to="/admin/approval-matrix"
                     className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
@@ -348,44 +400,59 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                     <CheckSquare size={20} />
                     <span>Approval Matrix</span>
                   </Link>
-                  <Link
-                    to="/admin/designations"
-                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-                    onClick={() => setSidebarOpen(false)}
-                  >
-                    <Award size={20} />
-                    <span>Designations</span>
-                  </Link>
-                  <Link
-                    to="/admin/custom-fields"
-                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-                    onClick={() => setSidebarOpen(false)}
-                  >
-                    <Sliders size={20} />
-                    <span>Custom Fields</span>
-                  </Link>
-                  <Link
-                    to="/admin/forms"
-                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-                    onClick={() => setSidebarOpen(false)}
-                  >
-                    <FileText size={20} />
-                    <span>Forms</span>
-                  </Link>
                   
-                  <div className="pt-4 pb-2 section-accent-accent pl-4">
-                    <p className="px-4 text-xs font-semibold uppercase tracking-wider gradient-text-accent">
-                      Communication
-                    </p>
-                  </div>
-                  <Link
-                    to="/admin/whatsapp-settings"
-                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-                    onClick={() => setSidebarOpen(false)}
-                  >
-                    <MessageSquare size={20} />
-                    <span>WhatsApp Settings</span>
-                  </Link>
+                  {canAccessFeature("designations") && (
+                    <Link
+                      to="/admin/designations"
+                      className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
+                      onClick={() => setSidebarOpen(false)}
+                    >
+                      <Award size={20} />
+                      <span>Designations</span>
+                    </Link>
+                  )}
+                  
+                  {canAccessFeature("custom_fields") && (
+                    <Link
+                      to="/admin/custom-fields"
+                      className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
+                      onClick={() => setSidebarOpen(false)}
+                    >
+                      <Sliders size={20} />
+                      <span>Custom Fields</span>
+                    </Link>
+                  )}
+                  
+                  {canAccessFeature("forms") && (
+                    <Link
+                      to="/admin/forms"
+                      className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
+                      onClick={() => setSidebarOpen(false)}
+                    >
+                      <FileText size={20} />
+                      <span>Forms</span>
+                    </Link>
+                  )}
+                  
+                  {showAdminCommunicationSection && (
+                    <div className="pt-4 pb-2 section-accent-accent pl-4">
+                      <p className="px-4 text-xs font-semibold uppercase tracking-wider gradient-text-accent">
+                        Communication
+                      </p>
+                    </div>
+                  )}
+                  
+                  {canAccessFeature("campaigns_whatsapp") && (
+                    <Link
+                      to="/admin/whatsapp-settings"
+                      className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
+                      onClick={() => setSidebarOpen(false)}
+                    >
+                      <MessageSquare size={20} />
+                      <span>WhatsApp Settings</span>
+                    </Link>
+                  )}
+                  
                   <Link
                     to="/admin/email-settings"
                     className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
@@ -394,30 +461,39 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                     <Mail size={20} />
                     <span>Email Settings</span>
                   </Link>
-                  <Link
-                    to="/admin/exotel-settings"
-                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-                    onClick={() => setSidebarOpen(false)}
-                  >
-                    <PhoneCall size={20} />
-                    <span>Exotel Settings</span>
-                  </Link>
-                  <Link
-                    to="/templates"
-                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-                    onClick={() => setSidebarOpen(false)}
-                  >
-                    <FileText size={20} />
-                    <span>Templates</span>
-                  </Link>
-                  <Link
-                    to="/whatsapp-messages"
-                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-                    onClick={() => setSidebarOpen(false)}
-                  >
-                    <MessageSquare size={20} />
-                    <span>Message History</span>
-                  </Link>
+                  
+                  {canAccessFeature("calling") && (
+                    <Link
+                      to="/admin/exotel-settings"
+                      className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
+                      onClick={() => setSidebarOpen(false)}
+                    >
+                      <PhoneCall size={20} />
+                      <span>Exotel Settings</span>
+                    </Link>
+                  )}
+                  
+                  {canAccessFeature("templates") && (
+                    <Link
+                      to="/templates"
+                      className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
+                      onClick={() => setSidebarOpen(false)}
+                    >
+                      <FileText size={20} />
+                      <span>Templates</span>
+                    </Link>
+                  )}
+                  
+                  {canAccessFeature("campaigns_whatsapp") && (
+                    <Link
+                      to="/whatsapp-messages"
+                      className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
+                      onClick={() => setSidebarOpen(false)}
+                    >
+                      <MessageSquare size={20} />
+                      <span>Message History</span>
+                    </Link>
+                  )}
                   
                   <div className="pt-4 pb-2 section-accent-purple pl-4">
                     <p className="px-4 text-xs font-semibold uppercase tracking-wider gradient-text-accent">
