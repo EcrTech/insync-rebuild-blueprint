@@ -9,9 +9,9 @@ import { ImportHistoryTable } from "./ImportHistoryTable";
 import { useOrgContext } from "@/hooks/useOrgContext";
 
 interface BulkImportUploaderProps {
-  importType: 'contacts' | 'email_recipients' | 'whatsapp_recipients';
+  importType: 'contacts' | 'email_recipients' | 'whatsapp_recipients' | 'redefine_repository';
   targetId?: string;
-  identifierType: 'email' | 'phone';
+  identifierType?: 'email' | 'phone';
   requiredColumns: string[];
   optionalColumns?: string[];
   maxRows?: number;

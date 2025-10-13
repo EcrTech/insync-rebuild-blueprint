@@ -45,6 +45,7 @@ import EmailCampaignDetail from "./pages/EmailCampaignDetail";
 import CampaignOverview from "./pages/Campaigns/CampaignOverview";
 import AIInsightsDashboard from "./pages/Campaigns/AIInsightsDashboard";
 import Documentation from "./pages/Documentation";
+import RedefineDataRepository from "./pages/RedefineDataRepository";
 import ProtectedRoute from "./components/Auth/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -287,6 +288,12 @@ const App = () => (
           <Route path="/documentation" element={
             <ProtectedRoute>
               <Documentation />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/redefine-repository" element={
+            <ProtectedRoute>
+              <RedefineDataRepository />
             </ProtectedRoute>
           } />
           

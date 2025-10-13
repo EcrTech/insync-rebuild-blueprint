@@ -30,6 +30,7 @@ import {
   MessageSquare,
   Mail,
   Send,
+  Database,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { PlatformAdminBanner } from "@/components/PlatformAdminBanner";
@@ -239,6 +240,17 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                 <FileText size={20} />
                 <span>Documentation</span>
               </Link>
+
+              {canAccessFeature("redefine_data_repository") && (
+                <Link
+                  to="/redefine-repository"
+                  className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  <Database size={20} />
+                  <span>Data Repository</span>
+                </Link>
+              )}
 
               {isPlatformAdmin && (
                 <Link

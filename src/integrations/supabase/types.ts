@@ -1958,6 +1958,151 @@ export type Database = {
         }
         Relationships: []
       }
+      redefine_data_repository: {
+        Row: {
+          address: string | null
+          city: string | null
+          company_name: string | null
+          created_at: string | null
+          created_by: string | null
+          department: string | null
+          designation: string | null
+          employee_size: string | null
+          erp_name: string | null
+          erp_vendor: string | null
+          generic_email: string | null
+          id: string
+          industry_type: string | null
+          job_level: string | null
+          linkedin_url: string | null
+          location: string | null
+          mobile_2: string | null
+          mobile_number: string | null
+          name: string
+          official_email: string | null
+          org_id: string
+          personal_email: string | null
+          pincode: string | null
+          state: string | null
+          sub_industry: string | null
+          tier: string | null
+          turnover: string | null
+          updated_at: string | null
+          website: string | null
+          zone: string | null
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          company_name?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          department?: string | null
+          designation?: string | null
+          employee_size?: string | null
+          erp_name?: string | null
+          erp_vendor?: string | null
+          generic_email?: string | null
+          id?: string
+          industry_type?: string | null
+          job_level?: string | null
+          linkedin_url?: string | null
+          location?: string | null
+          mobile_2?: string | null
+          mobile_number?: string | null
+          name: string
+          official_email?: string | null
+          org_id: string
+          personal_email?: string | null
+          pincode?: string | null
+          state?: string | null
+          sub_industry?: string | null
+          tier?: string | null
+          turnover?: string | null
+          updated_at?: string | null
+          website?: string | null
+          zone?: string | null
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          company_name?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          department?: string | null
+          designation?: string | null
+          employee_size?: string | null
+          erp_name?: string | null
+          erp_vendor?: string | null
+          generic_email?: string | null
+          id?: string
+          industry_type?: string | null
+          job_level?: string | null
+          linkedin_url?: string | null
+          location?: string | null
+          mobile_2?: string | null
+          mobile_number?: string | null
+          name?: string
+          official_email?: string | null
+          org_id?: string
+          personal_email?: string | null
+          pincode?: string | null
+          state?: string | null
+          sub_industry?: string | null
+          tier?: string | null
+          turnover?: string | null
+          updated_at?: string | null
+          website?: string | null
+          zone?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "redefine_data_repository_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      redefine_repository_audit: {
+        Row: {
+          action: string
+          changed_at: string | null
+          changed_by: string | null
+          id: string
+          new_values: Json | null
+          old_values: Json | null
+          repository_record_id: string | null
+        }
+        Insert: {
+          action: string
+          changed_at?: string | null
+          changed_by?: string | null
+          id?: string
+          new_values?: Json | null
+          old_values?: Json | null
+          repository_record_id?: string | null
+        }
+        Update: {
+          action?: string
+          changed_at?: string | null
+          changed_by?: string | null
+          id?: string
+          new_values?: Json | null
+          old_values?: Json | null
+          repository_record_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "redefine_repository_audit_repository_record_id_fkey"
+            columns: ["repository_record_id"]
+            isOneToOne: false
+            referencedRelation: "redefine_data_repository"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reporting_hierarchy: {
         Row: {
           created_at: string | null

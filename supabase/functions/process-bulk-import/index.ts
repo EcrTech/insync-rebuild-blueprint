@@ -222,6 +222,47 @@ serve(async (req) => {
             custom_data: row,
             status: 'pending'
           };
+        } else if (importJob.import_type === 'redefine_repository') {
+          // Validate org is Redefine
+          const { data: org } = await supabase
+            .from('organizations')
+            .select('slug')
+            .eq('id', importJob.org_id)
+            .single();
+          
+          if (org?.slug !== 'redefine-marcom-pvt-ltd') {
+            throw new Error('This import type is exclusive to Redefine organization');
+          }
+          
+          record = {
+            org_id: importJob.org_id,
+            name: row.name,
+            designation: row.designation || null,
+            department: row.deppt || row.department || null,
+            job_level: row.job_level_updated || row.job_level || null,
+            linkedin_url: row.linkedin || null,
+            mobile_number: row.mobilenumb || row.mobile_number || null,
+            mobile_2: row.mobile2 || null,
+            official_email: row.official || null,
+            personal_email: row.personalemailid || row.personal_email || null,
+            generic_email: row.generic_email_id || row.generic_email || null,
+            industry_type: row.industry_type || null,
+            sub_industry: row.sub_industry || null,
+            company_name: row.company_name || null,
+            address: row.address || null,
+            location: row.location || null,
+            city: row.city || null,
+            state: row.state || null,
+            zone: row.zone || null,
+            tier: row.tier || null,
+            pincode: row.pincode || null,
+            website: row.website || null,
+            turnover: row.turnover || null,
+            employee_size: row.emp_size || row.employee_size || null,
+            erp_name: row.erp_name || null,
+            erp_vendor: row.erp_vendor || null,
+            created_by: importJob.user_id
+          };
         }
 
         batch.push(record);
