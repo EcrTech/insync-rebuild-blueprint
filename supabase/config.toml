@@ -56,3 +56,9 @@ verify_jwt = true
 
 [functions.exotel-sync-call-logs]
 verify_jwt = true
+
+[functions.bulk-import-trigger]
+verify_jwt = true
+
+[functions.process-bulk-import]
+verify_jwt = false

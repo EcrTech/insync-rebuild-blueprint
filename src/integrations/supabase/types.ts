@@ -1561,6 +1561,86 @@ export type Database = {
         }
         Relationships: []
       }
+      import_jobs: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          current_stage: string | null
+          error_count: number | null
+          error_details: Json | null
+          file_cleaned_up: boolean | null
+          file_cleanup_at: string | null
+          file_name: string
+          file_path: string
+          id: string
+          import_type: string
+          org_id: string
+          processed_rows: number | null
+          stage_details: Json | null
+          started_at: string | null
+          status: string
+          success_count: number | null
+          target_id: string | null
+          total_rows: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          current_stage?: string | null
+          error_count?: number | null
+          error_details?: Json | null
+          file_cleaned_up?: boolean | null
+          file_cleanup_at?: string | null
+          file_name: string
+          file_path: string
+          id?: string
+          import_type: string
+          org_id: string
+          processed_rows?: number | null
+          stage_details?: Json | null
+          started_at?: string | null
+          status?: string
+          success_count?: number | null
+          target_id?: string | null
+          total_rows?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          current_stage?: string | null
+          error_count?: number | null
+          error_details?: Json | null
+          file_cleaned_up?: boolean | null
+          file_cleanup_at?: string | null
+          file_name?: string
+          file_path?: string
+          id?: string
+          import_type?: string
+          org_id?: string
+          processed_rows?: number | null
+          stage_details?: Json | null
+          started_at?: string | null
+          status?: string
+          success_count?: number | null
+          target_id?: string | null
+          total_rows?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_jobs_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       org_feature_access: {
         Row: {
           created_at: string | null
