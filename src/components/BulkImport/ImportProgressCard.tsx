@@ -183,7 +183,11 @@ export function ImportProgressCard({ job, onCancel }: ImportProgressCardProps) {
               </div>
             </div>
           <div className="flex items-center gap-2 flex-shrink-0">
-            <Badge variant={job.status === 'completed' ? 'default' : 'secondary'}>
+            <Badge variant={
+              job.status === 'completed' ? 'default' : 
+              job.status === 'failed' ? 'destructive' : 
+              'secondary'
+            }>
               {job.status}
             </Badge>
             {['pending', 'processing'].includes(job.status) && (
@@ -239,6 +243,20 @@ export function ImportProgressCard({ job, onCancel }: ImportProgressCardProps) {
         {job.stage_details?.batches_completed !== undefined && (
           <div className="text-sm text-muted-foreground">
             Processing batch {job.stage_details.batches_completed + 1} of {job.stage_details.total_batches}
+          </div>
+        )}
+
+        {job.status === 'failed' && job.stage_details?.error && (
+          <div className="mt-4 p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-destructive">Import Failed</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {job.stage_details.error}
+                </p>
+              </div>
+            </div>
           </div>
         )}
       </div>

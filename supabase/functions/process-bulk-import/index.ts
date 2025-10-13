@@ -83,6 +83,7 @@ serve(async (req) => {
 
   const startTime = Date.now();
   let supabase: any;
+  let importJobId: string | undefined;
 
   try {
     console.log('[INIT] Starting bulk import processor');
@@ -92,7 +93,8 @@ serve(async (req) => {
     
     supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { importJobId } = await req.json();
+    const body = await req.json();
+    importJobId = body.importJobId;
     
     if (!importJobId) {
       throw new Error('Missing importJobId');
@@ -147,9 +149,21 @@ serve(async (req) => {
     console.log('[PARSE] Headers detected:', headers);
 
     // Validate required columns based on import type
-    const requiredColumns = importJob.import_type === 'contacts' 
-      ? ['first_name'] 
-      : ['email'];
+    let requiredColumns: string[];
+    switch (importJob.import_type) {
+      case 'contacts':
+        requiredColumns = ['first_name'];
+        break;
+      case 'redefine_repository':
+        requiredColumns = ['name'];
+        break;
+      case 'email_recipients':
+      case 'whatsapp_recipients':
+        requiredColumns = ['email'];
+        break;
+      default:
+        requiredColumns = [];
+    }
     
     const missingColumns = requiredColumns.filter(col => !headers.includes(col));
     if (missingColumns.length > 0) {
@@ -394,9 +408,9 @@ serve(async (req) => {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     const errorStack = error instanceof Error ? error.stack : undefined;
     
-    if (supabase && req.body) {
+    // Use importJobId from outer scope instead of re-reading request body
+    if (supabase && importJobId) {
       try {
-        const body = await req.json();
         await supabase.from('import_jobs').update({
           status: 'failed',
           current_stage: 'failed',
@@ -406,8 +420,11 @@ serve(async (req) => {
             stack: errorStack,
             timestamp: new Date().toISOString()
           }],
-          stage_details: { error: errorMessage }
-        }).eq('id', body.importJobId);
+          stage_details: { 
+            error: errorMessage,
+            message: `Import failed: ${errorMessage}`
+          }
+        }).eq('id', importJobId);
       } catch (updateError) {
         console.error('[ERROR] Failed to update job status:', updateError);
       }
@@ -468,6 +485,9 @@ async function processBatch(supabase: any, importJob: ImportJob, batch: any[], b
     } else if (importJob.import_type === 'whatsapp_recipients') {
       tableName = 'whatsapp_campaign_recipients';
       conflictColumn = 'phone_number';
+    } else if (importJob.import_type === 'redefine_repository') {
+      tableName = 'redefine_repository';
+      conflictColumn = 'name';
     } else {
       throw new Error(`Unknown import type: ${importJob.import_type}`);
     }
