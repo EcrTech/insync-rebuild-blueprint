@@ -193,6 +193,20 @@ serve(async (req) => {
       return importJob.import_type === 'inventory' ? mapInventoryColumn(normalized) : normalized;
     });
     console.log('[PARSE] Headers detected:', headers);
+    
+    // Validate org for redefine_repository ONCE before processing
+    if (importJob.import_type === 'redefine_repository') {
+      const { data: org } = await supabase
+        .from('organizations')
+        .select('slug')
+        .eq('id', importJob.org_id)
+        .single();
+      
+      if (org?.slug !== 'redefine-marcom-pvt-ltd') {
+        throw new Error('This import type is exclusive to Redefine organization');
+      }
+      console.log('[VALIDATE] Organization validated for redefine repository');
+    }
 
     // Validate required columns based on import type
     let requiredColumns: string[];
@@ -286,17 +300,7 @@ serve(async (req) => {
             status: 'pending'
           };
         } else if (importJob.import_type === 'redefine_repository') {
-          // Validate org is Redefine
-          const { data: org } = await supabase
-            .from('organizations')
-            .select('slug')
-            .eq('id', importJob.org_id)
-            .single();
-          
-          if (org?.slug !== 'redefine-marcom-pvt-ltd') {
-            throw new Error('This import type is exclusive to Redefine organization');
-          }
-          
+          // No validation needed here - already validated once at start
           record = {
             org_id: importJob.org_id,
             name: row.name,
@@ -563,10 +567,9 @@ async function processBatch(supabase: any, importJob: ImportJob, batch: any[], b
       };
     } else if (importJob.import_type === 'redefine_repository') {
       tableName = 'redefine_data_repository';
-      upsertOptions = {
-        onConflict: 'id',
-        ignoreDuplicates: false
-      };
+      // Use insert instead of upsert since there's no unique constraint
+      // Just insert new records
+      upsertOptions = {};
     } else if (importJob.import_type === 'inventory') {
       tableName = 'inventory_items';
       
@@ -596,9 +599,10 @@ async function processBatch(supabase: any, importJob: ImportJob, batch: any[], b
       batch = batch.map(record => ({ ...record, import_job_id: importJob.id }));
     }
 
-    const { error } = await supabase
-      .from(tableName)
-      .upsert(batch, upsertOptions);
+    // Use insert for redefine_repository, upsert for others
+    const { error } = importJob.import_type === 'redefine_repository'
+      ? await supabase.from(tableName).insert(batch)
+      : await supabase.from(tableName).upsert(batch, upsertOptions);
 
     if (error) {
       console.error('[DB] Batch insert failed:', error);
