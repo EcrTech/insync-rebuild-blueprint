@@ -109,7 +109,7 @@ export const OrgFeatureMatrix = () => {
     const access = orgFeatureAccess?.find(
       a => a.org_id === orgId && a.feature_key === featureKey
     );
-    return access?.is_enabled ?? true;
+    return access?.is_enabled ?? false;
   };
 
   const handleToggle = (orgId: string, featureKey: string, currentStatus: boolean) => {
