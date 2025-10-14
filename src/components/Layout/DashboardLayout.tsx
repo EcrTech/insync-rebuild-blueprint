@@ -253,15 +253,6 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                 </Link>
               )}
 
-              <Link
-                to="/inventory"
-                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-                onClick={() => setSidebarOpen(false)}
-              >
-                <Package size={20} />
-                <span>Inventory</span>
-              </Link>
-
               {isPlatformAdmin && (
                 <Link
                   to="/platform-admin"
@@ -334,6 +325,15 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                   <span>Call Logs</span>
                 </Link>
               )}
+
+              <Link
+                to="/inventory"
+                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
+                onClick={() => setSidebarOpen(false)}
+              >
+                <Package size={20} />
+                <span>Inventory</span>
+              </Link>
 
               <Link
                 to="/org-chart"
