@@ -246,7 +246,7 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                 <span>Documentation</span>
               </Link>
 
-              {canAccessFeature("redefine_data_repository") && (
+              {canAccessFeature("redefine_data_repository") && orgName === "Redefine" && (
                 <Link
                   to="/redefine-repository"
                   className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
