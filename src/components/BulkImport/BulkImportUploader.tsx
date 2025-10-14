@@ -225,6 +225,36 @@ export function BulkImportUploader({
     }
   };
 
+  const handleCancelJob = async (jobId: string) => {
+    try {
+      const { error } = await supabase
+        .from('import_jobs')
+        .update({ 
+          status: 'failed',
+          current_stage: 'cancelled',
+          error_details: [{ message: 'Cancelled by user' }]
+        })
+        .eq('id', jobId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Import cancelled",
+        description: "The import process has been stopped."
+      });
+
+      setActiveJob(null);
+      loadImportJobs();
+    } catch (error) {
+      console.error('Cancel error:', error);
+      toast({
+        title: "Failed to cancel",
+        description: error.message || "Could not cancel the import",
+        variant: "destructive"
+      });
+    }
+  };
+
   const downloadTemplate = () => {
     const allColumns = [...requiredColumns, ...optionalColumns];
     const csvContent = allColumns.join(',') + '\n';
@@ -316,7 +346,7 @@ export function BulkImportUploader({
       </Card>
 
       {activeJob && (
-        <ImportProgressCard job={activeJob} />
+        <ImportProgressCard job={activeJob} onCancel={handleCancelJob} />
       )}
 
       {importJobs.length > 0 && (

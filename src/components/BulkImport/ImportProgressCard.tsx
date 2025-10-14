@@ -1,10 +1,12 @@
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, XCircle, Loader2, AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { CheckCircle2, XCircle, Loader2, AlertCircle, X } from "lucide-react";
 
 interface ImportProgressCardProps {
   job: {
+    id: string;
     file_name: string;
     status: string;
     current_stage: string;
@@ -14,9 +16,10 @@ interface ImportProgressCardProps {
     error_count: number;
     stage_details: any;
   };
+  onCancel?: (jobId: string) => void;
 }
 
-export function ImportProgressCard({ job }: ImportProgressCardProps) {
+export function ImportProgressCard({ job, onCancel }: ImportProgressCardProps) {
   const getStageLabel = (stage: string) => {
     const labels: Record<string, string> = {
       pending: 'Queued',
@@ -68,9 +71,21 @@ export function ImportProgressCard({ job }: ImportProgressCardProps) {
               </p>
             </div>
           </div>
-          <Badge variant={job.status === 'completed' ? 'default' : 'secondary'}>
-            {job.status}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant={job.status === 'completed' ? 'default' : 'secondary'}>
+              {job.status}
+            </Badge>
+            {(job.status === 'pending' || job.status === 'processing') && onCancel && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onCancel(job.id)}
+                className="h-8 w-8 p-0"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
         </div>
 
         {job.total_rows > 0 && (
