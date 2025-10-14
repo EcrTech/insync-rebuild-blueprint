@@ -12,6 +12,23 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, GripVertical, Upload, Download } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface CustomField {
   id: string;
@@ -35,6 +52,98 @@ const FIELD_TYPES = [
   { value: "file", label: "File Upload (Image/PDF)" },
   { value: "location", label: "Location (Lat/Long)" },
 ];
+
+interface SortableFieldCardProps {
+  field: CustomField;
+  onEdit: (field: CustomField) => void;
+  onDelete: (id: string) => void;
+}
+
+function SortableFieldCard({ field, onEdit, onDelete }: SortableFieldCardProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: field.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <Card>
+        <CardHeader>
+          <div className="flex items-start justify-between">
+            <div className="flex items-start gap-3">
+              <div
+                {...attributes}
+                {...listeners}
+                className="cursor-grab active:cursor-grabbing"
+              >
+                <GripVertical className="h-5 w-5 text-muted-foreground mt-1" />
+              </div>
+              <div>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  {field.field_label}
+                  {field.is_required && (
+                    <Badge variant="secondary" className="text-xs">Required</Badge>
+                  )}
+                  {!field.is_active && (
+                    <Badge variant="outline" className="text-xs">Inactive</Badge>
+                  )}
+                </CardTitle>
+                <CardDescription>
+                  <span className="font-mono text-xs">{field.field_name}</span>
+                  {" • "}
+                  <span className="capitalize">{field.field_type}</span>
+                  {field.field_options && field.field_options.length > 0 && (
+                    <>
+                      {" • "}
+                      <span>{field.field_options.length} options</span>
+                    </>
+                  )}
+                </CardDescription>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => onEdit(field)}
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => onDelete(field.id)}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        {field.field_options && field.field_options.length > 0 && (
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {field.field_options.map((option, idx) => (
+                <Badge key={idx} variant="outline">
+                  {option}
+                </Badge>
+              ))}
+            </div>
+          </CardContent>
+        )}
+      </Card>
+    </div>
+  );
+}
 
 export default function CustomFields() {
   const { effectiveOrgId } = useOrgContext();
@@ -62,6 +171,13 @@ export default function CustomFields() {
     }
   }, [effectiveOrgId]);
 
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
   const fetchFields = async () => {
     if (!effectiveOrgId) return;
     
@@ -82,6 +198,51 @@ export default function CustomFields() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id) {
+      return;
+    }
+
+    const oldIndex = fields.findIndex((f) => f.id === active.id);
+    const newIndex = fields.findIndex((f) => f.id === over.id);
+
+    const newFields = arrayMove(fields, oldIndex, newIndex);
+    
+    // Update local state immediately for smooth UX
+    setFields(newFields);
+
+    // Update field_order in the database
+    try {
+      const updates = newFields.map((field, index) => ({
+        id: field.id,
+        field_order: index,
+      }));
+
+      // Batch update all field orders
+      for (const update of updates) {
+        await supabase
+          .from('custom_fields')
+          .update({ field_order: update.field_order })
+          .eq('id', update.id);
+      }
+
+      toast({
+        title: "Order updated",
+        description: "Custom fields have been reordered successfully",
+      });
+    } catch (error: any) {
+      // Revert to original order on error
+      fetchFields();
+      toast({
+        variant: "destructive",
+        title: "Error updating order",
+        description: error.message,
+      });
     }
   };
 
@@ -494,66 +655,25 @@ export default function CustomFields() {
               </CardContent>
             </Card>
           ) : (
-            fields.map((field) => (
-              <Card key={field.id}>
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start gap-3">
-                      <GripVertical className="h-5 w-5 text-muted-foreground mt-1" />
-                      <div>
-                        <CardTitle className="text-lg flex items-center gap-2">
-                          {field.field_label}
-                          {field.is_required && (
-                            <Badge variant="secondary" className="text-xs">Required</Badge>
-                          )}
-                          {!field.is_active && (
-                            <Badge variant="outline" className="text-xs">Inactive</Badge>
-                          )}
-                        </CardTitle>
-                        <CardDescription>
-                          <span className="font-mono text-xs">{field.field_name}</span>
-                          {" • "}
-                          <span className="capitalize">{field.field_type}</span>
-                          {field.field_options && field.field_options.length > 0 && (
-                            <>
-                              {" • "}
-                              <span>{field.field_options.length} options</span>
-                            </>
-                          )}
-                        </CardDescription>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => openEditDialog(field)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDelete(field.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardHeader>
-                {field.field_options && field.field_options.length > 0 && (
-                  <CardContent>
-                    <div className="flex flex-wrap gap-2">
-                      {field.field_options.map((option, idx) => (
-                        <Badge key={idx} variant="outline">
-                          {option}
-                        </Badge>
-                      ))}
-                    </div>
-                  </CardContent>
-                )}
-              </Card>
-            ))
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={fields.map(f => f.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                {fields.map((field) => (
+                  <SortableFieldCard
+                    key={field.id}
+                    field={field}
+                    onEdit={openEditDialog}
+                    onDelete={handleDelete}
+                  />
+                ))}
+              </SortableContext>
+            </DndContext>
           )}
         </div>
       </div>
