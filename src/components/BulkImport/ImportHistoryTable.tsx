@@ -9,7 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { CheckCircle2, XCircle, Clock, RefreshCw, X } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, RefreshCw, X, Undo2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 interface ImportJob {
@@ -28,9 +28,10 @@ interface ImportHistoryTableProps {
   onRefresh: () => void;
   onComplete?: () => void;
   onCancel?: (jobId: string) => void;
+  onRollback?: (jobId: string) => void;
 }
 
-export function ImportHistoryTable({ jobs, onRefresh, onComplete, onCancel }: ImportHistoryTableProps) {
+export function ImportHistoryTable({ jobs, onRefresh, onComplete, onCancel, onRollback }: ImportHistoryTableProps) {
   const getStatusBadge = (status: string) => {
     const variants: Record<string, any> = {
       completed: { variant: 'default', icon: CheckCircle2, className: 'bg-green-500' },
@@ -48,6 +49,13 @@ export function ImportHistoryTable({ jobs, onRefresh, onComplete, onCancel }: Im
         {status}
       </Badge>
     );
+  };
+
+  const truncateFileName = (fileName: string) => {
+    if (fileName.length > 14) {
+      return fileName.substring(0, 14) + '...';
+    }
+    return fileName;
   };
 
   const handleRefresh = () => {
@@ -98,9 +106,9 @@ export function ImportHistoryTable({ jobs, onRefresh, onComplete, onCancel }: Im
                 </TableCell>
               </TableRow>
             ) : (
-              jobs.map((job) => (
+              jobs.slice(0, 3).map((job) => (
                 <TableRow key={job.id}>
-                  <TableCell className="font-medium">{job.file_name}</TableCell>
+                  <TableCell className="font-medium">{truncateFileName(job.file_name)}</TableCell>
                   <TableCell>{getStatusBadge(job.status)}</TableCell>
                   <TableCell className="text-right">
                     {job.total_rows.toLocaleString()}
@@ -123,17 +131,30 @@ export function ImportHistoryTable({ jobs, onRefresh, onComplete, onCancel }: Im
                     {formatDistanceToNow(new Date(job.created_at), { addSuffix: true })}
                   </TableCell>
                   <TableCell className="text-right">
-                    {(job.status === 'pending' || job.status === 'processing') && onCancel && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onCancel(job.id)}
-                        className="h-8 w-8 p-0"
-                        title="Cancel import"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    )}
+                    <div className="flex items-center justify-end gap-2">
+                      {(job.status === 'pending' || job.status === 'processing') && onCancel && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onCancel(job.id)}
+                          className="h-8 w-8 p-0"
+                          title="Cancel import"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {job.status === 'completed' && job.success_count > 0 && onRollback && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onRollback(job.id)}
+                          className="h-8 w-8 p-0 text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                          title="Rollback this import"
+                        >
+                          <Undo2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))

@@ -256,6 +256,42 @@ export function BulkImportUploader({
     }
   };
 
+  const handleRollback = async (jobId: string) => {
+    try {
+      if (!confirm('Are you sure you want to rollback this import? This will delete all records imported in this job.')) {
+        return;
+      }
+
+      toast({
+        title: "Rollback started",
+        description: "Deleting imported records...",
+      });
+
+      const { data, error } = await supabase.functions.invoke('rollback-bulk-import', {
+        body: { importJobId: jobId }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Rollback completed",
+        description: `Successfully deleted ${data?.deletedCount || 0} records.`,
+      });
+
+      loadImportJobs();
+      if (onDataLoaded) {
+        onDataLoaded();
+      }
+    } catch (error) {
+      console.error('Rollback error:', error);
+      toast({
+        title: "Rollback failed",
+        description: error.message || "Could not rollback the import",
+        variant: "destructive"
+      });
+    }
+  };
+
   const downloadTemplate = () => {
     const allColumns = [...requiredColumns, ...optionalColumns];
     const csvContent = allColumns.join(',') + '\n';
@@ -345,6 +381,7 @@ export function BulkImportUploader({
           onRefresh={loadImportJobs}
           onComplete={onDataLoaded}
           onCancel={handleCancelJob}
+          onRollback={handleRollback}
         />
       )}
     </div>

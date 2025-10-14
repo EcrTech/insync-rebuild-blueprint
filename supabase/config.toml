@@ -62,3 +62,6 @@ verify_jwt = true
 
 [functions.process-bulk-import]
 verify_jwt = false
+
+[functions.rollback-bulk-import]
+verify_jwt = true

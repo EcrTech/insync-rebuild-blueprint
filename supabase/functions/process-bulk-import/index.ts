@@ -582,13 +582,18 @@ async function processBatch(supabase: any, importJob: ImportJob, batch: any[], b
       }
       batch = deduped;
       
-      // Use composite key for upsert (item_id_sku + org_id)
+      // Use composite key for upsert (org_id + item_id_sku - column order matters!)
       upsertOptions = {
-        onConflict: 'item_id_sku,org_id',
+        onConflict: 'org_id,item_id_sku',
         ignoreDuplicates: false
       };
     } else {
       throw new Error(`Unknown import type: ${importJob.import_type}`);
+    }
+
+    // Add import_job_id to inventory items for precise rollback tracking
+    if (importJob.import_type === 'inventory') {
+      batch = batch.map(record => ({ ...record, import_job_id: importJob.id }));
     }
 
     const { error } = await supabase

@@ -1664,6 +1664,7 @@ export type Database = {
           hsn_code: string | null
           id: string
           image_ref: string | null
+          import_job_id: string | null
           inspection_status: string | null
           issued_to: string | null
           item_id_sku: string
@@ -1713,6 +1714,7 @@ export type Database = {
           hsn_code?: string | null
           id?: string
           image_ref?: string | null
+          import_job_id?: string | null
           inspection_status?: string | null
           issued_to?: string | null
           item_id_sku: string
@@ -1762,6 +1764,7 @@ export type Database = {
           hsn_code?: string | null
           id?: string
           image_ref?: string | null
+          import_job_id?: string | null
           inspection_status?: string | null
           issued_to?: string | null
           item_id_sku?: string
@@ -1789,7 +1792,15 @@ export type Database = {
           warehouse_branch?: string | null
           weight_per_unit?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "inventory_items_import_job_id_fkey"
+            columns: ["import_job_id"]
+            isOneToOne: false
+            referencedRelation: "import_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       org_feature_access: {
         Row: {
