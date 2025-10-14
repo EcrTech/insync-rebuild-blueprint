@@ -184,14 +184,16 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                 </div>
               )}
               
-              <Link
-                to="/dashboard"
-                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-                onClick={() => setSidebarOpen(false)}
-              >
-                <LayoutDashboard size={20} />
-                <span>Dashboard</span>
-              </Link>
+              {canAccessFeature("dashboard") && (
+                <Link
+                  to="/dashboard"
+                  className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  <LayoutDashboard size={20} />
+                  <span>Dashboard</span>
+                </Link>
+              )}
 
               {canAccessFeature("analytics") && (
                 <Link
@@ -237,14 +239,16 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                 </Link>
               )}
 
-              <Link
-                to="/documentation"
-                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-                onClick={() => setSidebarOpen(false)}
-              >
-                <FileText size={20} />
-                <span>Documentation</span>
-              </Link>
+              {canAccessFeature("documentation") && (
+                <Link
+                  to="/documentation"
+                  className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  <FileText size={20} />
+                  <span>Documentation</span>
+                </Link>
+              )}
 
               {canAccessFeature("redefine_data_repository") && orgName === "Redefine" && (
                 <Link
@@ -277,14 +281,16 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                 </div>
               )}
               
-              <Link
-                to="/communications"
-                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-                onClick={() => setSidebarOpen(false)}
-              >
-                <MessageSquare size={20} />
-                <span>Communications</span>
-              </Link>
+              {canAccessFeature("communications") && (
+                <Link
+                  to="/communications"
+                  className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  <MessageSquare size={20} />
+                  <span>Communications</span>
+                </Link>
+              )}
               
               {canAccessFeature("campaigns_email") && (
                 <Link
@@ -330,7 +336,7 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                 </Link>
               )}
 
-              {orgName === "C.Parekh & Co" && (
+              {canAccessFeature("inventory") && orgName === "C.Parekh & Co" && (
                 <Link
                   to="/inventory"
                   className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
@@ -341,14 +347,16 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                 </Link>
               )}
 
-              <Link
-                to="/org-chart"
-                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-                onClick={() => setSidebarOpen(false)}
-              >
-                <Network size={20} />
-                <span>Org Chart</span>
-              </Link>
+              {canAccessFeature("org_chart") && (
+                <Link
+                  to="/org-chart"
+                  className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  <Network size={20} />
+                  <span>Org Chart</span>
+                </Link>
+              )}
 
               {isManager && (
                 <>
@@ -389,14 +397,16 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                     </div>
                   )}
                   
-                  <Link
-                    to="/admin"
-                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-                    onClick={() => setSidebarOpen(false)}
-                  >
-                    <Building2 size={20} />
-                    <span>Organization Settings</span>
-                  </Link>
+                  {canAccessFeature("organization_settings") && (
+                    <Link
+                      to="/admin"
+                      className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
+                      onClick={() => setSidebarOpen(false)}
+                    >
+                      <Building2 size={20} />
+                      <span>Organization Settings</span>
+                    </Link>
+                  )}
                   
                   {canAccessFeature("pipeline") && (
                     <Link
@@ -420,14 +430,16 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                     </Link>
                   )}
                   
-                  <Link
-                    to="/admin/approval-matrix"
-                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-                    onClick={() => setSidebarOpen(false)}
-                  >
-                    <CheckSquare size={20} />
-                    <span>Approval Matrix</span>
-                  </Link>
+                  {canAccessFeature("approval_matrix") && (
+                    <Link
+                      to="/admin/approval-matrix"
+                      className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
+                      onClick={() => setSidebarOpen(false)}
+                    >
+                      <CheckSquare size={20} />
+                      <span>Approval Matrix</span>
+                    </Link>
+                  )}
                   
                   {canAccessFeature("designations") && (
                     <Link

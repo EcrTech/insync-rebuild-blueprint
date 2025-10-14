@@ -64,10 +64,15 @@ export const useFeatureAccess = (): FeatureAccess => {
     
     // Check org-level feature access
     const orgFeature = orgFeatures?.find(f => f.feature_key === featureKey);
-    if (orgFeature && !orgFeature.is_enabled) return false;
     
-    // Default: enabled if not explicitly disabled
-    return true;
+    // If no org feature record exists, check if it's in the default allowed list
+    const defaultAllowedFeatures = ['dashboard']; // Only dashboard is always accessible
+    if (!orgFeature) {
+      return defaultAllowedFeatures.includes(featureKey);
+    }
+    
+    // Otherwise, use the org's setting
+    return orgFeature.is_enabled;
   };
 
   const hasPermission = (
