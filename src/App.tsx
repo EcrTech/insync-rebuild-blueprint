@@ -46,6 +46,7 @@ import CampaignOverview from "./pages/Campaigns/CampaignOverview";
 import AIInsightsDashboard from "./pages/Campaigns/AIInsightsDashboard";
 import Documentation from "./pages/Documentation";
 import RedefineDataRepository from "./pages/RedefineDataRepository";
+import Inventory from "./pages/Inventory";
 import ProtectedRoute from "./components/Auth/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -294,6 +295,12 @@ const App = () => (
           <Route path="/redefine-repository" element={
             <ProtectedRoute>
               <RedefineDataRepository />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/inventory" element={
+            <ProtectedRoute>
+              <Inventory />
             </ProtectedRoute>
           } />
           

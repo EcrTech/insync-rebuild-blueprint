@@ -155,6 +155,9 @@ serve(async (req) => {
       case 'redefine_repository':
         requiredColumns = ['name'];
         break;
+      case 'inventory':
+        requiredColumns = ['item_id_sku', 'item_name', 'brand', 'category', 'diameter_mm', 'length_mm', 'available_qty', 'uom'];
+        break;
       case 'email_recipients':
       case 'whatsapp_recipients':
         requiredColumns = ['email'];
@@ -273,6 +276,53 @@ serve(async (req) => {
             employee_size: row.emp_size || row.employee_size || null,
             erp_name: row.erp_name || null,
             erp_vendor: row.erp_vendor || null,
+            created_by: importJob.user_id
+          };
+        } else if (importJob.import_type === 'inventory') {
+          record = {
+            org_id: importJob.org_id,
+            item_id_sku: row.item_id_sku,
+            item_name: row.item_name,
+            brand: row.brand,
+            category: row.category,
+            subcategory: row.subcategory || null,
+            grade_class: row.grade_class || null,
+            material: row.material || null,
+            finish_coating: row.finish_coating || null,
+            diameter_mm: row.diameter_mm,
+            length_mm: row.length_mm,
+            thread_pitch: row.thread_pitch || null,
+            head_type: row.head_type || null,
+            drive_type: row.drive_type || null,
+            standard_spec: row.standard_spec || null,
+            available_qty: parseFloat(row.available_qty) || 0,
+            reorder_level: row.reorder_level ? parseFloat(row.reorder_level) : null,
+            reorder_qty: row.reorder_qty ? parseFloat(row.reorder_qty) : null,
+            uom: row.uom,
+            storage_location: row.storage_location || null,
+            warehouse_branch: row.warehouse_branch || null,
+            supplier_name: row.supplier_name || null,
+            supplier_code: row.supplier_code || null,
+            last_purchase_date: row.last_purchase_date || null,
+            last_purchase_price: row.last_purchase_price ? parseFloat(row.last_purchase_price) : null,
+            lead_time_days: row.lead_time_days ? parseInt(row.lead_time_days) : null,
+            purchase_order_no: row.purchase_order_no || null,
+            selling_price: row.selling_price ? parseFloat(row.selling_price) : null,
+            discount_pct: row.discount_pct ? parseFloat(row.discount_pct) : null,
+            customer_project: row.customer_project || null,
+            last_sale_date: row.last_sale_date || null,
+            gst_pct: row.gst_pct ? parseFloat(row.gst_pct) : null,
+            hsn_code: row.hsn_code || null,
+            batch_no: row.batch_no || null,
+            heat_no: row.heat_no || null,
+            inspection_status: row.inspection_status || null,
+            date_of_entry: row.date_of_entry || null,
+            remarks_notes: row.remarks_notes || null,
+            weight_per_unit: row.weight_per_unit ? parseFloat(row.weight_per_unit) : null,
+            image_ref: row.image_ref || null,
+            certificate_no: row.certificate_no || null,
+            expiry_review_date: row.expiry_review_date || null,
+            issued_to: row.issued_to || null,
             created_by: importJob.user_id
           };
         }
@@ -457,6 +507,21 @@ async function processBatch(supabase: any, importJob: ImportJob, batch: any[], b
     } else if (importJob.import_type === 'redefine_repository') {
       tableName = 'redefine_data_repository';
       conflictColumn = 'id';
+    } else if (importJob.import_type === 'inventory') {
+      tableName = 'inventory_items';
+      conflictColumn = 'item_id_sku';
+      
+      // Deduplicate by SKU
+      const deduped = [];
+      const seen = new Set();
+      for (let i = batch.length - 1; i >= 0; i--) {
+        const record = batch[i];
+        if (!seen.has(record.item_id_sku)) {
+          seen.add(record.item_id_sku);
+          deduped.unshift(record);
+        }
+      }
+      batch = deduped;
     } else {
       throw new Error(`Unknown import type: ${importJob.import_type}`);
     }

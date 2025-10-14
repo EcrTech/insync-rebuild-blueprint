@@ -1641,6 +1641,156 @@ export type Database = {
           },
         ]
       }
+      inventory_items: {
+        Row: {
+          available_qty: number
+          batch_no: string | null
+          brand: string
+          category: string
+          certificate_no: string | null
+          created_at: string
+          created_by: string | null
+          customer_project: string | null
+          date_of_entry: string | null
+          diameter_mm: string
+          discount_pct: number | null
+          drive_type: string | null
+          expiry_review_date: string | null
+          finish_coating: string | null
+          grade_class: string | null
+          gst_pct: number | null
+          head_type: string | null
+          heat_no: string | null
+          hsn_code: string | null
+          id: string
+          image_ref: string | null
+          inspection_status: string | null
+          issued_to: string | null
+          item_id_sku: string
+          item_name: string
+          last_purchase_date: string | null
+          last_purchase_price: number | null
+          last_sale_date: string | null
+          lead_time_days: number | null
+          length_mm: string
+          material: string | null
+          org_id: string
+          purchase_order_no: string | null
+          remarks_notes: string | null
+          reorder_level: number | null
+          reorder_qty: number | null
+          selling_price: number | null
+          standard_spec: string | null
+          storage_location: string | null
+          subcategory: string | null
+          supplier_code: string | null
+          supplier_name: string | null
+          thread_pitch: string | null
+          uom: string
+          updated_at: string
+          warehouse_branch: string | null
+          weight_per_unit: number | null
+        }
+        Insert: {
+          available_qty?: number
+          batch_no?: string | null
+          brand: string
+          category: string
+          certificate_no?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_project?: string | null
+          date_of_entry?: string | null
+          diameter_mm: string
+          discount_pct?: number | null
+          drive_type?: string | null
+          expiry_review_date?: string | null
+          finish_coating?: string | null
+          grade_class?: string | null
+          gst_pct?: number | null
+          head_type?: string | null
+          heat_no?: string | null
+          hsn_code?: string | null
+          id?: string
+          image_ref?: string | null
+          inspection_status?: string | null
+          issued_to?: string | null
+          item_id_sku: string
+          item_name: string
+          last_purchase_date?: string | null
+          last_purchase_price?: number | null
+          last_sale_date?: string | null
+          lead_time_days?: number | null
+          length_mm: string
+          material?: string | null
+          org_id: string
+          purchase_order_no?: string | null
+          remarks_notes?: string | null
+          reorder_level?: number | null
+          reorder_qty?: number | null
+          selling_price?: number | null
+          standard_spec?: string | null
+          storage_location?: string | null
+          subcategory?: string | null
+          supplier_code?: string | null
+          supplier_name?: string | null
+          thread_pitch?: string | null
+          uom: string
+          updated_at?: string
+          warehouse_branch?: string | null
+          weight_per_unit?: number | null
+        }
+        Update: {
+          available_qty?: number
+          batch_no?: string | null
+          brand?: string
+          category?: string
+          certificate_no?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_project?: string | null
+          date_of_entry?: string | null
+          diameter_mm?: string
+          discount_pct?: number | null
+          drive_type?: string | null
+          expiry_review_date?: string | null
+          finish_coating?: string | null
+          grade_class?: string | null
+          gst_pct?: number | null
+          head_type?: string | null
+          heat_no?: string | null
+          hsn_code?: string | null
+          id?: string
+          image_ref?: string | null
+          inspection_status?: string | null
+          issued_to?: string | null
+          item_id_sku?: string
+          item_name?: string
+          last_purchase_date?: string | null
+          last_purchase_price?: number | null
+          last_sale_date?: string | null
+          lead_time_days?: number | null
+          length_mm?: string
+          material?: string | null
+          org_id?: string
+          purchase_order_no?: string | null
+          remarks_notes?: string | null
+          reorder_level?: number | null
+          reorder_qty?: number | null
+          selling_price?: number | null
+          standard_spec?: string | null
+          storage_location?: string | null
+          subcategory?: string | null
+          supplier_code?: string | null
+          supplier_name?: string | null
+          thread_pitch?: string | null
+          uom?: string
+          updated_at?: string
+          warehouse_branch?: string | null
+          weight_per_unit?: number | null
+        }
+        Relationships: []
+      }
       org_feature_access: {
         Row: {
           created_at: string | null
