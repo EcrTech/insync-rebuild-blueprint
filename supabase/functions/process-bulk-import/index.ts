@@ -204,7 +204,7 @@ serve(async (req) => {
         requiredColumns = ['name'];
         break;
       case 'inventory':
-        requiredColumns = ['item_id_sku', 'item_name', 'brand', 'category', 'diameter_mm', 'length_mm', 'available_qty', 'uom'];
+        requiredColumns = ['item_id_sku'];
         break;
       case 'email_recipients':
       case 'whatsapp_recipients':

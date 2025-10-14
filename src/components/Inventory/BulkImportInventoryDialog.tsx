@@ -15,17 +15,17 @@ export function BulkImportInventoryDialog({
   onImportComplete,
 }: BulkImportInventoryDialogProps) {
   const requiredColumns = [
-    "item_id_sku",
+    "item_id_sku"
+  ];
+
+  const optionalColumns = [
     "item_name",
     "brand",
     "category",
     "diameter_mm",
     "length_mm",
     "available_qty",
-    "uom"
-  ];
-
-  const optionalColumns = [
+    "uom",
     "subcategory",
     "grade_class",
     "material",

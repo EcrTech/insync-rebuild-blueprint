@@ -1645,14 +1645,14 @@ export type Database = {
         Row: {
           available_qty: number
           batch_no: string | null
-          brand: string
-          category: string
+          brand: string | null
+          category: string | null
           certificate_no: string | null
           created_at: string
           created_by: string | null
           customer_project: string | null
           date_of_entry: string | null
-          diameter_mm: string
+          diameter_mm: string | null
           discount_pct: number | null
           drive_type: string | null
           expiry_review_date: string | null
@@ -1667,12 +1667,12 @@ export type Database = {
           inspection_status: string | null
           issued_to: string | null
           item_id_sku: string
-          item_name: string
+          item_name: string | null
           last_purchase_date: string | null
           last_purchase_price: number | null
           last_sale_date: string | null
           lead_time_days: number | null
-          length_mm: string
+          length_mm: string | null
           material: string | null
           org_id: string
           purchase_order_no: string | null
@@ -1686,7 +1686,7 @@ export type Database = {
           supplier_code: string | null
           supplier_name: string | null
           thread_pitch: string | null
-          uom: string
+          uom: string | null
           updated_at: string
           warehouse_branch: string | null
           weight_per_unit: number | null
@@ -1694,14 +1694,14 @@ export type Database = {
         Insert: {
           available_qty?: number
           batch_no?: string | null
-          brand: string
-          category: string
+          brand?: string | null
+          category?: string | null
           certificate_no?: string | null
           created_at?: string
           created_by?: string | null
           customer_project?: string | null
           date_of_entry?: string | null
-          diameter_mm: string
+          diameter_mm?: string | null
           discount_pct?: number | null
           drive_type?: string | null
           expiry_review_date?: string | null
@@ -1716,12 +1716,12 @@ export type Database = {
           inspection_status?: string | null
           issued_to?: string | null
           item_id_sku: string
-          item_name: string
+          item_name?: string | null
           last_purchase_date?: string | null
           last_purchase_price?: number | null
           last_sale_date?: string | null
           lead_time_days?: number | null
-          length_mm: string
+          length_mm?: string | null
           material?: string | null
           org_id: string
           purchase_order_no?: string | null
@@ -1735,7 +1735,7 @@ export type Database = {
           supplier_code?: string | null
           supplier_name?: string | null
           thread_pitch?: string | null
-          uom: string
+          uom?: string | null
           updated_at?: string
           warehouse_branch?: string | null
           weight_per_unit?: number | null
@@ -1743,14 +1743,14 @@ export type Database = {
         Update: {
           available_qty?: number
           batch_no?: string | null
-          brand?: string
-          category?: string
+          brand?: string | null
+          category?: string | null
           certificate_no?: string | null
           created_at?: string
           created_by?: string | null
           customer_project?: string | null
           date_of_entry?: string | null
-          diameter_mm?: string
+          diameter_mm?: string | null
           discount_pct?: number | null
           drive_type?: string | null
           expiry_review_date?: string | null
@@ -1765,12 +1765,12 @@ export type Database = {
           inspection_status?: string | null
           issued_to?: string | null
           item_id_sku?: string
-          item_name?: string
+          item_name?: string | null
           last_purchase_date?: string | null
           last_purchase_price?: number | null
           last_sale_date?: string | null
           lead_time_days?: number | null
-          length_mm?: string
+          length_mm?: string | null
           material?: string | null
           org_id?: string
           purchase_order_no?: string | null
@@ -1784,7 +1784,7 @@ export type Database = {
           supplier_code?: string | null
           supplier_name?: string | null
           thread_pitch?: string | null
-          uom?: string
+          uom?: string | null
           updated_at?: string
           warehouse_branch?: string | null
           weight_per_unit?: number | null
