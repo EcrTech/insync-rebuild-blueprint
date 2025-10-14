@@ -284,26 +284,6 @@ export function BulkImportUploader({
               <li>Processing rate: ~5,000-8,000 rows/minute</li>
             </ul>
           </div>
-          
-          <div className="text-sm text-muted-foreground border-t pt-4">
-            <div className="font-semibold mb-2">Required Columns:</div>
-            <div className="mb-3">
-              {requiredColumns.map(col => (
-                <span key={col} className="inline-block bg-primary/10 border border-primary/20 px-3 py-1 rounded font-medium mr-2 mb-1">
-                  {col}
-                </span>
-              ))}
-            </div>
-            
-            <div className="font-semibold mb-2 mt-4">Optional Columns:</div>
-            <div className="flex flex-wrap gap-1">
-              {optionalColumns.map(col => (
-                <span key={col} className="inline-block bg-secondary/50 px-2 py-1 rounded text-xs">
-                  {col}
-                </span>
-              ))}
-            </div>
-          </div>
         </CardContent>
       </Card>
 
