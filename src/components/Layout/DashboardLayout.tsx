@@ -248,7 +248,7 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                   onClick={() => setSidebarOpen(false)}
                 >
                   <Database size={20} />
-                  <span>Data Repository</span>
+                  <span>Repository</span>
                 </Link>
               )}
 
