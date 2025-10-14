@@ -19,16 +19,24 @@ serve(async (req) => {
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const authHeader = req.headers.get('Authorization')!;
     
-    // Create user client with anon key for authentication
-    const supabaseUser = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } }
-    });
+    // Extract JWT token from Authorization header
+    const jwt = authHeader?.replace('Bearer ', '');
+    if (!jwt) {
+      console.error('[AUTH] Missing JWT token');
+      return new Response(JSON.stringify({ error: 'Missing authorization token' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    
+    // Create client for authentication
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey);
     
     // Create admin client for database operations
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Authenticate user using anon key client
-    const { data: { user }, error: authError } = await supabaseUser.auth.getUser();
+    // Authenticate user by passing JWT directly to getUser
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(jwt);
     if (authError || !user) {
       console.error('[AUTH] Authentication failed:', authError);
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
