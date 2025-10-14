@@ -147,9 +147,21 @@ serve(async (req) => {
     console.log('[PARSE] Headers detected:', headers);
 
     // Validate required columns based on import type
-    const requiredColumns = importJob.import_type === 'contacts' 
-      ? ['first_name'] 
-      : ['email'];
+    let requiredColumns: string[];
+    switch (importJob.import_type) {
+      case 'contacts':
+        requiredColumns = ['first_name'];
+        break;
+      case 'redefine_repository':
+        requiredColumns = ['name'];
+        break;
+      case 'email_recipients':
+      case 'whatsapp_recipients':
+        requiredColumns = ['email'];
+        break;
+      default:
+        requiredColumns = ['email'];
+    }
     
     const missingColumns = requiredColumns.filter(col => !headers.includes(col));
     if (missingColumns.length > 0) {
@@ -442,6 +454,9 @@ async function processBatch(supabase: any, importJob: ImportJob, batch: any[], b
     } else if (importJob.import_type === 'whatsapp_recipients') {
       tableName = 'whatsapp_campaign_recipients';
       conflictColumn = 'phone_number';
+    } else if (importJob.import_type === 'redefine_repository') {
+      tableName = 'redefine_data_repository';
+      conflictColumn = 'id';
     } else {
       throw new Error(`Unknown import type: ${importJob.import_type}`);
     }
