@@ -76,6 +76,51 @@ function normalizeHeader(header: string): string {
     .replace(/[^a-z0-9_]/g, '');
 }
 
+// Special mapping for inventory columns to handle variations in CSV headers
+function mapInventoryColumn(normalizedHeader: string): string {
+  const inventoryColumnMap: Record<string, string> = {
+    'item_id__sku': 'item_id_sku',
+    'item_name__description': 'item_name',
+    'grade__class': 'grade_class',
+    'finish__coating': 'finish_coating',
+    'diameter_mm': 'diameter_mm',
+    'length_mm': 'length_mm',
+    'head_type': 'head_type',
+    'drive_type': 'drive_type',
+    'standard__specification': 'standard_spec',
+    'available_quantity': 'available_qty',
+    'reorder_level': 'reorder_level',
+    'reorder_quantity': 'reorder_qty',
+    'unit_of_measure_uom': 'uom',
+    'storage_location__bin_no': 'storage_location',
+    'warehouse__branch': 'warehouse_branch',
+    'supplier_name': 'supplier_name',
+    'supplier_code__id': 'supplier_code',
+    'last_purchase_date': 'last_purchase_date',
+    'last_purchase_price_inr': 'last_purchase_price',
+    'lead_time_days': 'lead_time_days',
+    'purchase_order_no': 'purchase_order_no',
+    'selling_price_inr': 'selling_price',
+    'discount_': 'discount_pct',
+    'customer__project_name': 'customer_project',
+    'last_sale_date': 'last_sale_date',
+    'gst_': 'gst_pct',
+    'hsn_code': 'hsn_code',
+    'batch_no__lot_no': 'batch_no',
+    'heat_no': 'heat_no',
+    'inspection_status': 'inspection_status',
+    'date_of_entry': 'date_of_entry',
+    'remarks__notes': 'remarks_notes',
+    'weight_per_unit_g__kg': 'weight_per_unit',
+    'image__drawing_reference': 'image_ref',
+    'certificate_no': 'certificate_no',
+    'expiry__review_date': 'expiry_review_date',
+    'issued_to__department': 'issued_to'
+  };
+  
+  return inventoryColumnMap[normalizedHeader] || normalizedHeader;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -143,7 +188,10 @@ serve(async (req) => {
       file_size_kb: fileSizeKB
     });
 
-    const headers = parseCSVLine(lines[0]).map(normalizeHeader);
+    const headers = parseCSVLine(lines[0]).map(h => {
+      const normalized = normalizeHeader(h);
+      return importJob.import_type === 'inventory' ? mapInventoryColumn(normalized) : normalized;
+    });
     console.log('[PARSE] Headers detected:', headers);
 
     // Validate required columns based on import type
