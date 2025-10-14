@@ -137,7 +137,7 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
     canAccessFeature("campaigns_email") || canAccessFeature("campaigns_whatsapp") || canAccessFeature("ai_insights");
   
   const showOperationsSection = canAccessFeature("campaigns_email") || canAccessFeature("contacts") || 
-    canAccessFeature("pipeline_stages") || canAccessFeature("calling");
+    canAccessFeature("pipeline_stages") || canAccessFeature("calling") || canAccessFeature("redefine_data_repository");
   
   const showAdminCommunicationSection = isAdmin && (canAccessFeature("campaigns_whatsapp") || 
     canAccessFeature("calling") || canAccessFeature("templates"));
