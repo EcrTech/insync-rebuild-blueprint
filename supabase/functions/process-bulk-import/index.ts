@@ -598,38 +598,64 @@ async function processBatch(
     } else if (importJob.import_type === 'redefine_repository') {
       tableName = 'redefine_data_repository';
       
-      // Filter out duplicates based on official_email
-      const emails = batch
+      // Collect both official_email and personal_email for duplicate checking
+      const officialEmails = batch
         .map(r => r.official_email)
         .filter(email => email && email.trim() !== '');
       
-      if (emails.length > 0) {
-        // Check which emails already exist in the database
-        const { data: existingRecords } = await supabase
+      const personalEmails = batch
+        .map(r => r.personal_email)
+        .filter(email => email && email.trim() !== '');
+      
+      const allEmails = [...new Set([...officialEmails, ...personalEmails])];
+      
+      if (allEmails.length > 0) {
+        // Check which emails already exist in the database (both fields)
+        const { data: existingByOfficial } = await supabase
           .from('redefine_data_repository')
           .select('official_email')
           .eq('org_id', importJob.org_id)
-          .in('official_email', emails);
+          .in('official_email', allEmails);
 
-        const existingEmails = new Set(
-          (existingRecords || []).map((r: any) => r.official_email?.toLowerCase())
+        const { data: existingByPersonal } = await supabase
+          .from('redefine_data_repository')
+          .select('personal_email')
+          .eq('org_id', importJob.org_id)
+          .in('personal_email', allEmails);
+
+        const existingOfficialEmails = new Set(
+          (existingByOfficial || []).map((r: any) => r.official_email?.toLowerCase())
+        );
+        
+        const existingPersonalEmails = new Set(
+          (existingByPersonal || []).map((r: any) => r.personal_email?.toLowerCase())
         );
 
         // Track emails in current batch to detect within-batch duplicates
-        const batchEmails = new Set<string>();
+        const batchOfficialEmails = new Set<string>();
+        const batchPersonalEmails = new Set<string>();
         
         const originalLength = batch.length;
         batch = batch.filter(record => {
-          const email = record.official_email?.toLowerCase();
-          if (!email || email === '') {
-            return true; // Keep records without emails
+          const officialEmail = record.official_email?.toLowerCase();
+          const personalEmail = record.personal_email?.toLowerCase();
+          
+          // Check official_email duplicates
+          if (officialEmail && officialEmail !== '') {
+            if (existingOfficialEmails.has(officialEmail) || batchOfficialEmails.has(officialEmail)) {
+              return false; // Skip duplicate official email
+            }
+            batchOfficialEmails.add(officialEmail);
           }
           
-          if (existingEmails.has(email) || batchEmails.has(email)) {
-            return false; // Skip duplicates
+          // Check personal_email duplicates
+          if (personalEmail && personalEmail !== '') {
+            if (existingPersonalEmails.has(personalEmail) || batchPersonalEmails.has(personalEmail)) {
+              return false; // Skip duplicate personal email
+            }
+            batchPersonalEmails.add(personalEmail);
           }
           
-          batchEmails.add(email);
           return true;
         });
 
@@ -641,7 +667,7 @@ async function processBatch(
         }
 
         if (skippedCount > 0) {
-          console.log(`[DB] Batch ${batchNumber}: Filtered ${skippedCount} duplicates, inserting ${batch.length} records`);
+          console.log(`[DB] Batch ${batchNumber}: Filtered ${skippedCount} duplicates (by official_email and personal_email), inserting ${batch.length} records`);
         }
       }
       
