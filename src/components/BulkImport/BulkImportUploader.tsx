@@ -331,17 +331,6 @@ export function BulkImportUploader({
               </span>
             )}
           </div>
-
-          <div className="text-sm text-muted-foreground">
-            <p className="font-medium mb-1">Required columns:</p>
-            <p className="font-mono">{requiredColumns.join(', ')}</p>
-            {optionalColumns.length > 0 && (
-              <>
-                <p className="font-medium mt-2 mb-1">Optional columns:</p>
-                <p className="font-mono">{optionalColumns.join(', ')}</p>
-              </>
-            )}
-          </div>
         </div>
       </Card>
 
