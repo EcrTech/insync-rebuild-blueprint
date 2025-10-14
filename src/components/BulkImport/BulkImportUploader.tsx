@@ -180,12 +180,26 @@ export function BulkImportUploader({
 
       if (jobError) throw jobError;
 
-      // Trigger processing
-      const { error: triggerError } = await supabase.functions.invoke('bulk-import-trigger', {
+      // Trigger processing with detailed logging
+      console.log('[UPLOAD] Invoking bulk-import-trigger for job:', job.id);
+      const { data: triggerData, error: triggerError } = await supabase.functions.invoke('bulk-import-trigger', {
         body: { importJobId: job.id }
       });
 
-      if (triggerError) throw triggerError;
+      console.log('[UPLOAD] Trigger response:', { data: triggerData, error: triggerError });
+
+      if (triggerError) {
+        console.error('[UPLOAD] Trigger failed, attempting direct processing:', triggerError);
+        
+        // Fallback: Try direct processing
+        const { data: directData, error: directError } = await supabase.functions.invoke('process-bulk-import', {
+          body: { importJobId: job.id }
+        });
+        
+        console.log('[UPLOAD] Direct processing response:', { data: directData, error: directError });
+        
+        if (directError) throw directError;
+      }
 
       toast({
         title: "Import started",
