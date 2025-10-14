@@ -126,12 +126,12 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
     canAccessFeature("campaigns_email") || canAccessFeature("campaigns_whatsapp") || canAccessFeature("ai_insights");
   
   const showOperationsSection = canAccessFeature("campaigns_email") || canAccessFeature("contacts") || 
-    canAccessFeature("pipeline") || canAccessFeature("calling");
+    canAccessFeature("pipeline_stages") || canAccessFeature("calling");
   
   const showAdminCommunicationSection = isAdmin && (canAccessFeature("campaigns_whatsapp") || 
     canAccessFeature("calling") || canAccessFeature("templates"));
   
-  const showAdminMainSection = isAdmin && (canAccessFeature("pipeline") || canAccessFeature("calling") || 
+  const showAdminMainSection = isAdmin && (canAccessFeature("pipeline_stages") || canAccessFeature("calling") || 
     canAccessFeature("designations") || canAccessFeature("custom_fields") || canAccessFeature("forms"));
 
   return (
@@ -314,7 +314,7 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                 </Link>
               )}
 
-              {canAccessFeature("pipeline") && (
+              {canAccessFeature("pipeline_stages") && (
                 <Link
                   to="/pipeline"
                   className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
