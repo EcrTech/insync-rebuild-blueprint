@@ -19,6 +19,7 @@ import {
   UsersRound,
   Layers,
   PhoneCall,
+  Package,
   CheckSquare,
   Award,
   FileText,
@@ -251,6 +252,15 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                   <span>Data Repository</span>
                 </Link>
               )}
+
+              <Link
+                to="/inventory"
+                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
+                onClick={() => setSidebarOpen(false)}
+              >
+                <Package size={20} />
+                <span>Inventory</span>
+              </Link>
 
               {isPlatformAdmin && (
                 <Link
