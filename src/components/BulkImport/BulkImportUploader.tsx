@@ -134,6 +134,17 @@ export function BulkImportUploader({
       return;
     }
 
+    // Validate file size (10 MB limit)
+    const maxFileSize = 10 * 1024 * 1024; // 10 MB in bytes
+    if (file.size > maxFileSize) {
+      toast({
+        title: "File too large",
+        description: "Maximum file size is 10 MB",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsUploading(true);
 
     try {
@@ -320,7 +331,7 @@ export function BulkImportUploader({
             <div>
               <h3 className="text-lg font-semibold">Bulk Import</h3>
               <p className="text-sm text-muted-foreground">
-                Upload a CSV file to import up to {maxRows.toLocaleString()} records
+                Upload a CSV UTF-8 file to import up to {maxRows.toLocaleString()} records. Max file size: 10 MB. Duplicate emails are not allowed.
               </p>
             </div>
             <Button

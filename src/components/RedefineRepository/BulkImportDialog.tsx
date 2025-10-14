@@ -54,6 +54,7 @@ export function BulkImportDialog({
           importType="redefine_repository"
           requiredColumns={requiredColumns}
           optionalColumns={optionalColumns}
+          maxRows={5000}
           onUploadComplete={() => {
             onImportComplete();
             onOpenChange(false);

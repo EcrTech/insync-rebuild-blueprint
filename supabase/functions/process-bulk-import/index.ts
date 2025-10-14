@@ -182,6 +182,12 @@ serve(async (req) => {
       throw new Error('CSV file is empty');
     }
 
+    // Validate row count for redefine_repository before processing
+    const dataRowCount = lines.length - 1; // Exclude header row
+    if (importJob.import_type === 'redefine_repository' && dataRowCount > 5000) {
+      throw new Error('CSV file contains too many rows. Maximum allowed is 5,000 records.');
+    }
+
     // Parse headers
     await updateJobStage(supabase, importJobId, 'validating', {
       message: 'Validating CSV structure...',
