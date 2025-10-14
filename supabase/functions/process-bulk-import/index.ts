@@ -385,8 +385,8 @@ serve(async (req) => {
         // Process batch when full
         if (batch.length >= BATCH_SIZE) {
           batchNumber++;
-          await processBatch(supabase, importJob, batch, batchNumber);
-          successCount += batch.length;
+          const result = await processBatch(supabase, importJob, batch, batchNumber);
+          successCount += result.inserted;
           batch = [];
 
           // Throttled progress update
@@ -422,8 +422,8 @@ serve(async (req) => {
     // Process remaining batch
     if (batch.length > 0) {
       batchNumber++;
-      await processBatch(supabase, importJob, batch, batchNumber);
-      successCount += batch.length;
+      const result = await processBatch(supabase, importJob, batch, batchNumber);
+      successCount += result.inserted;
     }
 
     console.log('[COMPLETE] Processed:', successCount, 'success,', errorCount, 'errors');
@@ -526,12 +526,18 @@ async function updateJobProgress(supabase: any, jobId: string, progress: any) {
   }).eq('id', jobId);
 }
 
-async function processBatch(supabase: any, importJob: ImportJob, batch: any[], batchNumber: number) {
+async function processBatch(
+  supabase: any, 
+  importJob: ImportJob, 
+  batch: any[], 
+  batchNumber: number
+): Promise<{ inserted: number; skipped: number }> {
   console.log('[DB] Inserting batch', batchNumber, 'with', batch.length, 'records');
 
   try {
     let tableName: string;
     let upsertOptions: any = {};
+    let skippedCount = 0;
 
     if (importJob.import_type === 'contacts') {
       tableName = 'contacts';
@@ -567,8 +573,54 @@ async function processBatch(supabase: any, importJob: ImportJob, batch: any[], b
       };
     } else if (importJob.import_type === 'redefine_repository') {
       tableName = 'redefine_data_repository';
-      // Use insert instead of upsert since there's no unique constraint
-      // Just insert new records
+      
+      // Filter out duplicates based on official_email
+      const emails = batch
+        .map(r => r.official_email)
+        .filter(email => email && email.trim() !== '');
+      
+      if (emails.length > 0) {
+        // Check which emails already exist in the database
+        const { data: existingRecords } = await supabase
+          .from('redefine_data_repository')
+          .select('official_email')
+          .eq('org_id', importJob.org_id)
+          .in('official_email', emails);
+
+        const existingEmails = new Set(
+          (existingRecords || []).map((r: any) => r.official_email?.toLowerCase())
+        );
+
+        // Track emails in current batch to detect within-batch duplicates
+        const batchEmails = new Set<string>();
+        
+        const originalLength = batch.length;
+        batch = batch.filter(record => {
+          const email = record.official_email?.toLowerCase();
+          if (!email || email === '') {
+            return true; // Keep records without emails
+          }
+          
+          if (existingEmails.has(email) || batchEmails.has(email)) {
+            return false; // Skip duplicates
+          }
+          
+          batchEmails.add(email);
+          return true;
+        });
+
+        skippedCount = originalLength - batch.length;
+        
+        if (batch.length === 0) {
+          console.log(`[DB] Batch ${batchNumber}: All ${originalLength} records are duplicates, skipping`);
+          return { inserted: 0, skipped: originalLength };
+        }
+
+        if (skippedCount > 0) {
+          console.log(`[DB] Batch ${batchNumber}: Filtered ${skippedCount} duplicates, inserting ${batch.length} records`);
+        }
+      }
+      
       upsertOptions = {};
     } else if (importJob.import_type === 'inventory') {
       tableName = 'inventory_items';
@@ -610,6 +662,7 @@ async function processBatch(supabase: any, importJob: ImportJob, batch: any[], b
     }
 
     console.log('[DB] Batch', batchNumber, 'inserted successfully');
+    return { inserted: batch.length, skipped: skippedCount };
   } catch (error) {
     console.error('[DB] Batch processing error:', error);
     throw error;
