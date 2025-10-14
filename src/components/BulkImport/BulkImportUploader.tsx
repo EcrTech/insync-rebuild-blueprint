@@ -354,6 +354,7 @@ export function BulkImportUploader({
           jobs={importJobs} 
           onRefresh={loadImportJobs}
           onComplete={onDataLoaded}
+          onCancel={handleCancelJob}
         />
       )}
     </div>

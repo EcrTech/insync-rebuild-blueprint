@@ -9,7 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { CheckCircle2, XCircle, Clock, RefreshCw } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, RefreshCw, X } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 interface ImportJob {
@@ -27,9 +27,10 @@ interface ImportHistoryTableProps {
   jobs: ImportJob[];
   onRefresh: () => void;
   onComplete?: () => void;
+  onCancel?: (jobId: string) => void;
 }
 
-export function ImportHistoryTable({ jobs, onRefresh, onComplete }: ImportHistoryTableProps) {
+export function ImportHistoryTable({ jobs, onRefresh, onComplete, onCancel }: ImportHistoryTableProps) {
   const getStatusBadge = (status: string) => {
     const variants: Record<string, any> = {
       completed: { variant: 'default', icon: CheckCircle2, className: 'bg-green-500' },
@@ -86,12 +87,13 @@ export function ImportHistoryTable({ jobs, onRefresh, onComplete }: ImportHistor
               <TableHead className="text-right">Success</TableHead>
               <TableHead className="text-right">Errors</TableHead>
               <TableHead>Started</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {jobs.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-muted-foreground">
+                <TableCell colSpan={7} className="text-center text-muted-foreground">
                   No import history
                 </TableCell>
               </TableRow>
@@ -119,6 +121,19 @@ export function ImportHistoryTable({ jobs, onRefresh, onComplete }: ImportHistor
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {formatDistanceToNow(new Date(job.created_at), { addSuffix: true })}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {(job.status === 'pending' || job.status === 'processing') && onCancel && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onCancel(job.id)}
+                        className="h-8 w-8 p-0"
+                        title="Cancel import"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
                   </TableCell>
                 </TableRow>
               ))
