@@ -261,7 +261,7 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                 </Link>
               )}
 
-              {isPlatformAdmin && (
+              {isPlatformAdmin && canAccessFeature("platform_admin") && (
                 <Link
                   to="/platform-admin"
                   className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
@@ -365,14 +365,16 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                       Management
                     </p>
                   </div>
-                  <Link
-                    to="/users"
-                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-                    onClick={() => setSidebarOpen(false)}
-                  >
-                    <UserCog size={20} />
-                    <span>Users</span>
-                  </Link>
+                  {canAccessFeature("users") && (
+                    <Link
+                      to="/users"
+                      className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
+                      onClick={() => setSidebarOpen(false)}
+                    >
+                      <UserCog size={20} />
+                      <span>Users</span>
+                    </Link>
+                  )}
                   {canAccessFeature("teams") && (
                     <Link
                       to="/teams"
@@ -493,14 +495,16 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                     </Link>
                   )}
                   
-                  <Link
-                    to="/admin/email-settings"
-                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-                    onClick={() => setSidebarOpen(false)}
-                  >
-                    <Mail size={20} />
-                    <span>Email Settings</span>
-                  </Link>
+                  {canAccessFeature("email_settings") && (
+                    <Link
+                      to="/admin/email-settings"
+                      className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
+                      onClick={() => setSidebarOpen(false)}
+                    >
+                      <Mail size={20} />
+                      <span>Email Settings</span>
+                    </Link>
+                  )}
                   
                   {canAccessFeature("calling") && (
                     <Link
@@ -540,14 +544,16 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                       Connectors
                     </p>
                   </div>
-                  <Link
-                    to="/admin/connectors"
-                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-                    onClick={() => setSidebarOpen(false)}
-                  >
-                    <Webhook size={20} />
-                    <span>Webhook Connectors</span>
-                  </Link>
+                  {canAccessFeature("connectors") && (
+                    <Link
+                      to="/admin/connectors"
+                      className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
+                      onClick={() => setSidebarOpen(false)}
+                    >
+                      <Webhook size={20} />
+                      <span>Webhook Connectors</span>
+                    </Link>
+                  )}
                 </>
               )}
             </nav>
