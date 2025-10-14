@@ -155,7 +155,7 @@ serve(async (req) => {
         requiredColumns = ['first_name'];
         break;
       case 'redefine_repository':
-        requiredColumns = ['name'];
+        requiredColumns = ['name', 'personalemailid'];
         break;
       case 'email_recipients':
       case 'whatsapp_recipients':
@@ -303,6 +303,17 @@ serve(async (req) => {
             erp_vendor: row.erp_vendor || null,
             created_by: importJob.user_id
           };
+          
+          // Validate required fields for redefine_repository
+          if (!record.name || !record.personal_email) {
+            throw new Error('Missing required fields: name and personalemailid are required');
+          }
+          
+          // Basic email validation
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          if (!emailRegex.test(record.personal_email)) {
+            throw new Error(`Invalid email format in personalemailid: ${record.personal_email}`);
+          }
         }
 
         batch.push(record);
@@ -486,8 +497,21 @@ async function processBatch(supabase: any, importJob: ImportJob, batch: any[], b
       tableName = 'whatsapp_campaign_recipients';
       conflictColumn = 'phone_number';
     } else if (importJob.import_type === 'redefine_repository') {
-      tableName = 'redefine_repository';
-      conflictColumn = 'name';
+      tableName = 'redefine_data_repository';
+      conflictColumn = 'personal_email';
+      
+      // Deduplicate by personal_email
+      const deduped = [];
+      const seen = new Set();
+      for (let i = batch.length - 1; i >= 0; i--) {
+        const record = batch[i];
+        const key = `${record.org_id}:${record.personal_email}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          deduped.unshift(record);
+        }
+      }
+      batch = deduped;
     } else {
       throw new Error(`Unknown import type: ${importJob.import_type}`);
     }
