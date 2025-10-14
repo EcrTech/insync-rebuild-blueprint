@@ -66,7 +66,7 @@ export function BulkImportUploader({
       .eq('org_id', effectiveOrgId)
       .eq('import_type', importType)
       .order('created_at', { ascending: false })
-      .limit(10);
+      .limit(3);
 
     if (error) {
       console.error('Error loading import jobs:', error);
