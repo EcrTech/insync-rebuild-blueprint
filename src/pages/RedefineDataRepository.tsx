@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgContext } from "@/hooks/useOrgContext";
@@ -15,6 +15,15 @@ import { RepositoryFilters } from "@/components/RedefineRepository/RepositoryFil
 import { exportToCSV, ExportColumn } from "@/utils/exportUtils";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 
 export default function RedefineDataRepository() {
   const { effectiveOrgId } = useOrgContext();
@@ -23,6 +32,8 @@ export default function RedefineDataRepository() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showBulkImport, setShowBulkImport] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<any>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 25;
   const [filters, setFilters] = useState({
     industryType: "",
     state: "",
@@ -31,15 +42,62 @@ export default function RedefineDataRepository() {
     jobLevel: "",
   });
 
-  // Fetch repository data
-  const { data: records, isLoading, refetch } = useQuery({
-    queryKey: ["redefine-repository", effectiveOrgId, searchQuery, filters],
+  // Reset to page 1 when filters or search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filters]);
+
+  // Fetch total count for pagination
+  const { data: totalCount } = useQuery({
+    queryKey: ["redefine-repository-count", effectiveOrgId, searchQuery, filters],
     queryFn: async () => {
+      let query = supabase
+        .from("redefine_data_repository")
+        .select("*", { count: "exact", head: true })
+        .eq("org_id", effectiveOrgId!);
+
+      if (searchQuery) {
+        query = query.or(
+          `name.ilike.%${searchQuery}%,company_name.ilike.%${searchQuery}%,official_email.ilike.%${searchQuery}%,designation.ilike.%${searchQuery}%,city.ilike.%${searchQuery}%`
+        );
+      }
+
+      if (filters.industryType) {
+        query = query.eq("industry_type", filters.industryType);
+      }
+      if (filters.state) {
+        query = query.eq("state", filters.state);
+      }
+      if (filters.zone) {
+        query = query.eq("zone", filters.zone);
+      }
+      if (filters.tier) {
+        query = query.eq("tier", filters.tier);
+      }
+      if (filters.jobLevel) {
+        query = query.eq("job_level", filters.jobLevel);
+      }
+
+      const { count, error } = await query;
+      if (error) throw error;
+      return count || 0;
+    },
+    enabled: !!effectiveOrgId,
+  });
+
+  // Fetch repository data with pagination
+  const { data: records, isLoading, refetch } = useQuery({
+    queryKey: ["redefine-repository", effectiveOrgId, searchQuery, filters, currentPage],
+    queryFn: async () => {
+      const from = (currentPage - 1) * pageSize;
+      const to = from + pageSize - 1;
+
       let query = supabase
         .from("redefine_data_repository")
         .select("*")
         .eq("org_id", effectiveOrgId!)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .range(from, to);
 
       if (searchQuery) {
         query = query.or(
@@ -69,6 +127,10 @@ export default function RedefineDataRepository() {
     },
     enabled: !!effectiveOrgId,
   });
+
+  const totalPages = Math.ceil((totalCount || 0) / pageSize);
+  const startRecord = totalCount === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const endRecord = Math.min(currentPage * pageSize, totalCount || 0);
 
   // Fetch stats
   const { data: stats } = useQuery({
@@ -301,6 +363,57 @@ export default function RedefineDataRepository() {
           ) : (
             <div className="text-center py-8 text-muted-foreground">
               No records found. Add your first record or import from CSV.
+            </div>
+          )}
+
+          {/* Pagination */}
+          {totalCount && totalCount > 0 && (
+            <div className="flex items-center justify-between mt-4 pt-4 border-t">
+              <div className="text-sm text-muted-foreground">
+                Showing {startRecord} to {endRecord} of {totalCount} records
+              </div>
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious 
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                    />
+                  </PaginationItem>
+                  
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNumber;
+                    if (totalPages <= 5) {
+                      pageNumber = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNumber = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNumber = totalPages - 4 + i;
+                    } else {
+                      pageNumber = currentPage - 2 + i;
+                    }
+                    
+                    return (
+                      <PaginationItem key={pageNumber}>
+                        <PaginationLink
+                          onClick={() => setCurrentPage(pageNumber)}
+                          isActive={currentPage === pageNumber}
+                          className="cursor-pointer"
+                        >
+                          {pageNumber}
+                        </PaginationLink>
+                      </PaginationItem>
+                    );
+                  })}
+                  
+                  <PaginationItem>
+                    <PaginationNext 
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
             </div>
           )}
         </CardContent>
