@@ -15,15 +15,19 @@ serve(async (req) => {
     console.log('[INIT] Starting bulk import trigger function');
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const authHeader = req.headers.get('Authorization')!;
     
-    const supabase = createClient(supabaseUrl, supabaseKey, {
+    // Create admin client for database operations
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+    
+    // Create user client to authenticate
+    const supabaseUser = createClient(supabaseUrl, supabaseServiceKey, {
       global: { headers: { Authorization: authHeader } }
     });
 
     // Authenticate user
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { data: { user }, error: authError } = await supabaseUser.auth.getUser();
     if (authError || !user) {
       console.error('[AUTH] Authentication failed:', authError);
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
@@ -45,7 +49,7 @@ serve(async (req) => {
     console.log('[JOB] Processing import job:', importJobId);
 
     // Fetch import job
-    const { data: importJob, error: jobError } = await supabase
+    const { data: importJob, error: jobError } = await supabaseAdmin
       .from('import_jobs')
       .select('*')
       .eq('id', importJobId)
@@ -62,7 +66,7 @@ serve(async (req) => {
     console.log('[DB] Import job found:', importJob.file_name);
 
     // Update job status to processing
-    const { error: updateError } = await supabase
+    const { error: updateError } = await supabaseAdmin
       .from('import_jobs')
       .update({
         status: 'processing',
@@ -86,7 +90,7 @@ serve(async (req) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${supabaseKey}`
+        'Authorization': `Bearer ${supabaseServiceKey}`
       },
       body: JSON.stringify({ importJobId })
     }).catch(error => {
