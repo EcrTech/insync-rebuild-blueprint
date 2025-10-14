@@ -34,7 +34,6 @@ export function ImportHistoryTable({ jobs, onRefresh, onComplete }: ImportHistor
     const variants: Record<string, any> = {
       completed: { variant: 'default', icon: CheckCircle2, className: 'bg-green-500' },
       failed: { variant: 'destructive', icon: XCircle },
-      cancelled: { variant: 'outline', icon: XCircle, className: 'border-orange-500 text-orange-500' },
       processing: { variant: 'secondary', icon: Clock },
       pending: { variant: 'outline', icon: Clock }
     };

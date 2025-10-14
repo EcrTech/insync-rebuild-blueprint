@@ -1,25 +1,10 @@
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { CheckCircle2, XCircle, Loader2, AlertCircle, Ban } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { CheckCircle2, XCircle, Loader2, AlertCircle } from "lucide-react";
 
 interface ImportProgressCardProps {
   job: {
-    id: string;
     file_name: string;
     status: string;
     current_stage: string;
@@ -28,18 +13,10 @@ interface ImportProgressCardProps {
     success_count: number;
     error_count: number;
     stage_details: any;
-    import_type: string;
-    started_at: string;
   };
-  onCancel?: () => void;
 }
 
-export function ImportProgressCard({ job, onCancel }: ImportProgressCardProps) {
-  const { toast } = useToast();
-  const [isCancelling, setIsCancelling] = useState(false);
-  const [showCancelDialog, setShowCancelDialog] = useState(false);
-  const [showRollbackOption, setShowRollbackOption] = useState(false);
-
+export function ImportProgressCard({ job }: ImportProgressCardProps) {
   const getStageLabel = (stage: string) => {
     const labels: Record<string, string> = {
       pending: 'Queued',
@@ -49,8 +26,7 @@ export function ImportProgressCard({ job, onCancel }: ImportProgressCardProps) {
       inserting: 'Inserting records',
       finalizing: 'Finalizing',
       completed: 'Completed',
-      failed: 'Failed',
-      cancelled: 'Cancelled'
+      failed: 'Failed'
     };
     return labels[stage] || stage;
   };
@@ -62,9 +38,6 @@ export function ImportProgressCard({ job, onCancel }: ImportProgressCardProps) {
     if (job.status === 'failed') {
       return <XCircle className="h-5 w-5 text-destructive" />;
     }
-    if (job.status === 'cancelled') {
-      return <Ban className="h-5 w-5 text-orange-500" />;
-    }
     if (job.status === 'processing') {
       return <Loader2 className="h-5 w-5 text-primary animate-spin" />;
     }
@@ -74,94 +47,8 @@ export function ImportProgressCard({ job, onCancel }: ImportProgressCardProps) {
   const getStatusColor = () => {
     if (job.status === 'completed') return 'bg-green-500';
     if (job.status === 'failed') return 'bg-destructive';
-    if (job.status === 'cancelled') return 'bg-orange-500';
     if (job.status === 'processing') return 'bg-primary';
     return 'bg-muted';
-  };
-
-  const handleCancelClick = () => {
-    if (job.success_count > 0) {
-      setShowRollbackOption(true);
-    }
-    setShowCancelDialog(true);
-  };
-
-  const handleCancel = async (rollback: boolean = false) => {
-    setIsCancelling(true);
-    try {
-      // Update job status to cancelled
-      const { error: updateError } = await supabase
-        .from('import_jobs')
-        .update({
-          status: 'cancelled',
-          current_stage: 'cancelled',
-          completed_at: new Date().toISOString(),
-          stage_details: {
-            message: 'Import cancelled by user',
-            rollback_requested: rollback
-          }
-        })
-        .eq('id', job.id);
-
-      if (updateError) throw updateError;
-
-      // If rollback is requested and records were inserted
-      if (rollback && job.success_count > 0 && job.started_at) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error('User not authenticated');
-
-        // Delete records created during this import based on import type
-        if (job.import_type === 'contacts') {
-          await supabase
-            .from('contacts')
-            .delete()
-            .gte('created_at', job.started_at)
-            .eq('created_by', user.id);
-        } else if (job.import_type === 'redefine_repository') {
-          await supabase
-            .from('redefine_data_repository')
-            .delete()
-            .gte('created_at', job.started_at)
-            .eq('created_by', user.id);
-        } else if (job.import_type === 'email_recipients') {
-          await supabase
-            .from('email_campaign_recipients')
-            .delete()
-            .gte('created_at', job.started_at);
-        } else if (job.import_type === 'whatsapp_recipients') {
-          await supabase
-            .from('whatsapp_campaign_recipients')
-            .delete()
-            .gte('created_at', job.started_at);
-        }
-
-        toast({
-          title: "Import cancelled",
-          description: `Import cancelled and ${job.success_count} records rolled back.`
-        });
-      } else {
-        toast({
-          title: "Import cancelled",
-          description: job.success_count > 0 
-            ? `Import cancelled. ${job.success_count} records were already imported.`
-            : "Import cancelled successfully."
-        });
-      }
-
-      if (onCancel) {
-        onCancel();
-      }
-    } catch (error) {
-      console.error('Cancel error:', error);
-      toast({
-        title: "Cancellation failed",
-        description: error instanceof Error ? error.message : "Failed to cancel import",
-        variant: "destructive"
-      });
-    } finally {
-      setIsCancelling(false);
-      setShowCancelDialog(false);
-    }
   };
 
   const progressPercentage = job.total_rows > 0 
@@ -169,43 +56,22 @@ export function ImportProgressCard({ job, onCancel }: ImportProgressCardProps) {
     : 0;
 
   return (
-    <>
-      <Card className="p-6">
-        <div className="space-y-4">
-          <div className="flex items-start justify-between">
-            <div className="flex items-start gap-3 flex-1">
-              {getStatusIcon()}
-              <div className="flex-1">
-                <h4 className="font-medium">{job.file_name}</h4>
-                <p className="text-sm text-muted-foreground">
-                  {getStageLabel(job.current_stage)}
-                </p>
-              </div>
+    <Card className="p-6">
+      <div className="space-y-4">
+        <div className="flex items-start justify-between">
+          <div className="flex items-start gap-3">
+            {getStatusIcon()}
+            <div>
+              <h4 className="font-medium">{job.file_name}</h4>
+              <p className="text-sm text-muted-foreground">
+                {getStageLabel(job.current_stage)}
+              </p>
             </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <Badge variant={
-              job.status === 'completed' ? 'default' : 
-              job.status === 'failed' ? 'destructive' : 
-              'secondary'
-            }>
-              {job.status}
-            </Badge>
-            {['pending', 'processing'].includes(job.status) && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleCancelClick}
-                disabled={isCancelling}
-              >
-                {isCancelling ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  'Cancel'
-                )}
-              </Button>
-            )}
           </div>
-          </div>
+          <Badge variant={job.status === 'completed' ? 'default' : 'secondary'}>
+            {job.status}
+          </Badge>
+        </div>
 
         {job.total_rows > 0 && (
           <div className="space-y-2">
@@ -245,84 +111,7 @@ export function ImportProgressCard({ job, onCancel }: ImportProgressCardProps) {
             Processing batch {job.stage_details.batches_completed + 1} of {job.stage_details.total_batches}
           </div>
         )}
-
-        {job.status === 'failed' && job.stage_details?.error && (
-          <div className="mt-4 p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
-            <div className="flex items-start gap-2">
-              <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-destructive">Import Failed</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {job.stage_details.error}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </Card>
-
-    <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Cancel Import?</AlertDialogTitle>
-          <AlertDialogDescription>
-            {showRollbackOption ? (
-              <>
-                <p className="mb-3">
-                  This import has already inserted {job.success_count} records into the database.
-                </p>
-                <p className="font-medium mb-2">What would you like to do?</p>
-                <ul className="list-disc list-inside space-y-1 text-sm">
-                  <li><strong>Cancel & Keep Data:</strong> Stop the import but keep the {job.success_count} records already inserted</li>
-                  <li><strong>Cancel & Rollback:</strong> Stop the import and delete all {job.success_count} records that were inserted</li>
-                </ul>
-              </>
-            ) : (
-              "Are you sure you want to cancel this import? No data has been inserted yet."
-            )}
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel disabled={isCancelling}>
-            Continue Import
-          </AlertDialogCancel>
-          {showRollbackOption ? (
-            <>
-              <Button
-                variant="outline"
-                onClick={() => handleCancel(false)}
-                disabled={isCancelling}
-              >
-                Cancel & Keep Data
-              </Button>
-              <AlertDialogAction
-                onClick={() => handleCancel(true)}
-                disabled={isCancelling}
-                className="bg-destructive hover:bg-destructive/90"
-              >
-                {isCancelling ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  'Cancel & Rollback'
-                )}
-              </AlertDialogAction>
-            </>
-          ) : (
-            <AlertDialogAction
-              onClick={() => handleCancel(false)}
-              disabled={isCancelling}
-            >
-              {isCancelling ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                'Yes, Cancel Import'
-              )}
-            </AlertDialogAction>
-          )}
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-  </>
   );
 }

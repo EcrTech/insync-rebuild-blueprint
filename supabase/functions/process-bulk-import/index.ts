@@ -83,7 +83,6 @@ serve(async (req) => {
 
   const startTime = Date.now();
   let supabase: any;
-  let importJobId: string | undefined;
 
   try {
     console.log('[INIT] Starting bulk import processor');
@@ -93,8 +92,7 @@ serve(async (req) => {
     
     supabase = createClient(supabaseUrl, supabaseKey);
 
-    const body = await req.json();
-    importJobId = body.importJobId;
+    const { importJobId } = await req.json();
     
     if (!importJobId) {
       throw new Error('Missing importJobId');
@@ -149,21 +147,9 @@ serve(async (req) => {
     console.log('[PARSE] Headers detected:', headers);
 
     // Validate required columns based on import type
-    let requiredColumns: string[];
-    switch (importJob.import_type) {
-      case 'contacts':
-        requiredColumns = ['first_name'];
-        break;
-      case 'redefine_repository':
-        requiredColumns = ['name', 'personalemailid'];
-        break;
-      case 'email_recipients':
-      case 'whatsapp_recipients':
-        requiredColumns = ['email'];
-        break;
-      default:
-        requiredColumns = [];
-    }
+    const requiredColumns = importJob.import_type === 'contacts' 
+      ? ['first_name'] 
+      : ['email'];
     
     const missingColumns = requiredColumns.filter(col => !headers.includes(col));
     if (missingColumns.length > 0) {
@@ -189,32 +175,6 @@ serve(async (req) => {
     for (let i = 1; i < lines.length; i++) {
       const line = lines[i].trim();
       if (!line) continue;
-
-      // Check if job was cancelled every 100 rows
-      if (i % 100 === 0) {
-        const { data: jobCheck } = await supabase
-          .from('import_jobs')
-          .select('status')
-          .eq('id', importJobId)
-          .single();
-        
-        if (jobCheck?.status === 'cancelled') {
-          console.log('[CANCELLED] Import job was cancelled by user');
-          await updateJobStage(supabase, importJobId, 'cancelled', {
-            message: 'Import cancelled by user',
-            processed_at_cancellation: i - 1
-          });
-          return new Response(JSON.stringify({
-            success: false,
-            message: 'Import cancelled by user',
-            processed: successCount,
-            errors: errorCount
-          }), {
-            status: 200,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          });
-        }
-      }
 
       try {
         const values = parseCSVLine(line);
@@ -303,17 +263,6 @@ serve(async (req) => {
             erp_vendor: row.erp_vendor || null,
             created_by: importJob.user_id
           };
-          
-          // Validate required fields for redefine_repository
-          if (!record.name || !record.personal_email) {
-            throw new Error('Missing required fields: name and personalemailid are required');
-          }
-          
-          // Basic email validation
-          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-          if (!emailRegex.test(record.personal_email)) {
-            throw new Error(`Invalid email format in personalemailid: ${record.personal_email}`);
-          }
         }
 
         batch.push(record);
@@ -419,9 +368,9 @@ serve(async (req) => {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     const errorStack = error instanceof Error ? error.stack : undefined;
     
-    // Use importJobId from outer scope instead of re-reading request body
-    if (supabase && importJobId) {
+    if (supabase && req.body) {
       try {
+        const body = await req.json();
         await supabase.from('import_jobs').update({
           status: 'failed',
           current_stage: 'failed',
@@ -431,11 +380,8 @@ serve(async (req) => {
             stack: errorStack,
             timestamp: new Date().toISOString()
           }],
-          stage_details: { 
-            error: errorMessage,
-            message: `Import failed: ${errorMessage}`
-          }
-        }).eq('id', importJobId);
+          stage_details: { error: errorMessage }
+        }).eq('id', body.importJobId);
       } catch (updateError) {
         console.error('[ERROR] Failed to update job status:', updateError);
       }
@@ -496,22 +442,6 @@ async function processBatch(supabase: any, importJob: ImportJob, batch: any[], b
     } else if (importJob.import_type === 'whatsapp_recipients') {
       tableName = 'whatsapp_campaign_recipients';
       conflictColumn = 'phone_number';
-    } else if (importJob.import_type === 'redefine_repository') {
-      tableName = 'redefine_data_repository';
-      conflictColumn = 'personal_email';
-      
-      // Deduplicate by personal_email
-      const deduped = [];
-      const seen = new Set();
-      for (let i = batch.length - 1; i >= 0; i--) {
-        const record = batch[i];
-        const key = `${record.org_id}:${record.personal_email}`;
-        if (!seen.has(key)) {
-          seen.add(key);
-          deduped.unshift(record);
-        }
-      }
-      batch = deduped;
     } else {
       throw new Error(`Unknown import type: ${importJob.import_type}`);
     }

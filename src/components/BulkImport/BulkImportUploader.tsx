@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Upload, Download, Loader2 } from "lucide-react";
 import { ImportProgressCard } from "./ImportProgressCard";
 import { ImportHistoryTable } from "./ImportHistoryTable";
@@ -33,7 +33,6 @@ interface ImportJob {
   created_at: string;
   started_at: string;
   completed_at: string;
-  import_type: string;
 }
 
 export function BulkImportUploader({
@@ -66,7 +65,7 @@ export function BulkImportUploader({
       .eq('org_id', effectiveOrgId)
       .eq('import_type', importType)
       .order('created_at', { ascending: false })
-      .limit(3);
+      .limit(10);
 
     if (error) {
       console.error('Error loading import jobs:', error);
@@ -234,16 +233,27 @@ export function BulkImportUploader({
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader className="text-center">
-          <CardTitle>Bulk Import Repository Data</CardTitle>
-          <CardDescription>
-            Upload a CSV file to import multiple repository records at once
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="flex justify-center">
-            <label htmlFor="csv-upload" className="w-full max-w-md">
+      <Card className="p-6">
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold">Bulk Import</h3>
+              <p className="text-sm text-muted-foreground">
+                Upload a CSV file to import up to {maxRows.toLocaleString()} records
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={downloadTemplate}
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Download Template
+            </Button>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <label htmlFor="csv-upload">
               <input
                 id="csv-upload"
                 type="file"
@@ -253,11 +263,9 @@ export function BulkImportUploader({
                 className="hidden"
               />
               <Button
-                variant="outline"
-                size="lg"
+                variant="default"
                 disabled={isUploading || !!activeJob}
                 onClick={() => document.getElementById('csv-upload')?.click()}
-                className="w-full"
               >
                 {isUploading ? (
                   <>
@@ -267,31 +275,34 @@ export function BulkImportUploader({
                 ) : (
                   <>
                     <Upload className="h-4 w-4 mr-2" />
-                    Choose CSV File
+                    Upload CSV
                   </>
                 )}
               </Button>
             </label>
+
+            {activeJob && (
+              <span className="text-sm text-muted-foreground">
+                An import is currently in progress
+              </span>
+            )}
           </div>
-          
-          <div className="bg-muted/50 p-4 rounded-lg space-y-3 text-sm">
-            <div className="font-semibold text-base">Import Guidelines:</div>
-            <ul className="space-y-2 list-disc list-inside">
-              <li>Maximum <strong>5,000 records</strong> per file</li>
-              <li>Processing runs in the background with progress tracking (updates every 15 seconds)</li>
-              <li>Use the same CSV template format as your existing data</li>
-              <li>Automatic duplicate handling via <strong>PersonalEmailID</strong></li>
-              <li>Processing rate: ~5,000-8,000 rows/minute</li>
-            </ul>
+
+          <div className="text-sm text-muted-foreground">
+            <p className="font-medium mb-1">Required columns:</p>
+            <p className="font-mono">{requiredColumns.join(', ')}</p>
+            {optionalColumns.length > 0 && (
+              <>
+                <p className="font-medium mt-2 mb-1">Optional columns:</p>
+                <p className="font-mono">{optionalColumns.join(', ')}</p>
+              </>
+            )}
           </div>
-        </CardContent>
+        </div>
       </Card>
 
       {activeJob && (
-        <ImportProgressCard 
-          job={activeJob} 
-          onCancel={loadImportJobs}
-        />
+        <ImportProgressCard job={activeJob} />
       )}
 
       {importJobs.length > 0 && (

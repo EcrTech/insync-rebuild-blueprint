@@ -14,7 +14,7 @@ export function BulkImportDialog({
   orgId,
   onImportComplete,
 }: BulkImportDialogProps) {
-  const requiredColumns = ["name", "personalemailid"];
+  const requiredColumns = ["name"];
 
   const optionalColumns = [
     "designation",
@@ -24,6 +24,7 @@ export function BulkImportDialog({
     "mobilenumb",
     "mobile2",
     "official",
+    "personalemailid",
     "generic_email_id",
     "industry_type",
     "sub_industry",
