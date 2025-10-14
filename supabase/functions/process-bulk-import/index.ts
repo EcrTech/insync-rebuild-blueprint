@@ -527,11 +527,10 @@ async function processBatch(supabase: any, importJob: ImportJob, batch: any[], b
 
   try {
     let tableName: string;
-    let conflictColumn: string;
+    let upsertOptions: any = {};
 
     if (importJob.import_type === 'contacts') {
       tableName = 'contacts';
-      conflictColumn = 'email';
       
       // Deduplicate by email
       const deduped = [];
@@ -546,20 +545,32 @@ async function processBatch(supabase: any, importJob: ImportJob, batch: any[], b
         }
       }
       batch = deduped;
+      upsertOptions = {
+        onConflict: 'email',
+        ignoreDuplicates: false
+      };
     } else if (importJob.import_type === 'email_recipients') {
       tableName = 'email_campaign_recipients';
-      conflictColumn = 'email';
+      upsertOptions = {
+        onConflict: 'email',
+        ignoreDuplicates: false
+      };
     } else if (importJob.import_type === 'whatsapp_recipients') {
       tableName = 'whatsapp_campaign_recipients';
-      conflictColumn = 'phone_number';
+      upsertOptions = {
+        onConflict: 'phone_number',
+        ignoreDuplicates: false
+      };
     } else if (importJob.import_type === 'redefine_repository') {
       tableName = 'redefine_data_repository';
-      conflictColumn = 'id';
+      upsertOptions = {
+        onConflict: 'id',
+        ignoreDuplicates: false
+      };
     } else if (importJob.import_type === 'inventory') {
       tableName = 'inventory_items';
-      conflictColumn = 'item_id_sku';
       
-      // Deduplicate by SKU
+      // Deduplicate by SKU within the batch
       const deduped = [];
       const seen = new Set();
       for (let i = batch.length - 1; i >= 0; i--) {
@@ -570,16 +581,19 @@ async function processBatch(supabase: any, importJob: ImportJob, batch: any[], b
         }
       }
       batch = deduped;
+      
+      // Use composite key for upsert (item_id_sku + org_id)
+      upsertOptions = {
+        onConflict: 'item_id_sku,org_id',
+        ignoreDuplicates: false
+      };
     } else {
       throw new Error(`Unknown import type: ${importJob.import_type}`);
     }
 
     const { error } = await supabase
       .from(tableName)
-      .upsert(batch, {
-        onConflict: conflictColumn,
-        ignoreDuplicates: false
-      });
+      .upsert(batch, upsertOptions);
 
     if (error) {
       console.error('[DB] Batch insert failed:', error);
