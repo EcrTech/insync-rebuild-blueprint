@@ -302,7 +302,7 @@ serve(async (req) => {
             name: row.name,
             designation: row.designation || null,
             department: row.deppt || row.department || null,
-            job_level: row.job_level_updated || row.job_level || null,
+            job_level: row.job_levelupdated || row.job_level_updated || row.job_level || null,
             linkedin_url: row.linkedin || null,
             mobile_number: row.mobilenumb || row.mobile_number || null,
             mobile_2: row.mobile2 || null,
