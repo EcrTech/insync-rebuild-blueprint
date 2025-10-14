@@ -203,7 +203,8 @@ export function BulkImportUploader({
 
       toast({
         title: "Import started",
-        description: "Your file is being processed in the background. You can continue working."
+        description: "Your file is being processed in the background. You can continue working.",
+        duration: 300000 // 5 minutes - will stay visible until job completes or user dismisses
       });
 
       if (onUploadComplete) {
