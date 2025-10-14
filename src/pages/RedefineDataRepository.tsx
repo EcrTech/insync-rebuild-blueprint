@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgContext } from "@/hooks/useOrgContext";
+import DashboardLayout from "@/components/Layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -152,9 +153,10 @@ export default function RedefineDataRepository() {
   };
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <DashboardLayout>
+      <div className="container mx-auto py-6 space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Database className="h-8 w-8 text-primary" />
           <div>
@@ -318,6 +320,7 @@ export default function RedefineDataRepository() {
         orgId={effectiveOrgId!}
         onImportComplete={refetch}
       />
-    </div>
+      </div>
+    </DashboardLayout>
   );
 }
