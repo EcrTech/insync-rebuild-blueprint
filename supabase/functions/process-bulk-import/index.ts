@@ -3,8 +3,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 
 const OPERATION_TIMEOUT = 20 * 60 * 1000; // 20 minutes
 const MAX_RETRIES = 3;
-const BATCH_SIZE = 2500;
-const PROGRESS_UPDATE_INTERVAL = 15000; // 15 seconds
+const BATCH_SIZE = 500; // Reduced for better memory management
+const PROGRESS_UPDATE_INTERVAL = 5000; // 5 seconds - more frequent updates
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -253,6 +253,26 @@ serve(async (req) => {
       const line = lines[i].trim();
       if (!line) continue;
 
+      // Progress update every 100 rows during parsing
+      if (i % 100 === 0) {
+        const now = Date.now();
+        if (now - lastProgressUpdate > PROGRESS_UPDATE_INTERVAL) {
+          await updateJobProgress(supabase, importJobId, {
+            total_rows: totalRows,
+            processed_rows: processedRows,
+            success_count: successCount,
+            error_count: errorCount,
+            current_stage: 'parsing',
+            stage_details: {
+              message: `Parsing row ${i} of ${totalRows}...`,
+              rows_parsed: i
+            }
+          });
+          lastProgressUpdate = now;
+          console.log(`[PROGRESS] Parsed ${i}/${totalRows} rows`);
+        }
+      }
+
       try {
         const values = parseCSVLine(line);
         const row: any = {};
@@ -385,27 +405,31 @@ serve(async (req) => {
         // Process batch when full
         if (batch.length >= BATCH_SIZE) {
           batchNumber++;
+          console.log(`[BATCH] Processing batch ${batchNumber} with ${batch.length} records`);
+          
           const result = await processBatch(supabase, importJob, batch, batchNumber);
           successCount += result.inserted;
+          
+          if (result.skipped > 0) {
+            console.log(`[BATCH] Skipped ${result.skipped} duplicate records in batch ${batchNumber}`);
+          }
+          
           batch = [];
 
-          // Throttled progress update
-          const now = Date.now();
-          if (now - lastProgressUpdate > PROGRESS_UPDATE_INTERVAL) {
-            await updateJobProgress(supabase, importJobId, {
-              total_rows: totalRows,
-              processed_rows: processedRows,
-              success_count: successCount,
-              error_count: errorCount,
-              current_stage: 'inserting',
-              stage_details: {
-                message: `Processing batch ${batchNumber}...`,
-                current_batch: batch.length,
-                batches_completed: batchNumber
-              }
-            });
-            lastProgressUpdate = now;
-          }
+          // Update progress after each batch
+          await updateJobProgress(supabase, importJobId, {
+            total_rows: totalRows,
+            processed_rows: processedRows,
+            success_count: successCount,
+            error_count: errorCount,
+            current_stage: 'inserting',
+            stage_details: {
+              message: `Inserted batch ${batchNumber} (${successCount} records inserted)`,
+              batches_completed: batchNumber,
+              total_batches: Math.ceil(totalRows / BATCH_SIZE)
+            }
+          });
+          lastProgressUpdate = Date.now();
         }
 
       } catch (error) {
