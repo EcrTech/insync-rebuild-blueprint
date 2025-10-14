@@ -52,6 +52,7 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
   const [isPlatformAdmin, setIsPlatformAdmin] = useState<boolean>(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingChecked, setOnboardingChecked] = useState(false);
+  const [orgName, setOrgName] = useState<string>("");
   const { canAccessFeature, loading: featureAccessLoading } = useFeatureAccess();
 
   useEffect(() => {
@@ -87,16 +88,19 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
         }
         setOnboardingChecked(true);
         
-        // Get organization logo (only if org_id exists)
+        // Get organization logo and name (only if org_id exists)
         if (profileRes.data.org_id) {
           const { data: orgData } = await supabase
             .from("organizations")
-            .select("logo_url")
+            .select("logo_url, name")
             .eq("id", profileRes.data.org_id)
             .single();
           
           if (orgData?.logo_url) {
             setOrgLogo(orgData.logo_url);
+          }
+          if (orgData?.name) {
+            setOrgName(orgData.name);
           }
         }
       }
@@ -326,14 +330,16 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                 </Link>
               )}
 
-              <Link
-                to="/inventory"
-                className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-                onClick={() => setSidebarOpen(false)}
-              >
-                <Package size={20} />
-                <span>Inventory</span>
-              </Link>
+              {orgName === "C pareekh" && (
+                <Link
+                  to="/inventory"
+                  className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  <Package size={20} />
+                  <span>Inventory</span>
+                </Link>
+              )}
 
               <Link
                 to="/org-chart"
