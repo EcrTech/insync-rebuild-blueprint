@@ -1,11 +1,22 @@
 import { Card } from "@/components/ui/card";
 import { DataSourceType, reportDataSources } from "@/config/reportDataSources";
 import { Database, Users, Phone, BarChart3, Package, BookOpen } from "lucide-react";
+import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 
 interface DataSourceSelectorProps {
   selected: DataSourceType | null;
   onSelect: (dataSource: DataSourceType) => void;
 }
+
+// Map data sources to their corresponding feature keys
+const dataSourceFeatureMap: Record<DataSourceType, string> = {
+  contacts: 'contacts',
+  call_logs: 'calling',
+  activities: 'contacts',
+  pipeline_stages: 'pipeline_stages',
+  inventory: 'inventory',
+  data_repository: 'redefine_data_repository',
+};
 
 const iconMap: Record<DataSourceType, any> = {
   contacts: Users,
@@ -17,11 +28,37 @@ const iconMap: Record<DataSourceType, any> = {
 };
 
 export default function DataSourceSelector({ selected, onSelect }: DataSourceSelectorProps) {
+  const { canAccessFeature, loading } = useFeatureAccess();
+
+  // Filter data sources based on org feature access
+  const availableDataSources = Object.values(reportDataSources).filter((source) => {
+    const featureKey = dataSourceFeatureMap[source.key];
+    return canAccessFeature(featureKey);
+  });
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold">Select Data Source</h3>
+        <div className="text-sm text-muted-foreground">Loading available data sources...</div>
+      </div>
+    );
+  }
+
+  if (availableDataSources.length === 0) {
+    return (
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold">Select Data Source</h3>
+        <div className="text-sm text-muted-foreground">No data sources available. Contact your administrator.</div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold">Select Data Source</h3>
       <div className="grid grid-cols-2 gap-3">
-        {Object.values(reportDataSources).map((source) => {
+        {availableDataSources.map((source) => {
           const Icon = iconMap[source.key];
           const isSelected = selected === source.key;
           
