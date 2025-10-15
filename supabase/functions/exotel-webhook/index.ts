@@ -131,9 +131,8 @@ serve(async (req) => {
       // Deduct call cost from wallet (only for completed calls with conversation)
       if (status === 'completed' && updateData.conversation_duration > 0) {
         const conversationMinutes = updateData.conversation_duration / 60;
-        const perMinuteCost = 0.50; // Get from pricing
-        const perCallCost = 0.10; // Get from pricing
-        const totalCost = (conversationMinutes * perMinuteCost) + perCallCost;
+        const perMinuteCost = 1.00;
+        const totalCost = conversationMinutes * perMinuteCost;
 
         const { data: deductResult, error: deductError } = await supabaseClient.rpc('deduct_from_wallet', {
           _org_id: callLog.org_id,

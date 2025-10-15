@@ -246,11 +246,11 @@ Deno.serve(async (req) => {
     // Deduct WhatsApp cost from wallet
     const { data: deductResult, error: deductError } = await supabaseServiceClient.rpc('deduct_from_wallet', {
       _org_id: profile.org_id,
-      _amount: 0.25, // Get from pricing
+      _amount: 1.00,
       _service_type: 'whatsapp',
       _reference_id: messageRecord?.id,
       _quantity: 1,
-      _unit_cost: 0.25,
+      _unit_cost: 1.00,
       _user_id: user.id
     });
 
