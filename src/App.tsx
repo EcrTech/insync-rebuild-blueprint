@@ -52,6 +52,7 @@ import Billing from "./pages/Billing";
 import Usage from "./pages/Usage";
 import PlatformAdminSubscriptions from "./pages/PlatformAdminSubscriptions";
 import Inventory from "./pages/Inventory";
+import ApiKeys from "./pages/ApiKeys";
 import ProtectedRoute from "./components/Auth/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -174,6 +175,12 @@ const App = () => (
           <Route path="/admin/connectors" element={
             <ProtectedRoute requiredRole="admin">
               <Connectors />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/admin/api-keys" element={
+            <ProtectedRoute requiredRole="admin">
+              <ApiKeys />
             </ProtectedRoute>
           } />
           

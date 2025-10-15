@@ -1,0 +1,572 @@
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from "@/hooks/use-toast";
+import { AlertCircle, Copy, Key, Plus, Trash2, Eye, EyeOff } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { format } from "date-fns";
+import { Textarea } from "@/components/ui/textarea";
+
+export default function ApiKeys() {
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [newKeyName, setNewKeyName] = useState("");
+  const [newKeyDescription, setNewKeyDescription] = useState("");
+  const [generatedKey, setGeneratedKey] = useState<string | null>(null);
+  const [showGeneratedKey, setShowGeneratedKey] = useState(false);
+  const queryClient = useQueryClient();
+
+  // Fetch API keys
+  const { data: apiKeys, isLoading } = useQuery({
+    queryKey: ['api-keys'],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('org_id')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile?.org_id) throw new Error('No organization found');
+
+      const { data, error } = await supabase
+        .from('api_keys')
+        .select('*')
+        .eq('org_id', profile.org_id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Fetch usage logs
+  const { data: usageLogs } = useQuery({
+    queryKey: ['api-usage-logs'],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('org_id')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile?.org_id) throw new Error('No organization found');
+
+      const { data, error } = await supabase
+        .from('api_key_usage_logs')
+        .select('*, api_keys(key_name)')
+        .eq('org_id', profile.org_id)
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Create API key mutation
+  const createKeyMutation = useMutation({
+    mutationFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('org_id')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile?.org_id) throw new Error('No organization found');
+
+      // Generate API key
+      const { data: keyData, error: keyError } = await supabase.rpc('generate_api_key');
+      if (keyError) throw keyError;
+
+      const apiKey = keyData as string;
+      const keyPrefix = apiKey.substring(0, 15) + '...';
+
+      // Insert API key
+      const { data, error } = await supabase
+        .from('api_keys')
+        .insert({
+          org_id: profile.org_id,
+          key_name: newKeyName,
+          api_key: apiKey,
+          key_prefix: keyPrefix,
+          permissions: {
+            endpoints: ['contacts', 'activities', 'pipeline-stages', 'custom-fields'],
+            description: newKeyDescription
+          },
+          created_by: user.id,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      return { ...data, full_api_key: apiKey };
+    },
+    onSuccess: (data) => {
+      setGeneratedKey(data.full_api_key);
+      setShowGeneratedKey(true);
+      queryClient.invalidateQueries({ queryKey: ['api-keys'] });
+      toast({
+        title: "API Key Created",
+        description: "Your API key has been generated. Make sure to copy it now!",
+      });
+      setNewKeyName("");
+      setNewKeyDescription("");
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete API key mutation
+  const deleteKeyMutation = useMutation({
+    mutationFn: async (keyId: string) => {
+      const { error } = await supabase
+        .from('api_keys')
+        .delete()
+        .eq('id', keyId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['api-keys'] });
+      toast({
+        title: "Success",
+        description: "API key deleted successfully",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Toggle API key status
+  const toggleKeyMutation = useMutation({
+    mutationFn: async ({ keyId, isActive }: { keyId: string; isActive: boolean }) => {
+      const { error } = await supabase
+        .from('api_keys')
+        .update({ is_active: !isActive })
+        .eq('id', keyId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['api-keys'] });
+      toast({
+        title: "Success",
+        description: "API key status updated",
+      });
+    },
+  });
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast({
+      title: "Copied!",
+      description: "API key copied to clipboard",
+    });
+  };
+
+  const handleCreateKey = () => {
+    if (!newKeyName.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a key name",
+        variant: "destructive",
+      });
+      return;
+    }
+    createKeyMutation.mutate();
+  };
+
+  const handleCloseCreateDialog = () => {
+    setIsCreateDialogOpen(false);
+    setGeneratedKey(null);
+    setShowGeneratedKey(false);
+  };
+
+  return (
+    <div className="container mx-auto py-6 px-4 max-w-7xl">
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-3xl font-bold">API Keys</h1>
+          <p className="text-muted-foreground mt-1">
+            Manage secure API access to your CRM data
+          </p>
+        </div>
+        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Create API Key
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Create New API Key</DialogTitle>
+              <DialogDescription>
+                Generate a new API key for external access to your CRM data
+              </DialogDescription>
+            </DialogHeader>
+
+            {!generatedKey ? (
+              <>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="keyName">Key Name *</Label>
+                    <Input
+                      id="keyName"
+                      placeholder="e.g., Production Bridge"
+                      value={newKeyName}
+                      onChange={(e) => setNewKeyName(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="description">Description</Label>
+                    <Textarea
+                      id="description"
+                      placeholder="What will this key be used for?"
+                      value={newKeyDescription}
+                      onChange={(e) => setNewKeyDescription(e.target.value)}
+                      rows={3}
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button
+                    onClick={handleCreateKey}
+                    disabled={createKeyMutation.isPending}
+                  >
+                    {createKeyMutation.isPending ? "Generating..." : "Generate Key"}
+                  </Button>
+                </DialogFooter>
+              </>
+            ) : (
+              <>
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    Make sure to copy your API key now. You won't be able to see it again!
+                  </AlertDescription>
+                </Alert>
+
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label>Your API Key</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        value={showGeneratedKey ? generatedKey : '•'.repeat(50)}
+                        readOnly
+                        className="font-mono"
+                      />
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setShowGeneratedKey(!showGeneratedKey)}
+                      >
+                        {showGeneratedKey ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => copyToClipboard(generatedKey)}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                <DialogFooter>
+                  <Button onClick={handleCloseCreateDialog}>Done</Button>
+                </DialogFooter>
+              </>
+            )}
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <Tabs defaultValue="keys" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="keys">API Keys</TabsTrigger>
+          <TabsTrigger value="usage">Usage Logs</TabsTrigger>
+          <TabsTrigger value="docs">Documentation</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="keys" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Active API Keys</CardTitle>
+              <CardDescription>
+                Manage your API keys for external integrations
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <p>Loading...</p>
+              ) : !apiKeys || apiKeys.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Key className="mx-auto h-12 w-12 mb-4 opacity-50" />
+                  <p>No API keys created yet</p>
+                  <p className="text-sm mt-1">Create your first API key to get started</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Key Prefix</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Last Used</TableHead>
+                      <TableHead>Created</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {apiKeys.map((key) => (
+                      <TableRow key={key.id}>
+                        <TableCell className="font-medium">{key.key_name}</TableCell>
+                        <TableCell className="font-mono text-sm">{key.key_prefix}</TableCell>
+                        <TableCell>
+                          <Badge variant={key.is_active ? "default" : "secondary"}>
+                            {key.is_active ? "Active" : "Inactive"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {key.last_used_at
+                            ? format(new Date(key.last_used_at), 'MMM dd, yyyy HH:mm')
+                            : 'Never'}
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {format(new Date(key.created_at), 'MMM dd, yyyy')}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                toggleKeyMutation.mutate({
+                                  keyId: key.id,
+                                  isActive: key.is_active,
+                                })
+                              }
+                            >
+                              {key.is_active ? 'Disable' : 'Enable'}
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => {
+                                if (confirm('Are you sure you want to delete this API key?')) {
+                                  deleteKeyMutation.mutate(key.id);
+                                }
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="usage" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Recent API Usage</CardTitle>
+              <CardDescription>
+                Monitor API requests and responses
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {!usageLogs || usageLogs.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p>No API usage yet</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Timestamp</TableHead>
+                      <TableHead>API Key</TableHead>
+                      <TableHead>Endpoint</TableHead>
+                      <TableHead>Method</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Response Time</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {usageLogs.map((log: any) => (
+                      <TableRow key={log.id}>
+                        <TableCell className="text-sm">
+                          {format(new Date(log.created_at), 'MMM dd HH:mm:ss')}
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {log.api_keys?.key_name || 'Unknown'}
+                        </TableCell>
+                        <TableCell className="font-mono text-sm">{log.endpoint}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{log.method}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={
+                              log.status_code >= 200 && log.status_code < 300
+                                ? 'default'
+                                : 'destructive'
+                            }
+                          >
+                            {log.status_code}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {log.response_time_ms ? `${log.response_time_ms}ms` : '-'}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="docs" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>API Documentation</CardTitle>
+              <CardDescription>
+                Learn how to use the CRM Bridge API
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="prose prose-sm max-w-none">
+              <h3>Authentication</h3>
+              <p>Include your API key in the <code>X-API-Key</code> header:</p>
+              <pre className="bg-muted p-4 rounded-lg overflow-x-auto">
+{`curl -H "X-API-Key: your_api_key_here" \\
+  https://aizgpxaqvtvvqarzjmze.supabase.co/functions/v1/crm-bridge-api/contacts`}
+              </pre>
+
+              <h3>Base URL</h3>
+              <p className="font-mono text-sm bg-muted p-2 rounded">
+                https://aizgpxaqvtvvqarzjmze.supabase.co/functions/v1/crm-bridge-api
+              </p>
+
+              <h3>Available Endpoints</h3>
+              
+              <h4>List Contacts</h4>
+              <pre className="bg-muted p-4 rounded-lg overflow-x-auto">
+{`GET /contacts?limit=50&offset=0&status=new&search=john
+
+Response:
+{
+  "success": true,
+  "data": {
+    "contacts": [...],
+    "pagination": {
+      "total": 100,
+      "limit": 50,
+      "offset": 0,
+      "has_more": true
+    }
+  }
+}`}
+              </pre>
+
+              <h4>Get Single Contact</h4>
+              <pre className="bg-muted p-4 rounded-lg overflow-x-auto">
+{`GET /contacts/{contact_id}`}
+              </pre>
+
+              <h4>Create Contact</h4>
+              <pre className="bg-muted p-4 rounded-lg overflow-x-auto">
+{`POST /contacts
+Content-Type: application/json
+
+{
+  "first_name": "John",
+  "last_name": "Doe",
+  "email": "john@example.com",
+  "phone": "+1234567890",
+  "company": "Acme Corp"
+}`}
+              </pre>
+
+              <h4>Update Contact</h4>
+              <pre className="bg-muted p-4 rounded-lg overflow-x-auto">
+{`PATCH /contacts/{contact_id}
+Content-Type: application/json
+
+{
+  "status": "qualified",
+  "notes": "Updated information"
+}`}
+              </pre>
+
+              <h4>Other Endpoints</h4>
+              <ul>
+                <li><code>GET /contacts/{'{contact_id}'}/activities</code> - Get contact activities</li>
+                <li><code>POST /contacts/{'{contact_id}'}/activities</code> - Log new activity</li>
+                <li><code>GET /pipeline-stages</code> - Get all pipeline stages</li>
+                <li><code>GET /custom-fields</code> - Get custom field definitions</li>
+              </ul>
+
+              <h3>Rate Limits</h3>
+              <p>100 requests per minute per API key</p>
+
+              <h3>Error Handling</h3>
+              <p>All errors follow this format:</p>
+              <pre className="bg-muted p-4 rounded-lg overflow-x-auto">
+{`{
+  "success": false,
+  "error": {
+    "code": "UNAUTHORIZED",
+    "message": "Invalid API key"
+  },
+  "meta": {
+    "timestamp": "2025-10-15T11:00:00Z",
+    "request_id": "uuid"
+  }
+}`}
+              </pre>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
