@@ -12,9 +12,13 @@ interface WebhookConfigProps {
   webhookUrl: string;
   sourceName: string;
   rateLimit: number;
+  httpMethod: 'GET' | 'POST';
+  targetTable: 'contacts' | 'redefine_data_repository' | 'inventory_items';
   fieldMappings: Record<string, string>;
   onSourceNameChange: (value: string) => void;
   onRateLimitChange: (value: number) => void;
+  onHttpMethodChange: (value: 'GET' | 'POST') => void;
+  onTargetTableChange: (value: 'contacts' | 'redefine_data_repository' | 'inventory_items') => void;
   onFieldMappingChange: (mappings: Record<string, string>) => void;
   onRegenerateToken?: () => void;
   customFields: Array<{ id: string; field_name: string; field_label: string }>;
@@ -25,9 +29,13 @@ export function WebhookConfig({
   webhookUrl,
   sourceName,
   rateLimit,
+  httpMethod,
+  targetTable,
   fieldMappings,
   onSourceNameChange,
   onRateLimitChange,
+  onHttpMethodChange,
+  onTargetTableChange,
   onFieldMappingChange,
   onRegenerateToken,
   customFields,
@@ -60,18 +68,62 @@ export function WebhookConfig({
     onFieldMappingChange(rest);
   };
 
-  const targetFieldOptions = [
-    { value: "first_name", label: "First Name (Standard)" },
-    { value: "last_name", label: "Last Name (Standard)" },
-    { value: "email", label: "Email (Standard)" },
-    { value: "phone", label: "Phone (Standard)" },
-    { value: "company", label: "Company (Standard)" },
-    { value: "notes", label: "Notes (Standard)" },
-    ...customFields.map(field => ({
-      value: field.field_name,
-      label: `${field.field_label} (Custom)`,
-    })),
-  ];
+  const getTargetFieldOptions = () => {
+    if (targetTable === 'contacts') {
+      return [
+        { value: "first_name", label: "First Name" },
+        { value: "last_name", label: "Last Name" },
+        { value: "email", label: "Email" },
+        { value: "phone", label: "Phone" },
+        { value: "company", label: "Company" },
+        { value: "job_title", label: "Job Title" },
+        { value: "notes", label: "Notes" },
+        { value: "address", label: "Address" },
+        { value: "city", label: "City" },
+        { value: "state", label: "State" },
+        { value: "postal_code", label: "Postal Code" },
+        { value: "country", label: "Country" },
+        ...customFields.map(field => ({
+          value: field.field_name,
+          label: `${field.field_label} (Custom)`,
+        })),
+      ];
+    } else if (targetTable === 'redefine_data_repository') {
+      return [
+        { value: "company_name", label: "Company Name" },
+        { value: "industry_type", label: "Industry Type" },
+        { value: "company_size", label: "Company Size" },
+        { value: "revenue", label: "Revenue" },
+        { value: "address", label: "Address" },
+        { value: "city", label: "City" },
+        { value: "state", label: "State" },
+        { value: "postal_code", label: "Postal Code" },
+        { value: "country", label: "Country" },
+        { value: "website", label: "Website" },
+        { value: "linkedin_url", label: "LinkedIn URL" },
+        { value: "notes", label: "Notes" },
+      ];
+    } else if (targetTable === 'inventory_items') {
+      return [
+        { value: "item_id_sku", label: "Item ID/SKU" },
+        { value: "item_name", label: "Item Name" },
+        { value: "category", label: "Category" },
+        { value: "subcategory", label: "Subcategory" },
+        { value: "brand", label: "Brand" },
+        { value: "material", label: "Material" },
+        { value: "uom", label: "Unit of Measure" },
+        { value: "available_qty", label: "Available Quantity" },
+        { value: "reorder_level", label: "Reorder Level" },
+        { value: "supplier_name", label: "Supplier Name" },
+        { value: "warehouse_branch", label: "Warehouse/Branch" },
+        { value: "storage_location", label: "Storage Location" },
+        { value: "hsn_code", label: "HSN Code" },
+      ];
+    }
+    return [];
+  };
+
+  const targetFieldOptions = getTargetFieldOptions();
 
   return (
     <div className="space-y-6">
@@ -79,7 +131,7 @@ export function WebhookConfig({
         <CardHeader>
           <CardTitle className="text-base">Webhook Endpoint</CardTitle>
           <CardDescription>
-            Send POST requests to this URL to create leads
+            Send {httpMethod} requests to this URL to create records
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -141,6 +193,41 @@ export function WebhookConfig({
 
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
+          <Label htmlFor="http_method">HTTP Method</Label>
+          <select
+            id="http_method"
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            value={httpMethod}
+            onChange={(e) => onHttpMethodChange(e.target.value as 'GET' | 'POST')}
+          >
+            <option value="POST">POST</option>
+            <option value="GET">GET</option>
+          </select>
+          <p className="text-xs text-muted-foreground">
+            HTTP method for webhook requests
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="target_table">Target Table</Label>
+          <select
+            id="target_table"
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            value={targetTable}
+            onChange={(e) => onTargetTableChange(e.target.value as any)}
+          >
+            <option value="contacts">Contacts</option>
+            <option value="redefine_data_repository">Data Repository</option>
+            <option value="inventory_items">Inventory</option>
+          </select>
+          <p className="text-xs text-muted-foreground">
+            Table where records will be created
+          </p>
+        </div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-2">
           <Label htmlFor="source_name">Source Name</Label>
           <Input
             id="source_name"
@@ -149,7 +236,7 @@ export function WebhookConfig({
             placeholder="e.g., Justdial, Facebook Ads"
           />
           <p className="text-xs text-muted-foreground">
-            How this lead source will appear in contact records
+            How this source will appear in records
           </p>
         </div>
 
@@ -251,7 +338,9 @@ export function WebhookConfig({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <pre className="bg-muted p-4 rounded-md text-xs overflow-auto">
+          {httpMethod === 'POST' ? (
+            <>
+              <pre className="bg-muted p-4 rounded-md text-xs overflow-auto">
 {`curl -X POST '${webhookUrl}' \\
   -H 'Content-Type: application/json' \\
   -d '{
@@ -260,17 +349,35 @@ export function WebhookConfig({
   "phone": "+919876543210",
   "company": "Test Company"
 }'`}
-          </pre>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="mt-2"
-            onClick={() => copyToClipboard(`curl -X POST '${webhookUrl}' -H 'Content-Type: application/json' -d '{"name": "Test User", "email": "test@example.com", "phone": "+919876543210", "company": "Test Company"}'`, "cURL command")}
-          >
-            <Copy className="h-4 w-4 mr-2" />
-            Copy cURL
-          </Button>
+              </pre>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="mt-2"
+                onClick={() => copyToClipboard(`curl -X POST '${webhookUrl}' -H 'Content-Type: application/json' -d '{"name": "Test User", "email": "test@example.com", "phone": "+919876543210", "company": "Test Company"}'`, "cURL command")}
+              >
+                <Copy className="h-4 w-4 mr-2" />
+                Copy cURL
+              </Button>
+            </>
+          ) : (
+            <>
+              <pre className="bg-muted p-4 rounded-md text-xs overflow-auto">
+{`curl -X GET '${webhookUrl}?name=Test+User&email=test@example.com&phone=%2B919876543210&company=Test+Company'`}
+              </pre>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="mt-2"
+                onClick={() => copyToClipboard(`curl -X GET '${webhookUrl}?name=Test+User&email=test@example.com&phone=%2B919876543210&company=Test+Company'`, "cURL command")}
+              >
+                <Copy className="h-4 w-4 mr-2" />
+                Copy cURL
+              </Button>
+            </>
+          )}
         </CardContent>
       </Card>
     </div>

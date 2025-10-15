@@ -31,6 +31,8 @@ interface Connector {
   created_at: string;
   webhook_token?: string;
   webhook_config?: {
+    http_method?: 'GET' | 'POST';
+    target_table?: 'contacts' | 'redefine_data_repository' | 'inventory_items';
     source_name?: string;
     field_mappings?: Record<string, string>;
   };
@@ -56,6 +58,8 @@ export default function Connectors() {
     description: "",
     is_active: true,
     webhook_config: {
+      http_method: 'POST' as 'GET' | 'POST',
+      target_table: 'contacts' as 'contacts' | 'redefine_data_repository' | 'inventory_items',
       source_name: "" as string | undefined,
       field_mappings: {} as Record<string, string> | undefined,
     },
@@ -235,6 +239,8 @@ export default function Connectors() {
       description: "",
       is_active: true,
       webhook_config: {
+        http_method: 'POST',
+        target_table: 'contacts',
         source_name: "",
         field_mappings: {},
       },
@@ -250,6 +256,8 @@ export default function Connectors() {
       description: connector.description || "",
       is_active: connector.is_active,
       webhook_config: {
+        http_method: connector.webhook_config?.http_method || 'POST',
+        target_table: connector.webhook_config?.target_table || 'contacts',
         source_name: connector.webhook_config?.source_name || "",
         field_mappings: connector.webhook_config?.field_mappings || {},
       },
@@ -321,6 +329,8 @@ export default function Connectors() {
                     webhookUrl={getWebhookUrl(editingConnector?.webhook_token)}
                     sourceName={formData.webhook_config.source_name || ""}
                     rateLimit={formData.rate_limit_per_minute}
+                    httpMethod={formData.webhook_config.http_method || 'POST'}
+                    targetTable={formData.webhook_config.target_table || 'contacts'}
                     fieldMappings={formData.webhook_config.field_mappings || {}}
                     onSourceNameChange={(value) => setFormData({
                       ...formData,
@@ -329,6 +339,14 @@ export default function Connectors() {
                     onRateLimitChange={(value) => setFormData({
                       ...formData,
                       rate_limit_per_minute: value
+                    })}
+                    onHttpMethodChange={(value) => setFormData({
+                      ...formData,
+                      webhook_config: { ...formData.webhook_config, http_method: value }
+                    })}
+                    onTargetTableChange={(value) => setFormData({
+                      ...formData,
+                      webhook_config: { ...formData.webhook_config, target_table: value }
                     })}
                     onFieldMappingChange={(mappings) => setFormData({
                       ...formData,
