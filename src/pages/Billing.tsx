@@ -9,6 +9,7 @@ import { useOrgContext } from "@/hooks/useOrgContext";
 import { useToast } from "@/hooks/use-toast";
 import { CreditCard, Wallet, FileText, TrendingUp } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import DashboardLayout from "@/components/Layout/DashboardLayout";
 
 export default function Billing() {
   const { effectiveOrgId } = useOrgContext();
@@ -214,7 +215,8 @@ export default function Billing() {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <DashboardLayout>
+      <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Billing & Subscription</h1>
@@ -384,6 +386,7 @@ export default function Billing() {
           </Card>
         </TabsContent>
       </Tabs>
-    </div>
+      </div>
+    </DashboardLayout>
   );
 }

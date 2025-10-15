@@ -14,6 +14,7 @@ import { AlertCircle, Copy, Key, Plus, Trash2, Eye, EyeOff } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { format } from "date-fns";
 import { Textarea } from "@/components/ui/textarea";
+import DashboardLayout from "@/components/Layout/DashboardLayout";
 
 export default function ApiKeys() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -210,7 +211,8 @@ export default function ApiKeys() {
   };
 
   return (
-    <div className="container mx-auto py-6 px-4 max-w-7xl">
+    <DashboardLayout>
+      <div className="container mx-auto py-6 px-4 max-w-7xl">
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold">API Keys</h1>
@@ -611,6 +613,7 @@ Content-Type: application/json
           </Card>
         </TabsContent>
       </Tabs>
-    </div>
+      </div>
+    </DashboardLayout>
   );
 }

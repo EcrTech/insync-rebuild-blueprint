@@ -15,6 +15,7 @@ import { Loader2, Upload, Users, Send } from "lucide-react";
 import { VariableMappingStep } from "@/components/Campaigns/VariableMappingStep";
 import { TemplateVariable, VariableMapping, detectTemplateVariables } from "@/utils/templateVariables";
 import { ParsedCSVData } from "@/utils/csvParser";
+import DashboardLayout from "@/components/Layout/DashboardLayout";
 
 export default function BulkWhatsAppSender() {
   const navigate = useNavigate();
@@ -280,7 +281,8 @@ export default function BulkWhatsAppSender() {
   };
 
   return (
-    <div className="container mx-auto p-6 max-w-6xl">
+    <DashboardLayout>
+      <div className="container mx-auto p-6 max-w-6xl">
       <div className="mb-6">
         <h1 className="text-3xl font-bold">Bulk WhatsApp Sender</h1>
         <p className="text-muted-foreground">Send WhatsApp messages to multiple contacts</p>
@@ -577,6 +579,7 @@ export default function BulkWhatsAppSender() {
           </CardContent>
         </Card>
       )}
-    </div>
+      </div>
+    </DashboardLayout>
   );
 }

@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useOrgContext } from "@/hooks/useOrgContext";
 import { Mail, MessageSquare, Phone } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import DashboardLayout from "@/components/Layout/DashboardLayout";
 
 export default function Usage() {
   const { effectiveOrgId } = useOrgContext();
@@ -64,7 +65,8 @@ export default function Usage() {
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <DashboardLayout>
+      <div className="container mx-auto p-6 space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Usage Analytics</h1>
         <p className="text-muted-foreground">Track your service consumption</p>
@@ -163,6 +165,7 @@ export default function Usage() {
           )}
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </DashboardLayout>
   );
 }
