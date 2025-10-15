@@ -1899,6 +1899,89 @@ export type Database = {
           },
         ]
       }
+      organization_subscriptions: {
+        Row: {
+          billing_cycle_start: string
+          created_at: string | null
+          grace_period_end: string | null
+          id: string
+          last_payment_date: string | null
+          lockout_date: string | null
+          monthly_subscription_amount: number
+          next_billing_date: string
+          org_id: string
+          override_by: string | null
+          override_reason: string | null
+          readonly_period_end: string | null
+          subscription_status: string
+          suspension_date: string | null
+          suspension_override_until: string | null
+          suspension_reason: string | null
+          updated_at: string | null
+          user_count: number
+          wallet_auto_topup_enabled: boolean | null
+          wallet_balance: number
+          wallet_last_topup_date: string | null
+          wallet_minimum_balance: number
+        }
+        Insert: {
+          billing_cycle_start: string
+          created_at?: string | null
+          grace_period_end?: string | null
+          id?: string
+          last_payment_date?: string | null
+          lockout_date?: string | null
+          monthly_subscription_amount?: number
+          next_billing_date: string
+          org_id: string
+          override_by?: string | null
+          override_reason?: string | null
+          readonly_period_end?: string | null
+          subscription_status?: string
+          suspension_date?: string | null
+          suspension_override_until?: string | null
+          suspension_reason?: string | null
+          updated_at?: string | null
+          user_count?: number
+          wallet_auto_topup_enabled?: boolean | null
+          wallet_balance?: number
+          wallet_last_topup_date?: string | null
+          wallet_minimum_balance?: number
+        }
+        Update: {
+          billing_cycle_start?: string
+          created_at?: string | null
+          grace_period_end?: string | null
+          id?: string
+          last_payment_date?: string | null
+          lockout_date?: string | null
+          monthly_subscription_amount?: number
+          next_billing_date?: string
+          org_id?: string
+          override_by?: string | null
+          override_reason?: string | null
+          readonly_period_end?: string | null
+          subscription_status?: string
+          suspension_date?: string | null
+          suspension_override_until?: string | null
+          suspension_reason?: string | null
+          updated_at?: string | null
+          user_count?: number
+          wallet_auto_topup_enabled?: boolean | null
+          wallet_balance?: number
+          wallet_last_topup_date?: string | null
+          wallet_minimum_balance?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_subscriptions_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organizations: {
         Row: {
           created_at: string | null
@@ -1906,8 +1989,10 @@ export type Database = {
           logo_url: string | null
           name: string
           primary_color: string | null
+          services_enabled: boolean | null
           settings: Json | null
           slug: string
+          subscription_active: boolean | null
           updated_at: string | null
           usage_limits: Json | null
         }
@@ -1917,8 +2002,10 @@ export type Database = {
           logo_url?: string | null
           name: string
           primary_color?: string | null
+          services_enabled?: boolean | null
           settings?: Json | null
           slug: string
+          subscription_active?: boolean | null
           updated_at?: string | null
           usage_limits?: Json | null
         }
@@ -1928,12 +2015,89 @@ export type Database = {
           logo_url?: string | null
           name?: string
           primary_color?: string | null
+          services_enabled?: boolean | null
           settings?: Json | null
           slug?: string
+          subscription_active?: boolean | null
           updated_at?: string | null
           usage_limits?: Json | null
         }
         Relationships: []
+      }
+      payment_transactions: {
+        Row: {
+          amount: number
+          completed_at: string | null
+          created_at: string | null
+          failure_reason: string | null
+          id: string
+          initiated_at: string | null
+          initiated_by: string | null
+          invoice_id: string | null
+          metadata: Json | null
+          org_id: string
+          payment_method: string | null
+          payment_status: string
+          razorpay_order_id: string | null
+          razorpay_payment_id: string | null
+          razorpay_signature: string | null
+          transaction_type: string
+          updated_at: string | null
+        }
+        Insert: {
+          amount: number
+          completed_at?: string | null
+          created_at?: string | null
+          failure_reason?: string | null
+          id?: string
+          initiated_at?: string | null
+          initiated_by?: string | null
+          invoice_id?: string | null
+          metadata?: Json | null
+          org_id: string
+          payment_method?: string | null
+          payment_status?: string
+          razorpay_order_id?: string | null
+          razorpay_payment_id?: string | null
+          razorpay_signature?: string | null
+          transaction_type: string
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          completed_at?: string | null
+          created_at?: string | null
+          failure_reason?: string | null
+          id?: string
+          initiated_at?: string | null
+          initiated_by?: string | null
+          invoice_id?: string | null
+          metadata?: Json | null
+          org_id?: string
+          payment_method?: string | null
+          payment_status?: string
+          razorpay_order_id?: string | null
+          razorpay_payment_id?: string | null
+          razorpay_signature?: string | null
+          transaction_type?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_transactions_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_transactions_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       pipeline_stages: {
         Row: {
@@ -2353,6 +2517,298 @@ export type Database = {
           },
         ]
       }
+      service_usage_logs: {
+        Row: {
+          cost: number
+          created_at: string | null
+          deduction_error: string | null
+          id: string
+          org_id: string
+          quantity: number
+          reference_id: string
+          service_type: string
+          user_id: string | null
+          wallet_deducted: boolean | null
+          wallet_transaction_id: string | null
+        }
+        Insert: {
+          cost: number
+          created_at?: string | null
+          deduction_error?: string | null
+          id?: string
+          org_id: string
+          quantity: number
+          reference_id: string
+          service_type: string
+          user_id?: string | null
+          wallet_deducted?: boolean | null
+          wallet_transaction_id?: string | null
+        }
+        Update: {
+          cost?: number
+          created_at?: string | null
+          deduction_error?: string | null
+          id?: string
+          org_id?: string
+          quantity?: number
+          reference_id?: string
+          service_type?: string
+          user_id?: string | null
+          wallet_deducted?: boolean | null
+          wallet_transaction_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_usage_logs_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_usage_logs_wallet_transaction_id_fkey"
+            columns: ["wallet_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "wallet_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscription_audit_log: {
+        Row: {
+          action: string
+          created_at: string | null
+          id: string
+          new_values: Json | null
+          old_values: Json | null
+          org_id: string | null
+          performed_by: string
+          reason: string
+          target_record_id: string | null
+          target_record_type: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          id?: string
+          new_values?: Json | null
+          old_values?: Json | null
+          org_id?: string | null
+          performed_by: string
+          reason: string
+          target_record_id?: string | null
+          target_record_type?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          id?: string
+          new_values?: Json | null
+          old_values?: Json | null
+          org_id?: string | null
+          performed_by?: string
+          reason?: string
+          target_record_id?: string | null
+          target_record_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_audit_log_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscription_invoices: {
+        Row: {
+          base_subscription_amount: number
+          billing_period_end: string
+          billing_period_start: string
+          created_at: string | null
+          due_date: string
+          gst_amount: number
+          id: string
+          invoice_date: string
+          invoice_number: string
+          org_id: string
+          paid_amount: number | null
+          paid_at: string | null
+          payment_status: string
+          prorated_amount: number | null
+          setup_fee: number | null
+          subtotal: number
+          total_amount: number
+          updated_at: string | null
+          user_count: number
+          waive_reason: string | null
+          waived_by: string | null
+        }
+        Insert: {
+          base_subscription_amount: number
+          billing_period_end: string
+          billing_period_start: string
+          created_at?: string | null
+          due_date: string
+          gst_amount: number
+          id?: string
+          invoice_date: string
+          invoice_number: string
+          org_id: string
+          paid_amount?: number | null
+          paid_at?: string | null
+          payment_status?: string
+          prorated_amount?: number | null
+          setup_fee?: number | null
+          subtotal: number
+          total_amount: number
+          updated_at?: string | null
+          user_count: number
+          waive_reason?: string | null
+          waived_by?: string | null
+        }
+        Update: {
+          base_subscription_amount?: number
+          billing_period_end?: string
+          billing_period_start?: string
+          created_at?: string | null
+          due_date?: string
+          gst_amount?: number
+          id?: string
+          invoice_date?: string
+          invoice_number?: string
+          org_id?: string
+          paid_amount?: number | null
+          paid_at?: string | null
+          payment_status?: string
+          prorated_amount?: number | null
+          setup_fee?: number | null
+          subtotal?: number
+          total_amount?: number
+          updated_at?: string | null
+          user_count?: number
+          waive_reason?: string | null
+          waived_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_invoices_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscription_notifications: {
+        Row: {
+          created_at: string | null
+          email_subject: string
+          id: string
+          invoice_id: string | null
+          metadata: Json | null
+          notification_type: string
+          org_id: string
+          recipient_emails: string[]
+          sent_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email_subject: string
+          id?: string
+          invoice_id?: string | null
+          metadata?: Json | null
+          notification_type: string
+          org_id: string
+          recipient_emails: string[]
+          sent_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email_subject?: string
+          id?: string
+          invoice_id?: string | null
+          metadata?: Json | null
+          notification_type?: string
+          org_id?: string
+          recipient_emails?: string[]
+          sent_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_notifications_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscription_notifications_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscription_pricing: {
+        Row: {
+          auto_topup_amount: number
+          auto_topup_enabled: boolean | null
+          call_cost_per_call: number | null
+          call_cost_per_minute: number
+          created_at: string | null
+          created_by: string | null
+          effective_from: string
+          email_cost_per_unit: number
+          gst_percentage: number
+          id: string
+          is_active: boolean | null
+          min_wallet_balance: number
+          one_time_setup_cost: number
+          per_user_monthly_cost: number
+          updated_at: string | null
+          whatsapp_cost_per_unit: number
+        }
+        Insert: {
+          auto_topup_amount?: number
+          auto_topup_enabled?: boolean | null
+          call_cost_per_call?: number | null
+          call_cost_per_minute?: number
+          created_at?: string | null
+          created_by?: string | null
+          effective_from?: string
+          email_cost_per_unit?: number
+          gst_percentage?: number
+          id?: string
+          is_active?: boolean | null
+          min_wallet_balance?: number
+          one_time_setup_cost?: number
+          per_user_monthly_cost?: number
+          updated_at?: string | null
+          whatsapp_cost_per_unit?: number
+        }
+        Update: {
+          auto_topup_amount?: number
+          auto_topup_enabled?: boolean | null
+          call_cost_per_call?: number | null
+          call_cost_per_minute?: number
+          created_at?: string | null
+          created_by?: string | null
+          effective_from?: string
+          email_cost_per_unit?: number
+          gst_percentage?: number
+          id?: string
+          is_active?: boolean | null
+          min_wallet_balance?: number
+          one_time_setup_cost?: number
+          per_user_monthly_cost?: number
+          updated_at?: string | null
+          whatsapp_cost_per_unit?: number
+        }
+        Relationships: []
+      }
       team_members: {
         Row: {
           created_at: string | null
@@ -2451,6 +2907,75 @@ export type Database = {
             columns: ["org_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wallet_transactions: {
+        Row: {
+          admin_reason: string | null
+          amount: number
+          balance_after: number
+          balance_before: number
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          org_id: string
+          payment_transaction_id: string | null
+          quantity: number | null
+          reference_id: string | null
+          reference_type: string | null
+          transaction_type: string
+          unit_cost: number | null
+        }
+        Insert: {
+          admin_reason?: string | null
+          amount: number
+          balance_after: number
+          balance_before: number
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          org_id: string
+          payment_transaction_id?: string | null
+          quantity?: number | null
+          reference_id?: string | null
+          reference_type?: string | null
+          transaction_type: string
+          unit_cost?: number | null
+        }
+        Update: {
+          admin_reason?: string | null
+          amount?: number
+          balance_after?: number
+          balance_before?: number
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          org_id?: string
+          payment_transaction_id?: string | null
+          quantity?: number | null
+          reference_id?: string | null
+          reference_type?: string | null
+          transaction_type?: string
+          unit_cost?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_transactions_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wallet_transactions_payment_transaction_id_fkey"
+            columns: ["payment_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "payment_transactions"
             referencedColumns: ["id"]
           },
         ]
@@ -2746,6 +3271,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calculate_monthly_amount: {
+        Args: { _org_id: string }
+        Returns: number
+      }
+      check_and_update_subscription_status: {
+        Args: { _org_id: string }
+        Returns: undefined
+      }
       check_connector_rate_limit: {
         Args: { _form_id: string; _limit: number }
         Returns: boolean
@@ -2766,6 +3299,18 @@ export type Database = {
         Args: { p_org_name: string; p_org_slug: string; p_user_id: string }
         Returns: string
       }
+      deduct_from_wallet: {
+        Args: {
+          _amount: number
+          _org_id: string
+          _quantity: number
+          _reference_id: string
+          _service_type: string
+          _unit_cost: number
+          _user_id: string
+        }
+        Returns: Json
+      }
       delete_user_data: {
         Args: { user_email: string }
         Returns: undefined
@@ -2785,6 +3330,20 @@ export type Database = {
       generate_webhook_token: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      get_active_pricing: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          auto_topup_amount: number
+          call_cost_per_call: number
+          call_cost_per_minute: number
+          email_cost_per_unit: number
+          gst_percentage: number
+          min_wallet_balance: number
+          one_time_setup_cost: number
+          per_user_monthly_cost: number
+          whatsapp_cost_per_unit: number
+        }[]
       }
       get_orphaned_profiles: {
         Args: Record<PropertyKey, never>
