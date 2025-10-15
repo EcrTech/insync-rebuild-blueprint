@@ -68,3 +68,12 @@ verify_jwt = true
 
 [functions.crm-bridge-api]
 verify_jwt = false
+
+[functions.chat-campaign-assistant]
+verify_jwt = true
+
+[functions.delete-user]
+verify_jwt = true
+
+[functions.send-subscription-email]
+verify_jwt = true
