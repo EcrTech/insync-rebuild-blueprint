@@ -10,7 +10,7 @@ const Index = () => {
     >
       <div className="text-center space-y-6 p-8 max-w-3xl">
         <h1 className="text-6xl font-extrabold text-primary mb-4">
-          In-Sync
+          In-Sync CRM
         </h1>
         <p className="text-2xl text-foreground font-semibold mb-2">
           The CRM that adapts to your chaos
