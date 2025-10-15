@@ -6,8 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Download, TrendingUp, Users, Phone, Target, Calendar } from "lucide-react";
+import { Download, TrendingUp, Users, Phone, Target, Calendar, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
+import { CustomReportsList } from "@/components/Reports/CustomReportsList";
+import { ReportViewer } from "@/components/Reports/ReportViewer";
 
 interface SalesReport {
   userName: string;
@@ -27,10 +30,12 @@ interface PipelineReport {
 }
 
 export default function Reports() {
+  const navigate = useNavigate();
   const [salesReports, setSalesReports] = useState<SalesReport[]>([]);
   const [pipelineReports, setPipelineReports] = useState<PipelineReport[]>([]);
   const [dateRange, setDateRange] = useState<"week" | "month" | "quarter">("month");
   const [loading, setLoading] = useState(true);
+  const [viewingReportId, setViewingReportId] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -195,24 +200,37 @@ export default function Reports() {
               Comprehensive insights into your sales performance
             </p>
           </div>
-          <Select value={dateRange} onValueChange={(value: any) => setDateRange(value)}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="week">Last Week</SelectItem>
-              <SelectItem value="month">Last Month</SelectItem>
-              <SelectItem value="quarter">Last Quarter</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex gap-2">
+            <Select value={dateRange} onValueChange={(value: any) => setDateRange(value)}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="week">Last Week</SelectItem>
+                <SelectItem value="month">Last Month</SelectItem>
+                <SelectItem value="quarter">Last Quarter</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button onClick={() => navigate('/reports/builder')}>
+              <Plus className="h-4 w-4 mr-2" />
+              Create Report
+            </Button>
+          </div>
         </div>
 
-        <Tabs defaultValue="sales" className="space-y-4">
+        <Tabs defaultValue="overview" className="space-y-4">
           <TabsList>
-            <TabsTrigger value="sales">Sales Performance</TabsTrigger>
-            <TabsTrigger value="pipeline">Pipeline Analysis</TabsTrigger>
-            <TabsTrigger value="activity">Activity Reports</TabsTrigger>
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="custom">Custom Reports</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="overview" className="space-y-4">
+            <Tabs defaultValue="sales" className="space-y-4">
+              <TabsList>
+                <TabsTrigger value="sales">Sales Performance</TabsTrigger>
+                <TabsTrigger value="pipeline">Pipeline Analysis</TabsTrigger>
+                <TabsTrigger value="activity">Activity Reports</TabsTrigger>
+              </TabsList>
 
           <TabsContent value="sales" className="space-y-4">
             <Card>
@@ -372,7 +390,19 @@ export default function Reports() {
               </Card>
             </div>
           </TabsContent>
+            </Tabs>
+          </TabsContent>
+
+          <TabsContent value="custom" className="space-y-4">
+            <CustomReportsList onViewReport={setViewingReportId} />
+          </TabsContent>
         </Tabs>
+
+        <ReportViewer
+          reportId={viewingReportId}
+          open={!!viewingReportId}
+          onClose={() => setViewingReportId(null)}
+        />
       </div>
     </DashboardLayout>
   );

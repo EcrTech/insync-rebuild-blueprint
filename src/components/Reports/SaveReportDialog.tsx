@@ -8,6 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 interface SaveReportDialogProps {
   open: boolean;
@@ -27,6 +28,7 @@ export default function SaveReportDialog({
   orgId,
   onSaved,
 }: SaveReportDialogProps) {
+  const navigate = useNavigate();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [isPublic, setIsPublic] = useState(false);
@@ -66,6 +68,7 @@ export default function SaveReportDialog({
       setIsPublic(false);
       onOpenChange(false);
       onSaved?.();
+      navigate('/reports');
     } catch (error: any) {
       toast({
         title: "Error saving report",
