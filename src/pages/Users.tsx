@@ -518,7 +518,7 @@ export default function Users() {
 
       if (error) throw error;
 
-      const link = `https://in-sync.co.in/signup?invite=${inviteCode}`;
+      const link = `https://go.in-sync.co.in/signup?invite=${inviteCode}`;
       setInviteLink(link);
       setIsInviteDialogOpen(true);
 
