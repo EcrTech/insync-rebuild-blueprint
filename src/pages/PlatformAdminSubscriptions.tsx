@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Calendar, DollarSign, Users, AlertCircle } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import DashboardLayout from "@/components/Layout/DashboardLayout";
 
 export default function PlatformAdminSubscriptions() {
   const { toast } = useToast();
@@ -93,11 +94,12 @@ export default function PlatformAdminSubscriptions() {
   };
 
   if (isLoading) {
-    return <div>Loading...</div>;
+    return <DashboardLayout><div>Loading...</div></DashboardLayout>;
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <DashboardLayout>
+      <div className="container mx-auto p-6 space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Subscription Management</h1>
         <p className="text-muted-foreground">Platform admin view of all organization subscriptions</p>
@@ -257,6 +259,7 @@ export default function PlatformAdminSubscriptions() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </DashboardLayout>
   );
 }
