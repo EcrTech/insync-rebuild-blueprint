@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import DashboardLayout from "@/components/Layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,161 +6,88 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Download, TrendingUp, Users, Phone, Target, Calendar, Plus } from "lucide-react";
+import { Download, Calendar, Plus, Phone, Target } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { CustomReportsList } from "@/components/Reports/CustomReportsList";
 import { ReportViewer } from "@/components/Reports/ReportViewer";
+import { useOrgContext } from "@/hooks/useOrgContext";
+import { useQuery } from "@tanstack/react-query";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface SalesReport {
-  userName: string;
-  totalContacts: number;
-  calls: number;
-  emails: number;
-  meetings: number;
-  dealsWon: number;
-  conversionRate: number;
+  user_name: string;
+  total_contacts: number;
+  total_calls: number;
+  total_emails: number;
+  total_meetings: number;
+  deals_won: number;
+  conversion_rate: number;
 }
 
 interface PipelineReport {
-  stage: string;
-  count: number;
-  averageDays: number;
-  conversionRate: number;
+  stage_name: string;
+  contact_count: number;
+  stage_color: string;
 }
 
 export default function Reports() {
   const navigate = useNavigate();
-  const [salesReports, setSalesReports] = useState<SalesReport[]>([]);
-  const [pipelineReports, setPipelineReports] = useState<PipelineReport[]>([]);
   const [dateRange, setDateRange] = useState<"week" | "month" | "quarter">("month");
-  const [loading, setLoading] = useState(true);
   const [viewingReportId, setViewingReportId] = useState<string | null>(null);
   const { toast } = useToast();
+  const { effectiveOrgId } = useOrgContext();
 
-  useEffect(() => {
-    fetchReports();
-  }, [dateRange]);
-
-  const fetchReports = async () => {
-    setLoading(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      // Calculate date range
-      const now = new Date();
-      const startDate = new Date();
-      if (dateRange === "week") {
-        startDate.setDate(now.getDate() - 7);
-      } else if (dateRange === "month") {
-        startDate.setMonth(now.getMonth() - 1);
-      } else {
-        startDate.setMonth(now.getMonth() - 3);
-      }
-
-      // Fetch sales reports by user
-      const { data: users } = await supabase
-        .from("profiles")
-        .select("id, first_name, last_name");
-
-      const salesData: SalesReport[] = [];
-      
-      for (const userProfile of users || []) {
-        // Count contacts created by user
-        const { count: totalContacts } = await supabase
-          .from("contacts")
-          .select("*", { count: "exact", head: true })
-          .eq("created_by", userProfile.id)
-          .gte("created_at", startDate.toISOString());
-
-        // Count activities by type
-        const { count: calls } = await supabase
-          .from("contact_activities")
-          .select("*", { count: "exact", head: true })
-          .eq("created_by", userProfile.id)
-          .eq("activity_type", "call")
-          .gte("created_at", startDate.toISOString());
-
-        const { count: emails } = await supabase
-          .from("contact_activities")
-          .select("*", { count: "exact", head: true })
-          .eq("created_by", userProfile.id)
-          .eq("activity_type", "email")
-          .gte("created_at", startDate.toISOString());
-
-        const { count: meetings } = await supabase
-          .from("contact_activities")
-          .select("*", { count: "exact", head: true })
-          .eq("created_by", userProfile.id)
-          .eq("activity_type", "meeting")
-          .gte("created_at", startDate.toISOString());
-
-        // Count deals won
-        const { data: wonStage } = await supabase
-          .from("pipeline_stages")
-          .select("id")
-          .eq("name", "Won")
-          .single();
-
-        const { count: dealsWon } = await supabase
-          .from("contacts")
-          .select("*", { count: "exact", head: true })
-          .eq("created_by", userProfile.id)
-          .eq("pipeline_stage_id", wonStage?.id)
-          .gte("updated_at", startDate.toISOString());
-
-        const conversionRate = totalContacts && dealsWon 
-          ? Math.round((dealsWon / totalContacts) * 100) 
-          : 0;
-
-        salesData.push({
-          userName: `${userProfile.first_name} ${userProfile.last_name}`,
-          totalContacts: totalContacts || 0,
-          calls: calls || 0,
-          emails: emails || 0,
-          meetings: meetings || 0,
-          dealsWon: dealsWon || 0,
-          conversionRate,
-        });
-      }
-
-      setSalesReports(salesData);
-
-      // Fetch pipeline stage reports
-      const { data: stages } = await supabase
-        .from("pipeline_stages")
-        .select("*")
-        .order("stage_order");
-
-      const pipelineData: PipelineReport[] = [];
-      
-      for (const stage of stages || []) {
-        const { count } = await supabase
-          .from("contacts")
-          .select("*", { count: "exact", head: true })
-          .eq("pipeline_stage_id", stage.id);
-
-        pipelineData.push({
-          stage: stage.name,
-          count: count || 0,
-          averageDays: Math.floor(Math.random() * 30) + 5, // Mock data
-          conversionRate: stage.probability,
-        });
-      }
-
-      setPipelineReports(pipelineData);
-    } catch (error) {
-      console.error("Error fetching reports:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to load reports",
-      });
-    } finally {
-      setLoading(false);
+  // Calculate date range
+  const getStartDate = () => {
+    const now = new Date();
+    const startDate = new Date();
+    if (dateRange === "week") {
+      startDate.setDate(now.getDate() - 7);
+    } else if (dateRange === "month") {
+      startDate.setMonth(now.getMonth() - 1);
+    } else {
+      startDate.setMonth(now.getMonth() - 3);
     }
+    return startDate;
   };
+
+  // Optimized sales reports query - single database call instead of N+1
+  const { data: salesReports = [], isLoading: salesLoading } = useQuery({
+    queryKey: ['sales-reports', dateRange, effectiveOrgId],
+    queryFn: async () => {
+      if (!effectiveOrgId) return [];
+      
+      const { data, error } = await supabase.rpc('get_sales_performance_report', {
+        p_org_id: effectiveOrgId,
+        p_start_date: getStartDate().toISOString(),
+      });
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!effectiveOrgId,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  });
+
+  // Optimized pipeline reports query - single database call instead of N+1
+  const { data: pipelineReports = [], isLoading: pipelineLoading } = useQuery({
+    queryKey: ['pipeline-reports', effectiveOrgId],
+    queryFn: async () => {
+      if (!effectiveOrgId) return [];
+      
+      const { data, error } = await supabase.rpc('get_pipeline_performance_report', {
+        p_org_id: effectiveOrgId,
+      });
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!effectiveOrgId,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  });
 
   const exportToCSV = (data: any[], filename: string) => {
     if (data.length === 0) {
@@ -243,14 +170,19 @@ export default function Reports() {
                   variant="outline"
                   size="sm"
                   onClick={() => exportToCSV(salesReports, "sales_performance")}
+                  disabled={salesLoading}
                 >
                   <Download className="mr-2 h-4 w-4" />
                   Export CSV
                 </Button>
               </CardHeader>
               <CardContent>
-                {loading ? (
-                  <div className="text-center py-8">Loading reports...</div>
+                {salesLoading ? (
+                  <div className="space-y-2">
+                    {[1, 2, 3].map((i) => (
+                      <Skeleton key={i} className="h-12 w-full" />
+                    ))}
+                  </div>
                 ) : salesReports.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
                     No sales data available for this period
@@ -271,13 +203,13 @@ export default function Reports() {
                     <TableBody>
                       {salesReports.map((report, index) => (
                         <TableRow key={index}>
-                          <TableCell className="font-medium">{report.userName}</TableCell>
-                          <TableCell className="text-right">{report.totalContacts}</TableCell>
-                          <TableCell className="text-right">{report.calls}</TableCell>
-                          <TableCell className="text-right">{report.emails}</TableCell>
-                          <TableCell className="text-right">{report.meetings}</TableCell>
-                          <TableCell className="text-right">{report.dealsWon}</TableCell>
-                          <TableCell className="text-right">{report.conversionRate}%</TableCell>
+                          <TableCell className="font-medium">{report.user_name}</TableCell>
+                          <TableCell className="text-right">{report.total_contacts}</TableCell>
+                          <TableCell className="text-right">{report.total_calls}</TableCell>
+                          <TableCell className="text-right">{report.total_emails}</TableCell>
+                          <TableCell className="text-right">{report.total_meetings}</TableCell>
+                          <TableCell className="text-right">{report.deals_won}</TableCell>
+                          <TableCell className="text-right">{report.conversion_rate}%</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -298,14 +230,19 @@ export default function Reports() {
                   variant="outline"
                   size="sm"
                   onClick={() => exportToCSV(pipelineReports, "pipeline_analysis")}
+                  disabled={pipelineLoading}
                 >
                   <Download className="mr-2 h-4 w-4" />
                   Export CSV
                 </Button>
               </CardHeader>
               <CardContent>
-                {loading ? (
-                  <div className="text-center py-8">Loading reports...</div>
+                {pipelineLoading ? (
+                  <div className="space-y-2">
+                    {[1, 2, 3, 4].map((i) => (
+                      <Skeleton key={i} className="h-12 w-full" />
+                    ))}
+                  </div>
                 ) : pipelineReports.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
                     No pipeline data available
@@ -316,17 +253,21 @@ export default function Reports() {
                       <TableRow>
                         <TableHead>Stage</TableHead>
                         <TableHead className="text-right">Contacts</TableHead>
-                        <TableHead className="text-right">Avg. Days</TableHead>
-                        <TableHead className="text-right">Conversion Rate</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {pipelineReports.map((report, index) => (
                         <TableRow key={index}>
-                          <TableCell className="font-medium">{report.stage}</TableCell>
-                          <TableCell className="text-right">{report.count}</TableCell>
-                          <TableCell className="text-right">{report.averageDays} days</TableCell>
-                          <TableCell className="text-right">{report.conversionRate}%</TableCell>
+                          <TableCell className="font-medium">
+                            <div className="flex items-center gap-2">
+                              <div 
+                                className="w-3 h-3 rounded-full" 
+                                style={{ backgroundColor: report.stage_color }}
+                              />
+                              {report.stage_name}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right">{report.contact_count}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -344,12 +285,18 @@ export default function Reports() {
                   <Calendar className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">
-                    {salesReports.reduce((sum, r) => sum + r.calls + r.emails + r.meetings, 0)}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Across all team members
-                  </p>
+                  {salesLoading ? (
+                    <Skeleton className="h-8 w-24" />
+                  ) : (
+                    <>
+                      <div className="text-2xl font-bold">
+                        {salesReports.reduce((sum, r) => sum + r.total_calls + r.total_emails + r.total_meetings, 0)}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Across all team members
+                      </p>
+                    </>
+                  )}
                 </CardContent>
               </Card>
 
@@ -359,12 +306,18 @@ export default function Reports() {
                   <Phone className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">
-                    {salesReports.reduce((sum, r) => sum + r.calls, 0)}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Phone conversations
-                  </p>
+                  {salesLoading ? (
+                    <Skeleton className="h-8 w-24" />
+                  ) : (
+                    <>
+                      <div className="text-2xl font-bold">
+                        {salesReports.reduce((sum, r) => sum + r.total_calls, 0)}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Phone conversations
+                      </p>
+                    </>
+                  )}
                 </CardContent>
               </Card>
 
@@ -374,18 +327,24 @@ export default function Reports() {
                   <Target className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">
-                    {salesReports.length > 0
-                      ? Math.round(
-                          salesReports.reduce((sum, r) => sum + r.conversionRate, 0) /
-                            salesReports.length
-                        )
-                      : 0}
-                    %
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Average across team
-                  </p>
+                  {salesLoading ? (
+                    <Skeleton className="h-8 w-24" />
+                  ) : (
+                    <>
+                      <div className="text-2xl font-bold">
+                        {salesReports.length > 0
+                          ? Math.round(
+                              salesReports.reduce((sum, r) => sum + Number(r.conversion_rate), 0) /
+                                salesReports.length
+                            )
+                          : 0}
+                        %
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Average across team
+                      </p>
+                    </>
+                  )}
                 </CardContent>
               </Card>
             </div>

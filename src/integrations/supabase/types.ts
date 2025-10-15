@@ -3588,11 +3588,34 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_pipeline_performance_report: {
+        Args: { p_org_id: string }
+        Returns: {
+          contact_count: number
+          stage_color: string
+          stage_id: string
+          stage_name: string
+          stage_order: number
+        }[]
+      }
       get_reporting_chain: {
         Args: { p_designation_id: string }
         Returns: {
           designation_id: string
           level: number
+        }[]
+      }
+      get_sales_performance_report: {
+        Args: { p_org_id: string; p_start_date: string }
+        Returns: {
+          conversion_rate: number
+          deals_won: number
+          total_calls: number
+          total_contacts: number
+          total_emails: number
+          total_meetings: number
+          user_id: string
+          user_name: string
         }[]
       }
       get_subordinates: {
