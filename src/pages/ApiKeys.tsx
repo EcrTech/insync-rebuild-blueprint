@@ -508,6 +508,11 @@ export default function ApiKeys() {
                   { method: 'POST', path: '/contacts/{id}/activities', desc: 'Log new activity' },
                   { method: 'GET', path: '/pipeline-stages', desc: 'Get pipeline stages' },
                   { method: 'GET', path: '/custom-fields', desc: 'Get custom fields' },
+                  { method: 'GET', path: '/approval-types', desc: 'List approval types' },
+                  { method: 'GET', path: '/approval-types/{id}', desc: 'Get single approval type' },
+                  { method: 'GET', path: '/approval-rules', desc: 'List approval rules' },
+                  { method: 'GET', path: '/approval-rules/{id}', desc: 'Get single approval rule' },
+                  { method: 'GET', path: '/approval-rules/evaluate', desc: 'Evaluate approval rule for amount' },
                 ].map((endpoint, idx) => (
                   <div key={idx} className="border rounded-lg p-3">
                     <div className="flex items-start gap-2 mb-1">
@@ -590,6 +595,103 @@ Content-Type: application/json
                 <li><code>GET /pipeline-stages</code> - Get all pipeline stages</li>
                 <li><code>GET /custom-fields</code> - Get custom field definitions</li>
               </ul>
+
+              <h3>Approval Matrix Endpoints</h3>
+              
+              <h4>List Approval Types</h4>
+              <pre className="bg-muted p-4 rounded-lg overflow-x-auto">
+{`GET /approval-types?is_active=true
+
+Response:
+{
+  "success": true,
+  "data": {
+    "approval_types": [
+      {
+        "id": "uuid",
+        "org_id": "uuid",
+        "name": "Purchase Order",
+        "description": "Approval for purchase orders",
+        "is_active": true,
+        "created_at": "2025-01-15T10:30:00Z",
+        "updated_at": "2025-10-15T14:20:00Z"
+      }
+    ]
+  }
+}`}
+              </pre>
+
+              <h4>List Approval Rules</h4>
+              <pre className="bg-muted p-4 rounded-lg overflow-x-auto">
+{`GET /approval-rules?approval_type_id=uuid&limit=50&offset=0
+
+Response:
+{
+  "success": true,
+  "data": {
+    "approval_rules": [
+      {
+        "id": "uuid",
+        "approval_type_id": "uuid",
+        "name": "Small Purchase",
+        "description": "Orders under $1000",
+        "threshold_amount": 1000.00,
+        "required_roles": ["sales_agent"],
+        "approval_flow": [
+          {
+            "step": 1,
+            "role": "sales_agent",
+            "role_label": "Sales Agent"
+          }
+        ],
+        "is_active": true,
+        "approval_types": {
+          "id": "uuid",
+          "name": "Purchase Order"
+        }
+      }
+    ],
+    "pagination": {
+      "total": 5,
+      "limit": 50,
+      "offset": 0,
+      "has_more": false
+    }
+  }
+}`}
+              </pre>
+
+              <h4>Evaluate Approval Rule</h4>
+              <pre className="bg-muted p-4 rounded-lg overflow-x-auto">
+{`GET /approval-rules/evaluate?approval_type_id=uuid&amount=5000
+
+Response:
+{
+  "success": true,
+  "data": {
+    "matched": true,
+    "rule": {
+      "id": "uuid",
+      "name": "Medium Purchase",
+      "threshold_amount": 5000.00,
+      "approval_flow": [
+        {
+          "step": 1,
+          "role": "sales_manager",
+          "role_label": "Sales Manager"
+        },
+        {
+          "step": 2,
+          "role": "admin",
+          "role_label": "Admin"
+        }
+      ]
+    },
+    "approval_type_id": "uuid",
+    "amount": 5000
+  }
+}`}
+              </pre>
 
               <h3>Rate Limits</h3>
               <p>100 requests per minute per API key</p>

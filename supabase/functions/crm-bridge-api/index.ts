@@ -115,6 +115,18 @@ serve(async (req) => {
       response = await handleGetPipelineStages(supabaseAdmin, context);
     } else if (path === '/custom-fields' && method === 'GET') {
       response = await handleGetCustomFields(supabaseAdmin, context);
+    } else if (path === '/approval-types' && method === 'GET') {
+      response = await handleListApprovalTypes(supabaseAdmin, context, url);
+    } else if (path.match(/^\/approval-types\/[^/]+$/) && method === 'GET') {
+      const typeId = path.split('/')[2];
+      response = await handleGetApprovalType(supabaseAdmin, context, typeId);
+    } else if (path === '/approval-rules' && method === 'GET') {
+      response = await handleListApprovalRules(supabaseAdmin, context, url);
+    } else if (path.match(/^\/approval-rules\/[^/]+$/) && method === 'GET') {
+      const ruleId = path.split('/')[2];
+      response = await handleGetApprovalRule(supabaseAdmin, context, ruleId);
+    } else if (path === '/approval-rules/evaluate' && method === 'GET') {
+      response = await handleEvaluateApprovalRule(supabaseAdmin, context, url);
     } else {
       response = errorResponse('Endpoint not found', 404, requestId);
     }
@@ -407,4 +419,198 @@ async function handleGetCustomFields(supabase: any, context: RequestContext) {
   }
 
   return successResponse({ custom_fields: data }, crypto.randomUUID());
+}
+
+// Approval Matrix Handlers
+
+async function handleListApprovalTypes(supabase: any, context: RequestContext, url: URL) {
+  const isActive = url.searchParams.get('is_active');
+
+  let query = supabase
+    .from('approval_types')
+    .select('*')
+    .eq('org_id', context.orgId)
+    .order('name', { ascending: true });
+
+  if (isActive !== null) {
+    query = query.eq('is_active', isActive === 'true');
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    return errorResponse(error.message, 500, crypto.randomUUID());
+  }
+
+  return successResponse({ approval_types: data }, crypto.randomUUID());
+}
+
+async function handleGetApprovalType(supabase: any, context: RequestContext, typeId: string) {
+  const { data, error } = await supabase
+    .from('approval_types')
+    .select('*')
+    .eq('org_id', context.orgId)
+    .eq('id', typeId)
+    .single();
+
+  if (error || !data) {
+    return errorResponse('Approval type not found', 404, crypto.randomUUID());
+  }
+
+  return successResponse(data, crypto.randomUUID());
+}
+
+async function handleListApprovalRules(supabase: any, context: RequestContext, url: URL) {
+  const limit = parseInt(url.searchParams.get('limit') || '50');
+  const offset = parseInt(url.searchParams.get('offset') || '0');
+  const approvalTypeId = url.searchParams.get('approval_type_id');
+  const isActive = url.searchParams.get('is_active');
+
+  let query = supabase
+    .from('approval_rules')
+    .select('*, approval_types(id, name, description)', { count: 'exact' })
+    .eq('org_id', context.orgId)
+    .range(offset, offset + limit - 1)
+    .order('threshold_amount', { ascending: true });
+
+  if (approvalTypeId) query = query.eq('approval_type_id', approvalTypeId);
+  if (isActive !== null) query = query.eq('is_active', isActive === 'true');
+
+  const { data, error, count } = await query;
+
+  if (error) {
+    return errorResponse(error.message, 500, crypto.randomUUID());
+  }
+
+  // Map role codes to display labels
+  const roleMap: Record<string, string> = {
+    'super_admin': 'Super Admin',
+    'admin': 'Admin',
+    'sales_manager': 'Sales Manager',
+    'sales_agent': 'Sales Agent',
+    'support_manager': 'Support Manager',
+    'support_agent': 'Support Agent',
+    'analyst': 'Analyst'
+  };
+
+  const formattedData = data?.map((rule: any) => ({
+    ...rule,
+    approval_flow: rule.required_roles.map((role: string, index: number) => ({
+      step: index + 1,
+      role: role,
+      role_label: roleMap[role] || role
+    }))
+  }));
+
+  return successResponse({
+    approval_rules: formattedData,
+    pagination: {
+      total: count,
+      limit,
+      offset,
+      has_more: count ? offset + limit < count : false
+    }
+  }, crypto.randomUUID());
+}
+
+async function handleGetApprovalRule(supabase: any, context: RequestContext, ruleId: string) {
+  const { data, error } = await supabase
+    .from('approval_rules')
+    .select('*, approval_types(id, name, description)')
+    .eq('org_id', context.orgId)
+    .eq('id', ruleId)
+    .single();
+
+  if (error || !data) {
+    return errorResponse('Approval rule not found', 404, crypto.randomUUID());
+  }
+
+  // Map role codes to display labels
+  const roleMap: Record<string, string> = {
+    'super_admin': 'Super Admin',
+    'admin': 'Admin',
+    'sales_manager': 'Sales Manager',
+    'sales_agent': 'Sales Agent',
+    'support_manager': 'Support Manager',
+    'support_agent': 'Support Agent',
+    'analyst': 'Analyst'
+  };
+
+  const formattedData = {
+    ...data,
+    approval_flow: data.required_roles.map((role: string, index: number) => ({
+      step: index + 1,
+      role: role,
+      role_label: roleMap[role] || role
+    }))
+  };
+
+  return successResponse(formattedData, crypto.randomUUID());
+}
+
+async function handleEvaluateApprovalRule(supabase: any, context: RequestContext, url: URL) {
+  const approvalTypeId = url.searchParams.get('approval_type_id');
+  const amount = url.searchParams.get('amount');
+
+  if (!approvalTypeId) {
+    return errorResponse('approval_type_id is required', 400, crypto.randomUUID());
+  }
+
+  let query = supabase
+    .from('approval_rules')
+    .select('*, approval_types(id, name, description)')
+    .eq('org_id', context.orgId)
+    .eq('approval_type_id', approvalTypeId)
+    .eq('is_active', true)
+    .order('threshold_amount', { ascending: true });
+
+  if (amount) {
+    const amountValue = parseFloat(amount);
+    query = query.lte('threshold_amount', amountValue);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    return errorResponse(error.message, 500, crypto.randomUUID());
+  }
+
+  // Get the highest threshold rule that matches
+  const matchingRule = data && data.length > 0 ? data[data.length - 1] : null;
+
+  if (!matchingRule) {
+    return successResponse({
+      matched: false,
+      message: 'No matching approval rule found',
+      approval_type_id: approvalTypeId,
+      amount: amount ? parseFloat(amount) : null
+    }, crypto.randomUUID());
+  }
+
+  // Map role codes to display labels
+  const roleMap: Record<string, string> = {
+    'super_admin': 'Super Admin',
+    'admin': 'Admin',
+    'sales_manager': 'Sales Manager',
+    'sales_agent': 'Sales Agent',
+    'support_manager': 'Support Manager',
+    'support_agent': 'Support Agent',
+    'analyst': 'Analyst'
+  };
+
+  const formattedRule = {
+    ...matchingRule,
+    approval_flow: matchingRule.required_roles.map((role: string, index: number) => ({
+      step: index + 1,
+      role: role,
+      role_label: roleMap[role] || role
+    }))
+  };
+
+  return successResponse({
+    matched: true,
+    rule: formattedRule,
+    approval_type_id: approvalTypeId,
+    amount: amount ? parseFloat(amount) : null
+  }, crypto.randomUUID());
 }
