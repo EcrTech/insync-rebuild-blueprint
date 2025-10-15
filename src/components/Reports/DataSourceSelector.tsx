@@ -28,16 +28,16 @@ export default function DataSourceSelector({ selected, onSelect }: DataSourceSel
           return (
             <Card
               key={source.key}
-              className={`p-4 cursor-pointer transition-all hover:shadow-md ${
+              className={`p-4 cursor-pointer transition-all hover:shadow-md hover:bg-primary group ${
                 isSelected ? 'ring-2 ring-primary bg-accent' : ''
               }`}
               onClick={() => onSelect(source.key)}
             >
               <div className="flex items-center gap-3">
-                <Icon className={`h-5 w-5 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
+                <Icon className={`h-5 w-5 transition-colors ${isSelected ? 'text-primary' : 'text-muted-foreground group-hover:text-primary-foreground'}`} />
                 <div>
-                  <p className="font-medium text-sm">{source.label}</p>
-                  <p className="text-xs text-muted-foreground">{source.fields.length} fields</p>
+                  <p className="font-medium text-sm transition-colors group-hover:text-primary-foreground">{source.label}</p>
+                  <p className="text-xs text-muted-foreground transition-colors group-hover:text-primary-foreground/80">{source.fields.length} fields</p>
                 </div>
               </div>
             </Card>
