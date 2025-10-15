@@ -127,6 +127,29 @@ serve(async (req) => {
           ended_at: new Date().toISOString() 
         })
         .eq('exotel_call_sid', callSid);
+
+      // Deduct call cost from wallet (only for completed calls with conversation)
+      if (status === 'completed' && updateData.conversation_duration > 0) {
+        const conversationMinutes = updateData.conversation_duration / 60;
+        const perMinuteCost = 0.50; // Get from pricing
+        const perCallCost = 0.10; // Get from pricing
+        const totalCost = (conversationMinutes * perMinuteCost) + perCallCost;
+
+        const { data: deductResult, error: deductError } = await supabaseClient.rpc('deduct_from_wallet', {
+          _org_id: callLog.org_id,
+          _amount: totalCost,
+          _service_type: 'call',
+          _reference_id: callLog.id,
+          _quantity: conversationMinutes,
+          _unit_cost: perMinuteCost,
+          _user_id: callLog.agent_id
+        });
+
+        if (deductError || !deductResult?.success) {
+          console.warn('Wallet deduction failed for call:', deductError || deductResult);
+          // Call completed, but wallet deduction failed - log but don't fail
+        }
+      }
     } else {
       // Update session status for ongoing call
       const sessionStatus = 

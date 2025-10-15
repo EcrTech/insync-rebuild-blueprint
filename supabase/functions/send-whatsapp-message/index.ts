@@ -237,6 +237,28 @@ Deno.serve(async (req) => {
       .select()
       .single();
 
+    // Create service role client for wallet deduction
+    const supabaseServiceClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // Deduct WhatsApp cost from wallet
+    const { data: deductResult, error: deductError } = await supabaseServiceClient.rpc('deduct_from_wallet', {
+      _org_id: profile.org_id,
+      _amount: 0.25, // Get from pricing
+      _service_type: 'whatsapp',
+      _reference_id: messageRecord?.id,
+      _quantity: 1,
+      _unit_cost: 0.25,
+      _user_id: user.id
+    });
+
+    if (deductError || !deductResult?.success) {
+      console.warn('Wallet deduction failed:', deductError || deductResult);
+      // Message was sent, but wallet deduction failed - log but don't fail the request
+    }
+
     // Log activity
     await supabaseClient.from('contact_activities').insert({
       org_id: profile.org_id,
