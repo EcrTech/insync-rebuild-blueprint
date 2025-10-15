@@ -17,7 +17,7 @@ export default function SubscriptionStatusBanner() {
         .from("organization_subscriptions")
         .select("subscription_status, grace_period_end, readonly_period_end, lockout_date, wallet_balance, wallet_minimum_balance")
         .eq("org_id", effectiveOrgId)
-        .single();
+        .maybeSingle();
       
       if (error) throw error;
       return data;

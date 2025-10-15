@@ -40,7 +40,7 @@ export default function Billing() {
         .from("organization_subscriptions")
         .select("*")
         .eq("org_id", effectiveOrgId)
-        .single();
+        .maybeSingle();
       
       if (error) throw error;
       return data;

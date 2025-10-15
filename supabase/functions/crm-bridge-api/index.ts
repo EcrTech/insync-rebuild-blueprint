@@ -1,4 +1,3 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -16,7 +15,7 @@ interface RequestContext {
 // Rate limiting: track requests per API key
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -180,6 +179,10 @@ async function logUsage(
   const endpoint = url.pathname.replace('/crm-bridge-api', '');
 
   try {
+    // Parse IP address to get the first IP from x-forwarded-for header
+    const rawIp = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip');
+    const ipAddress = rawIp ? rawIp.split(',')[0].trim() : null;
+    
     await supabase.from('api_key_usage_logs').insert({
       api_key_id: apiKeyId,
       org_id: orgId,
@@ -187,7 +190,7 @@ async function logUsage(
       method: req.method,
       status_code: statusCode,
       response_time_ms: responseTime,
-      ip_address: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip'),
+      ip_address: ipAddress,
       user_agent: req.headers.get('user-agent'),
       error_message: errorMessage
     });
