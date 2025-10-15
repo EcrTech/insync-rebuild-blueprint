@@ -3,9 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Eye, Pencil, Download, Trash2 } from "lucide-react";
+import { Eye } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { toast } from "sonner";
 import { format } from "date-fns";
 import { useOrgContext } from "@/hooks/useOrgContext";
 
@@ -17,7 +16,7 @@ export const CustomReportsList = ({ onViewReport }: CustomReportsListProps) => {
   const navigate = useNavigate();
   const { effectiveOrgId } = useOrgContext();
 
-  const { data: reports, isLoading, refetch } = useQuery({
+  const { data: reports, isLoading } = useQuery({
     queryKey: ['saved-reports', effectiveOrgId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -31,21 +30,6 @@ export const CustomReportsList = ({ onViewReport }: CustomReportsListProps) => {
     },
     enabled: !!effectiveOrgId,
   });
-
-  const handleDelete = async (id: string) => {
-    const { error } = await supabase
-      .from('saved_reports')
-      .delete()
-      .eq('id', id);
-
-    if (error) {
-      toast.error("Failed to delete report");
-      return;
-    }
-
-    toast.success("Report deleted successfully");
-    refetch();
-  };
 
   if (isLoading) {
     return (
@@ -99,31 +83,15 @@ export const CustomReportsList = ({ onViewReport }: CustomReportsListProps) => {
                 <p><span className="font-medium">Data Source:</span> {report.data_source}</p>
                 <p><span className="font-medium">Created:</span> {format(new Date(report.created_at), 'MMM d, yyyy')}</p>
               </div>
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  variant="default"
-                  className="flex-1"
-                  onClick={() => onViewReport(report.id)}
-                >
-                  <Eye className="h-4 w-4 mr-1" />
-                  View
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => navigate(`/reports/builder?edit=${report.id}`)}
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleDelete(report.id)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
+              <Button
+                size="sm"
+                variant="default"
+                className="w-full"
+                onClick={() => onViewReport(report.id)}
+              >
+                <Eye className="h-4 w-4 mr-2" />
+                View Report
+              </Button>
             </div>
           </CardContent>
         </Card>

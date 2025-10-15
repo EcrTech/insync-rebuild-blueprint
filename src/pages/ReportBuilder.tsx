@@ -2,7 +2,8 @@ import { useState } from "react";
 import DashboardLayout from "@/components/Layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Save, Download, Eye } from "lucide-react";
+import { Save, Download, Eye, Settings } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import DataSourceSelector from "@/components/Reports/DataSourceSelector";
 import FieldSelector from "@/components/Reports/FieldSelector";
 import ParameterPanel from "@/components/Reports/ParameterPanel";
@@ -16,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 export default function ReportBuilder() {
   const { effectiveOrgId } = useOrgContext();
   const { toast } = useToast();
+  const navigate = useNavigate();
   
   const [selectedDataSource, setSelectedDataSource] = useState<DataSourceType | null>(null);
   const [parameters, setParameters] = useState<ReportParameters>({
@@ -43,6 +45,10 @@ export default function ReportBuilder() {
             <p className="text-muted-foreground">Create custom reports with drag-and-drop</p>
           </div>
           <div className="flex gap-2">
+            <Button variant="outline" onClick={() => navigate('/reports/saved')}>
+              <Settings className="h-4 w-4 mr-2" />
+              Manage Reports
+            </Button>
             <Button variant="outline" onClick={handleExportCSV}>
               <Download className="h-4 w-4 mr-2" />
               Export CSV
