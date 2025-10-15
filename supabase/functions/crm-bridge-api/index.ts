@@ -82,8 +82,16 @@ serve(async (req) => {
 
     // Route to appropriate handler
     const url = new URL(req.url);
-    const path = url.pathname.replace('/crm-bridge-api', '');
+    const path = url.pathname.replace('/functions/v1/crm-bridge-api', '');
     const method = req.method;
+
+    // Debug logging
+    console.log('Request details:', {
+      fullUrl: req.url,
+      pathname: url.pathname,
+      extractedPath: path,
+      method: method
+    });
 
     let response: Response;
 
@@ -157,7 +165,7 @@ async function logUsage(
   if (!apiKeyId || !orgId) return;
 
   const url = new URL(req.url);
-  const endpoint = url.pathname.replace('/crm-bridge-api', '');
+  const endpoint = url.pathname.replace('/functions/v1/crm-bridge-api', '');
 
   try {
     await supabase.from('api_key_usage_logs').insert({
