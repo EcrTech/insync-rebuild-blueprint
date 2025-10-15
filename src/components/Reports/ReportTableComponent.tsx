@@ -82,14 +82,14 @@ export default function ReportTableComponent({
         <div className="flex-1 min-w-[200px]">
           <Label className="text-xs">Sort By</Label>
           <Select
-            value={config.sortBy || ''}
-            onValueChange={(value) => onConfigChange({ ...config, sortBy: value || undefined })}
+            value={config.sortBy || 'none'}
+            onValueChange={(value) => onConfigChange({ ...config, sortBy: value === 'none' ? undefined : value })}
           >
             <SelectTrigger className="h-8">
               <SelectValue placeholder="No sorting" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">No sorting</SelectItem>
+              <SelectItem value="none">No sorting</SelectItem>
               {config.columns.map(col => {
                 const field = source.fields.find(f => f.key === col);
                 return field ? (

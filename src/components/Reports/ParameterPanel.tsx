@@ -157,14 +157,14 @@ export default function ParameterPanel({ dataSource, parameters, onChange }: Par
       <Card className="p-4 space-y-3">
         <Label>Group By</Label>
         <Select
-          value={parameters.groupBy || ''}
-          onValueChange={(value) => onChange({ ...parameters, groupBy: value || undefined })}
+          value={parameters.groupBy || 'none'}
+          onValueChange={(value) => onChange({ ...parameters, groupBy: value === 'none' ? undefined : value })}
         >
           <SelectTrigger>
             <SelectValue placeholder="No grouping" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">No grouping</SelectItem>
+            <SelectItem value="none">No grouping</SelectItem>
             {dataSource.fields.filter(f => f.type !== 'number').map(field => (
               <SelectItem key={field.key} value={field.key}>
                 {field.label}
