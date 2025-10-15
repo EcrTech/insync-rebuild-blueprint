@@ -176,10 +176,9 @@ Deno.serve(async (req) => {
       .insert({
         org_id,
         notification_type: template_type,
-        recipient_email: adminEmail,
-        notification_data: data,
-        status: 'sent',
-        sent_at: new Date().toISOString(),
+        recipient_emails: [adminEmail],
+        email_subject: subject,
+        metadata: data,
       });
 
     console.log('Subscription email sent successfully');

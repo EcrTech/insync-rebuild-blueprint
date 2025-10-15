@@ -49,6 +49,8 @@ import AIInsightsDashboard from "./pages/Campaigns/AIInsightsDashboard";
 import Documentation from "./pages/Documentation";
 import RedefineDataRepository from "./pages/RedefineDataRepository";
 import Inventory from "./pages/Inventory";
+import Billing from "./pages/Billing";
+import Usage from "./pages/Usage";
 import ProtectedRoute from "./components/Auth/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -315,6 +317,18 @@ const App = () => (
           <Route path="/reports/saved" element={
             <ProtectedRoute>
               <SavedReports />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/billing" element={
+            <ProtectedRoute requiredRole="admin">
+              <Billing />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/usage" element={
+            <ProtectedRoute requiredRole="admin">
+              <Usage />
             </ProtectedRoute>
           } />
           
