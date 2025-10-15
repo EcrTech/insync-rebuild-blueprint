@@ -196,7 +196,7 @@ export function WebhookConfig({
           <Label htmlFor="http_method">HTTP Method</Label>
           <select
             id="http_method"
-            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
             value={httpMethod}
             onChange={(e) => onHttpMethodChange(e.target.value as 'GET' | 'POST')}
           >
@@ -212,7 +212,7 @@ export function WebhookConfig({
           <Label htmlFor="target_table">Target Table</Label>
           <select
             id="target_table"
-            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
             value={targetTable}
             onChange={(e) => onTargetTableChange(e.target.value as any)}
           >
@@ -298,7 +298,7 @@ export function WebhookConfig({
             />
             <span className="flex items-center text-muted-foreground">→</span>
             <select
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
               value={newMapping.target}
               onChange={(e) => setNewMapping({ ...newMapping, target: e.target.value })}
             >
