@@ -9,6 +9,8 @@ import SignUp from "./pages/SignUp";
 import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import TechAdmin from "./pages/TechAdmin";
+import ReportBuilder from "./pages/ReportBuilder";
+import SavedReports from "./pages/SavedReports";
 import PipelineStages from "./pages/PipelineStages";
 import CallDispositions from "./pages/CallDispositions";
 import Users from "./pages/Users";
@@ -301,6 +303,18 @@ const App = () => (
           <Route path="/inventory" element={
             <ProtectedRoute>
               <Inventory />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/reports/builder" element={
+            <ProtectedRoute>
+              <ReportBuilder />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/reports/saved" element={
+            <ProtectedRoute>
+              <SavedReports />
             </ProtectedRoute>
           } />
           

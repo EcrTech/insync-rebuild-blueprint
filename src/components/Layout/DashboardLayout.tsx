@@ -196,14 +196,24 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
               )}
 
               {canAccessFeature("analytics") && (
-                <Link
-                  to="/reports"
-                  className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  <BarChart3 size={20} />
-                  <span>Reports</span>
-                </Link>
+                <>
+                  <Link
+                    to="/reports"
+                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    <BarChart3 size={20} />
+                    <span>Reports</span>
+                  </Link>
+                  <Link
+                    to="/reports/builder"
+                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    <LayoutDashboard size={20} />
+                    <span>Report Builder</span>
+                  </Link>
+                </>
               )}
 
               {canAccessFeature("calling") && (

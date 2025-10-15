@@ -2306,6 +2306,53 @@ export type Database = {
           },
         ]
       }
+      saved_reports: {
+        Row: {
+          configuration: Json
+          created_at: string
+          created_by: string | null
+          data_source: string
+          description: string | null
+          id: string
+          is_public: boolean
+          name: string
+          org_id: string
+          updated_at: string
+        }
+        Insert: {
+          configuration?: Json
+          created_at?: string
+          created_by?: string | null
+          data_source: string
+          description?: string | null
+          id?: string
+          is_public?: boolean
+          name: string
+          org_id: string
+          updated_at?: string
+        }
+        Update: {
+          configuration?: Json
+          created_at?: string
+          created_by?: string | null
+          data_source?: string
+          description?: string | null
+          id?: string
+          is_public?: boolean
+          name?: string
+          org_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saved_reports_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       team_members: {
         Row: {
           created_at: string | null
