@@ -66,13 +66,20 @@ export default function Dashboard() {
       today.setHours(0, 0, 0, 0);
       const weekAgo = new Date();
       weekAgo.setDate(weekAgo.getDate() - 7);
+      const twoWeeksAgo = new Date();
+      twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
       const monthStart = new Date();
       monthStart.setDate(1);
       monthStart.setHours(0, 0, 0, 0);
+      const lastMonthStart = new Date();
+      lastMonthStart.setMonth(lastMonthStart.getMonth() - 1);
+      lastMonthStart.setDate(1);
+      lastMonthStart.setHours(0, 0, 0, 0);
 
       // OPTIMIZATION: Batch all queries in parallel using Promise.all
       const [
         { count: totalContacts },
+        { count: contactsLastWeek },
         { data: stages },
         { count: callsToday },
         { count: newContactsThisWeek },
@@ -85,6 +92,13 @@ export default function Dashboard() {
           .from("contacts")
           .select("*", { count: "exact", head: true })
           .eq("org_id", effectiveOrgId),
+        
+        // Contacts from last week (for growth calculation)
+        supabase
+          .from("contacts")
+          .select("*", { count: "exact", head: true })
+          .eq("org_id", effectiveOrgId)
+          .lt("created_at", weekAgo.toISOString()),
         
         // Pipeline stages (for active deals)
         supabase
@@ -138,10 +152,21 @@ export default function Dashboard() {
 
       // Calculate active deals
       const stageIds = stages?.map(s => s.id) || [];
-      const { count: activeDeals } = await supabase
-        .from("contacts")
-        .select("*", { count: "exact", head: true })
-        .in("pipeline_stage_id", stageIds);
+      const [
+        { count: activeDeals },
+        { count: activeDealsLastMonth }
+      ] = await Promise.all([
+        supabase
+          .from("contacts")
+          .select("*", { count: "exact", head: true })
+          .in("pipeline_stage_id", stageIds),
+        // Active deals from last month (for growth calculation)
+        supabase
+          .from("contacts")
+          .select("*", { count: "exact", head: true })
+          .in("pipeline_stage_id", stageIds)
+          .lt("created_at", lastMonthStart.toISOString())
+      ]);
 
       // Calculate won deals this month
       const { count: dealsWonThisMonth } = wonStage?.id 
@@ -193,6 +218,15 @@ export default function Dashboard() {
         });
       }
 
+      // Calculate growth percentages
+      const contactGrowth = contactsLastWeek && contactsLastWeek > 0
+        ? Math.round(((totalContacts || 0) - contactsLastWeek) / contactsLastWeek * 100)
+        : 0;
+      
+      const dealGrowth = activeDealsLastMonth && activeDealsLastMonth > 0
+        ? Math.round(((activeDeals || 0) - activeDealsLastMonth) / activeDealsLastMonth * 100)
+        : 0;
+
       setStats({
         totalContacts: totalContacts || 0,
         activeDeals: activeDeals || 0,
@@ -200,8 +234,8 @@ export default function Dashboard() {
         conversionRate,
         newContactsThisWeek: newContactsThisWeek || 0,
         dealsWonThisMonth: dealsWonThisMonth || 0,
-        contactGrowth: 12, // Mock data for growth percentage
-        dealGrowth: 8,
+        contactGrowth,
+        dealGrowth,
       });
       setPipelineData(pipeline);
       setActivityData(activities);
@@ -230,8 +264,18 @@ export default function Dashboard() {
             <CardContent>
               <div className="text-2xl font-bold">{loading ? "..." : stats.totalContacts}</div>
               <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                <ArrowUpRight className="h-3 w-3 text-green-500" />
-                <span className="text-green-500">{stats.contactGrowth}%</span> from last week
+                {stats.contactGrowth >= 0 ? (
+                  <>
+                    <ArrowUpRight className="h-3 w-3 text-green-500" />
+                    <span className="text-green-500">{stats.contactGrowth}%</span>
+                  </>
+                ) : (
+                  <>
+                    <ArrowDownRight className="h-3 w-3 text-red-500" />
+                    <span className="text-red-500">{Math.abs(stats.contactGrowth)}%</span>
+                  </>
+                )}
+                {' '}from last week
               </p>
             </CardContent>
           </Card>
@@ -244,8 +288,18 @@ export default function Dashboard() {
             <CardContent>
               <div className="text-2xl font-bold">{loading ? "..." : stats.activeDeals}</div>
               <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                <ArrowUpRight className="h-3 w-3 text-green-500" />
-                <span className="text-green-500">{stats.dealGrowth}%</span> from last month
+                {stats.dealGrowth >= 0 ? (
+                  <>
+                    <ArrowUpRight className="h-3 w-3 text-green-500" />
+                    <span className="text-green-500">{stats.dealGrowth}%</span>
+                  </>
+                ) : (
+                  <>
+                    <ArrowDownRight className="h-3 w-3 text-red-500" />
+                    <span className="text-red-500">{Math.abs(stats.dealGrowth)}%</span>
+                  </>
+                )}
+                {' '}from last month
               </p>
             </CardContent>
           </Card>
