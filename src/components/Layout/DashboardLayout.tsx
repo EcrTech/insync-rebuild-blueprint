@@ -32,11 +32,14 @@ import {
   Mail,
   Send,
   Database,
+  CreditCard,
+  Activity,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { PlatformAdminBanner } from "@/components/PlatformAdminBanner";
 import { OnboardingDialog } from "@/components/Onboarding/OnboardingDialog";
 import { useFeatureAccess } from "@/hooks/useFeatureAccess";
+import SubscriptionStatusBanner from "@/components/Subscription/SubscriptionStatusBanner";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -252,14 +255,45 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
 
 
               {isPlatformAdmin && canAccessFeature("platform_admin") && (
-                <Link
-                  to="/platform-admin"
-                  className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  <ShieldCheck size={20} />
-                  <span>Platform Dashboard</span>
-                </Link>
+                <>
+                  <Link
+                    to="/platform-admin"
+                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    <ShieldCheck size={20} />
+                    <span>Platform Dashboard</span>
+                  </Link>
+                  <Link
+                    to="/platform-admin/subscriptions"
+                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    <CreditCard size={20} />
+                    <span>Subscriptions</span>
+                  </Link>
+                </>
+              )}
+
+              {isAdmin && (
+                <>
+                  <Link
+                    to="/billing"
+                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    <CreditCard size={20} />
+                    <span>Billing</span>
+                  </Link>
+                  <Link
+                    to="/usage"
+                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    <Activity size={20} />
+                    <span>Usage</span>
+                  </Link>
+                </>
               )}
 
               {/* Operations Section */}
@@ -584,6 +618,7 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
         {/* Main content */}
         <main className="flex-1">
           <PlatformAdminBanner />
+          <SubscriptionStatusBanner />
           <div className="p-6 lg:p-8">
             {children}
           </div>

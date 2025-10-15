@@ -48,9 +48,10 @@ import CampaignOverview from "./pages/Campaigns/CampaignOverview";
 import AIInsightsDashboard from "./pages/Campaigns/AIInsightsDashboard";
 import Documentation from "./pages/Documentation";
 import RedefineDataRepository from "./pages/RedefineDataRepository";
-import Inventory from "./pages/Inventory";
 import Billing from "./pages/Billing";
 import Usage from "./pages/Usage";
+import PlatformAdminSubscriptions from "./pages/PlatformAdminSubscriptions";
+import Inventory from "./pages/Inventory";
 import ProtectedRoute from "./components/Auth/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -329,6 +330,12 @@ const App = () => (
           <Route path="/usage" element={
             <ProtectedRoute requiredRole="admin">
               <Usage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/platform-admin/subscriptions" element={
+            <ProtectedRoute>
+              <PlatformAdminSubscriptions />
             </ProtectedRoute>
           } />
           
