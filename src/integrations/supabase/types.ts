@@ -665,12 +665,18 @@ export type Database = {
           call_disposition_id: string | null
           call_duration: number | null
           call_sub_disposition_id: string | null
+          check_in_latitude: number | null
+          check_in_longitude: number | null
+          check_out_latitude: number | null
+          check_out_longitude: number | null
           completed_at: string | null
           contact_id: string
           created_at: string | null
           created_by: string | null
           description: string | null
+          duration_minutes: number | null
           id: string
+          location_accuracy: number | null
           org_id: string
           scheduled_at: string | null
           subject: string | null
@@ -681,12 +687,18 @@ export type Database = {
           call_disposition_id?: string | null
           call_duration?: number | null
           call_sub_disposition_id?: string | null
+          check_in_latitude?: number | null
+          check_in_longitude?: number | null
+          check_out_latitude?: number | null
+          check_out_longitude?: number | null
           completed_at?: string | null
           contact_id: string
           created_at?: string | null
           created_by?: string | null
           description?: string | null
+          duration_minutes?: number | null
           id?: string
+          location_accuracy?: number | null
           org_id: string
           scheduled_at?: string | null
           subject?: string | null
@@ -697,12 +709,18 @@ export type Database = {
           call_disposition_id?: string | null
           call_duration?: number | null
           call_sub_disposition_id?: string | null
+          check_in_latitude?: number | null
+          check_in_longitude?: number | null
+          check_out_latitude?: number | null
+          check_out_longitude?: number | null
           completed_at?: string | null
           contact_id?: string
           created_at?: string | null
           created_by?: string | null
           description?: string | null
+          duration_minutes?: number | null
           id?: string
+          location_accuracy?: number | null
           org_id?: string
           scheduled_at?: string | null
           subject?: string | null
@@ -878,7 +896,10 @@ export type Database = {
           id: string
           job_title: string | null
           last_name: string | null
+          last_verified_location_at: string | null
+          latitude: number | null
           linkedin_url: string | null
+          longitude: number | null
           notes: string | null
           org_id: string
           phone: string | null
@@ -904,7 +925,10 @@ export type Database = {
           id?: string
           job_title?: string | null
           last_name?: string | null
+          last_verified_location_at?: string | null
+          latitude?: number | null
           linkedin_url?: string | null
+          longitude?: number | null
           notes?: string | null
           org_id: string
           phone?: string | null
@@ -930,7 +954,10 @@ export type Database = {
           id?: string
           job_title?: string | null
           last_name?: string | null
+          last_verified_location_at?: string | null
+          latitude?: number | null
           linkedin_url?: string | null
+          longitude?: number | null
           notes?: string | null
           org_id?: string
           phone?: string | null
