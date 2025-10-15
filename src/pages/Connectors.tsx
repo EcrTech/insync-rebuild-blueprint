@@ -297,7 +297,7 @@ export default function Connectors() {
                   Create Connector
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+              <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>{editingConnector ? "Edit Connector" : "Create New Webhook Connector"}</DialogTitle>
                 </DialogHeader>
