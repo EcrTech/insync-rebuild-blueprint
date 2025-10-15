@@ -10,8 +10,8 @@ import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, RefreshCw, Eye, Trash2, Download } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 import { exportToCSV, ExportColumn, formatDateForExport, formatNumberForExport } from "@/utils/exportUtils";
+import { useEffect } from "react";
 
 export default function WhatsAppCampaigns() {
   const navigate = useNavigate();
@@ -34,10 +34,28 @@ export default function WhatsAppCampaigns() {
     enabled: !!effectiveOrgId,
   });
 
-  const { lastRefresh, manualRefresh } = useAutoRefresh({
-    onRefresh: () => refetch(),
-    intervalMs: 900000, // 15 minutes
-  });
+  // Realtime subscription for campaign updates
+  useEffect(() => {
+    if (!effectiveOrgId) return;
+
+    const channel = supabase
+      .channel('whatsapp-campaigns-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'whatsapp_bulk_campaigns',
+          filter: `org_id=eq.${effectiveOrgId}`,
+        },
+        () => refetch()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [effectiveOrgId, refetch]);
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, any> = {
@@ -121,12 +139,10 @@ export default function WhatsAppCampaigns() {
         <div>
           <h1 className="text-3xl font-bold">WhatsApp Campaigns</h1>
           <p className="text-muted-foreground">Manage your bulk WhatsApp campaigns</p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Last updated: {lastRefresh.toLocaleTimeString()}
-          </p>
+          <p className="text-xs text-muted-foreground mt-1">Auto-updates in real-time</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={manualRefresh}>
+          <Button variant="outline" size="sm" onClick={() => refetch()}>
             <RefreshCw className="mr-2 h-4 w-4" />
             Refresh
           </Button>

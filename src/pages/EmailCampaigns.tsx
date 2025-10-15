@@ -11,8 +11,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Plus, Mail, Download, RefreshCw } from "lucide-react";
 import { useOrgContext } from "@/hooks/useOrgContext";
 import { format } from "date-fns";
-import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 import { exportToCSV, ExportColumn, formatDateForExport } from "@/utils/exportUtils";
+import { useEffect } from "react";
 
 interface Campaign {
   id: string;
@@ -48,10 +48,28 @@ const EmailCampaigns = () => {
     enabled: !!effectiveOrgId,
   });
 
-  const { lastRefresh, manualRefresh } = useAutoRefresh({
-    onRefresh: () => refetch(),
-    intervalMs: 900000, // 15 minutes
-  });
+  // Realtime subscription for campaign updates
+  useEffect(() => {
+    if (!effectiveOrgId) return;
+
+    const channel = supabase
+      .channel('email-campaigns-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'email_bulk_campaigns',
+          filter: `org_id=eq.${effectiveOrgId}`,
+        },
+        () => refetch()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [effectiveOrgId, refetch]);
 
   const handleExport = () => {
     try {
@@ -110,12 +128,10 @@ const EmailCampaigns = () => {
             <p className="text-muted-foreground">
               View and manage your email campaigns
             </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Last updated: {lastRefresh.toLocaleTimeString()}
-            </p>
+            <p className="text-xs text-muted-foreground mt-1">Auto-updates in real-time</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={manualRefresh}>
+            <Button variant="outline" size="sm" onClick={() => refetch()}>
               <RefreshCw className="mr-2 h-4 w-4" />
               Refresh
             </Button>
