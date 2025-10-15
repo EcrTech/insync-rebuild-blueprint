@@ -160,13 +160,13 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
         {/* Sidebar */}
         <aside
           className={`
-            fixed lg:static inset-y-0 left-0 z-50
+            fixed lg:sticky inset-y-0 left-0 z-50 lg:top-0 lg:h-screen
             w-64 bg-card border-r border-border
             transform transition-transform duration-200 ease-in-out
             ${sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
           `}
         >
-          <div className="h-full flex flex-col">
+          <div className="h-full lg:h-screen flex flex-col overflow-y-auto">
             {/* Logo */}
             <div className="p-6 border-b border-border flex flex-col items-center bg-gradient-to-br from-primary/5 to-transparent">
               {orgLogo ? (
