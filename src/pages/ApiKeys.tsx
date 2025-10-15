@@ -482,11 +482,55 @@ export default function ApiKeys() {
               </pre>
 
               <h3>Base URL</h3>
-              <p className="font-mono text-sm bg-muted p-2 rounded">
-                https://aizgpxaqvtvvqarzjmze.supabase.co/functions/v1/crm-bridge-api
-              </p>
+              <div className="flex items-center gap-2 mb-6">
+                <p className="font-mono text-sm bg-muted p-2 rounded flex-1">
+                  https://aizgpxaqvtvvqarzjmze.supabase.co/functions/v1/crm-bridge-api
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => copyToClipboard('https://aizgpxaqvtvvqarzjmze.supabase.co/functions/v1/crm-bridge-api')}
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
 
-              <h3>Available Endpoints</h3>
+              <h3>Complete Endpoint URLs</h3>
+              <div className="space-y-3 mb-6">
+                {[
+                  { method: 'GET', path: '/contacts', desc: 'List all contacts with filters' },
+                  { method: 'GET', path: '/contacts/{id}', desc: 'Get single contact details' },
+                  { method: 'POST', path: '/contacts', desc: 'Create new contact' },
+                  { method: 'PATCH', path: '/contacts/{id}', desc: 'Update contact' },
+                  { method: 'GET', path: '/contacts/{id}/activities', desc: 'Get contact activities' },
+                  { method: 'POST', path: '/contacts/{id}/activities', desc: 'Log new activity' },
+                  { method: 'GET', path: '/pipeline-stages', desc: 'Get pipeline stages' },
+                  { method: 'GET', path: '/custom-fields', desc: 'Get custom fields' },
+                ].map((endpoint, idx) => (
+                  <div key={idx} className="border rounded-lg p-3">
+                    <div className="flex items-start gap-2 mb-1">
+                      <Badge variant="outline" className="mt-0.5">
+                        {endpoint.method}
+                      </Badge>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-mono text-sm break-all">
+                          https://aizgpxaqvtvvqarzjmze.supabase.co/functions/v1/crm-bridge-api{endpoint.path}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">{endpoint.desc}</p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => copyToClipboard(`https://aizgpxaqvtvvqarzjmze.supabase.co/functions/v1/crm-bridge-api${endpoint.path}`)}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <h3>API Usage Examples</h3>
               
               <h4>List Contacts</h4>
               <pre className="bg-muted p-4 rounded-lg overflow-x-auto">
