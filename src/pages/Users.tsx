@@ -24,13 +24,25 @@ interface Profile {
   whatsapp_enabled: boolean;
   email_enabled: boolean;
   sms_enabled: boolean;
+  designation_id: string | null;
 }
 
 interface UserRole {
   id: string;
   user_id: string;
   role: string;
-  profiles: Profile;
+  profiles: Profile & {
+    designations: {
+      id: string;
+      name: string;
+    } | null;
+  };
+}
+
+interface Designation {
+  id: string;
+  name: string;
+  role: string;
 }
 
 export default function Users() {
@@ -41,6 +53,7 @@ export default function Users() {
   const [editingUser, setEditingUser] = useState<UserRole | null>(null);
   const [inviteLink, setInviteLink] = useState("");
   const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
+  const [designations, setDesignations] = useState<Designation[]>([]);
   const { toast } = useToast();
   const { effectiveOrgId, isPlatformAdmin, isImpersonating } = useOrgContext();
 
@@ -55,6 +68,7 @@ export default function Users() {
     whatsapp_enabled: boolean;
     email_enabled: boolean;
     sms_enabled: boolean;
+    designation_id: string | null;
   }>({
     email: "",
     password: "",
@@ -66,12 +80,14 @@ export default function Users() {
     whatsapp_enabled: false,
     email_enabled: false,
     sms_enabled: false,
+    designation_id: null,
   });
 
   useEffect(() => {
     if (effectiveOrgId) {
       fetchUsers();
       fetchCurrentUserRole();
+      fetchDesignations();
     }
   }, [effectiveOrgId]);
 
@@ -125,7 +141,19 @@ export default function Users() {
       
       const { data: profilesData } = await supabase
         .from("profiles")
-        .select("id, first_name, last_name, phone, avatar_url, calling_enabled, whatsapp_enabled, email_enabled, sms_enabled")
+        .select(`
+          id, 
+          first_name, 
+          last_name, 
+          phone, 
+          avatar_url, 
+          calling_enabled, 
+          whatsapp_enabled, 
+          email_enabled, 
+          sms_enabled,
+          designation_id,
+          designations(id, name)
+        `)
         .in("id", userIds);
 
       console.log("👥 Profiles fetched:", { count: profilesData?.length, profilesData });
@@ -142,7 +170,9 @@ export default function Users() {
           calling_enabled: false,
           whatsapp_enabled: false,
           email_enabled: false,
-          sms_enabled: false
+          sms_enabled: false,
+          designation_id: null,
+          designations: null
         }
       })) || [];
 
@@ -164,6 +194,24 @@ export default function Users() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchDesignations = async () => {
+    if (!effectiveOrgId) return;
+
+    try {
+      const { data, error } = await supabase
+        .from("designations")
+        .select("id, name, role")
+        .eq("org_id", effectiveOrgId)
+        .eq("is_active", true)
+        .order("name");
+
+      if (error) throw error;
+      setDesignations(data || []);
+    } catch (error: any) {
+      console.error("Failed to load designations:", error);
     }
   };
 
@@ -192,6 +240,7 @@ export default function Users() {
             whatsapp_enabled: formData.whatsapp_enabled,
             email_enabled: formData.email_enabled,
             sms_enabled: formData.sms_enabled,
+            designation_id: formData.designation_id || null,
           })
           .eq("id", editingUser.user_id);
 
@@ -241,6 +290,7 @@ export default function Users() {
             whatsapp_enabled: formData.whatsapp_enabled,
             email_enabled: formData.email_enabled,
             sms_enabled: formData.sms_enabled,
+            designation_id: formData.designation_id || null,
           })
           .eq("id", user.id);
 
@@ -415,6 +465,7 @@ export default function Users() {
       whatsapp_enabled: false,
       email_enabled: false,
       sms_enabled: false,
+      designation_id: null,
     });
     setEditingUser(null);
   };
@@ -432,6 +483,7 @@ export default function Users() {
       whatsapp_enabled: user.profiles.whatsapp_enabled || false,
       email_enabled: user.profiles.email_enabled || false,
       sms_enabled: user.profiles.sms_enabled || false,
+      designation_id: user.profiles.designation_id || null,
     });
     setIsDialogOpen(true);
   };
@@ -628,6 +680,28 @@ export default function Users() {
                 </div>
 
                 <div className="space-y-2">
+                  <Label htmlFor="designation">Designation</Label>
+                  <Select
+                    value={formData.designation_id || ""}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, designation_id: value || null })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select designation" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">None</SelectItem>
+                      {designations.map((designation) => (
+                        <SelectItem key={designation.id} value={designation.id}>
+                          {designation.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
                   <Label htmlFor="role">Role *</Label>
                   <Select value={formData.role} onValueChange={(value) => setFormData({ ...formData, role: value as any })}>
                     <SelectTrigger>
@@ -740,6 +814,7 @@ export default function Users() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
+                    <TableHead>Designation</TableHead>
                     <TableHead>Contact</TableHead>
                     <TableHead>Communication</TableHead>
                     <TableHead>Role</TableHead>
@@ -751,6 +826,9 @@ export default function Users() {
                     <TableRow key={user.id}>
                       <TableCell className="font-medium">
                         {user.profiles.first_name} {user.profiles.last_name}
+                      </TableCell>
+                      <TableCell>
+                        {user.profiles.designations?.name || "-"}
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col gap-1 text-sm">
