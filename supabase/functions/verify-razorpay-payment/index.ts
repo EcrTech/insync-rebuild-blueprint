@@ -1,5 +1,4 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { createHmac } from 'https://deno.land/std@0.177.0/node/crypto.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -40,16 +39,29 @@ Deno.serve(async (req) => {
       throw new Error('Payment transaction not found');
     }
 
-    // Verify signature
+    // Verify signature using Web Crypto API
     const RAZORPAY_KEY_SECRET = Deno.env.get('RAZORPAY_KEY_SECRET');
     if (!RAZORPAY_KEY_SECRET) {
       throw new Error('Razorpay secret not configured');
     }
 
     const text = `${razorpay_order_id}|${razorpay_payment_id}`;
-    const hmac = createHmac('sha256', RAZORPAY_KEY_SECRET);
-    hmac.update(text);
-    const expectedSignature = hmac.digest('hex');
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      'raw',
+      encoder.encode(RAZORPAY_KEY_SECRET),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign']
+    );
+    const signature = await crypto.subtle.sign(
+      'HMAC',
+      key,
+      encoder.encode(text)
+    );
+    const expectedSignature = Array.from(new Uint8Array(signature))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
 
     if (expectedSignature !== razorpay_signature) {
       console.error('Signature verification failed');
@@ -242,8 +254,9 @@ Deno.serve(async (req) => {
     );
   } catch (error) {
     console.error('Error in verify-razorpay-payment:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: errorMessage }),
       { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
