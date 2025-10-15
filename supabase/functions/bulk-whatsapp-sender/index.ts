@@ -107,8 +107,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    console.log('Starting bulk WhatsApp sender for campaign:', campaignId);
-
     // Get campaign details
     const { data: campaign, error: campaignError } = await supabaseClient
       .from('whatsapp_bulk_campaigns')
@@ -124,8 +122,6 @@ Deno.serve(async (req) => {
     if (!skip_rate_limit) {
       const withinLimit = await checkRateLimit(supabaseClient, campaign.org_id);
       if (!withinLimit) {
-        console.log('Rate limit exceeded, queuing campaign');
-        
         // Calculate next available slot
         const { data: nextSlot } = await supabaseClient
           .rpc('calculate_next_slot', {
@@ -218,7 +214,6 @@ Deno.serve(async (req) => {
       .order('created_at');
 
     if (recipientsError || !recipients || recipients.length === 0) {
-      console.log('No recipients to process');
       await supabaseClient
         .from('whatsapp_bulk_campaigns')
         .update({ status: 'completed', completed_at: new Date().toISOString() })
@@ -228,15 +223,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    console.log(`Processing ${recipients.length} recipients in batches of ${batchSize}`);
-
     let totalSent = 0;
     let totalFailed = 0;
 
     // Process in batches
     for (let i = 0; i < recipients.length; i += batchSize) {
       const batch = recipients.slice(i, i + batchSize);
-      console.log(`Processing batch ${Math.floor(i / batchSize) + 1}, size: ${batch.length}`);
 
       // Send messages in parallel within the batch
       const batchResults = await Promise.allSettled(
@@ -277,7 +269,6 @@ Deno.serve(async (req) => {
             });
 
             const responseData = await gupshupResponse.json();
-            console.log('Gupshup response for recipient', recipient.id, ':', responseData);
 
             if (gupshupResponse.ok && responseData.status === 'submitted') {
               // Insert message record
@@ -322,11 +313,9 @@ Deno.serve(async (req) => {
               throw new Error(responseData.message || 'Failed to send message');
             }
           } catch (error: any) {
-            console.error('Error sending to recipient', recipient.id, ':', error);
-            
             // Calculate next retry time with exponential backoff
             const retryCount = recipient.retry_count + 1;
-            const backoffMinutes = [5, 30, 120][Math.min(retryCount - 1, 2)]; // 5min, 30min, 2hr
+            const backoffMinutes = [5, 30, 120][Math.min(retryCount - 1, 2)];
             const nextRetryAt = new Date(Date.now() + backoffMinutes * 60 * 1000);
 
             // Update recipient with failure
@@ -353,8 +342,6 @@ Deno.serve(async (req) => {
       totalSent += batchSent;
       totalFailed += batchFailed;
 
-      console.log(`Batch complete: ${batchSent} sent, ${batchFailed} failed`);
-
       // Update campaign stats
       await supabaseClient
         .from('whatsapp_bulk_campaigns')
@@ -379,8 +366,6 @@ Deno.serve(async (req) => {
         completed_at: new Date().toISOString(),
       })
       .eq('id', campaignId);
-
-    console.log(`Campaign ${campaignId} completed: ${totalSent} sent, ${totalFailed} failed`);
 
     return new Response(
       JSON.stringify({

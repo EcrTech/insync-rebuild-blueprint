@@ -21,8 +21,6 @@ Deno.serve(async (req) => {
       throw new Error('LOVABLE_API_KEY not configured');
     }
 
-    console.log('Starting campaign performance analysis');
-
     // Get all organizations
     const { data: orgs, error: orgsError } = await supabase
       .from('organizations')
@@ -31,8 +29,6 @@ Deno.serve(async (req) => {
     if (orgsError) throw orgsError;
 
     for (const org of orgs || []) {
-      console.log(`Analyzing campaigns for org: ${org.id}`);
-
       // Fetch last 30 days of analytics
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -50,7 +46,6 @@ Deno.serve(async (req) => {
       }
 
       if (!analytics || analytics.length === 0) {
-        console.log(`No analytics data for org ${org.id}`);
         continue;
       }
 
@@ -153,10 +148,8 @@ Respond ONLY with valid JSON in this exact format:
           // Extract JSON from response
           let insights;
           try {
-            // Try to parse directly first
             insights = JSON.parse(responseText);
           } catch {
-            // If that fails, try to extract JSON from markdown code blocks
             const jsonMatch = responseText.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/);
             if (jsonMatch) {
               insights = JSON.parse(jsonMatch[1]);
@@ -169,7 +162,7 @@ Respond ONLY with valid JSON in this exact format:
           // Only store medium and high priority insights
           if (insights.priority === 'high' || insights.priority === 'medium') {
             const expiresAt = new Date();
-            expiresAt.setDate(expiresAt.getDate() + 7); // Expire in 7 days
+            expiresAt.setDate(expiresAt.getDate() + 7);
 
             const { error: insertError } = await supabase
               .from('campaign_insights')
@@ -189,8 +182,6 @@ Respond ONLY with valid JSON in this exact format:
 
             if (insertError) {
               console.error(`Error inserting insight for campaign ${campaignId}:`, insertError);
-            } else {
-              console.log(`Created ${insights.priority} priority insight for campaign ${campaignId}`);
             }
           }
         } catch (aiError) {
@@ -199,7 +190,6 @@ Respond ONLY with valid JSON in this exact format:
       }
     }
 
-    console.log('Campaign analysis complete');
     return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });

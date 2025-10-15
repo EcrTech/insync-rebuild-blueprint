@@ -27,8 +27,6 @@ Deno.serve(async (req) => {
       throw new Error('LOVABLE_API_KEY not configured');
     }
 
-    console.log(`Chat query for org ${orgId}: ${query}`);
-
     // Fetch recent campaign data
     const { data: emailCampaigns } = await supabase
       .from('email_bulk_campaigns')
@@ -128,7 +126,6 @@ If the user asks about specific campaigns, reference the data above.`;
     const aiData = await aiResponse.json();
     const response = aiData.choices[0].message.content;
 
-    console.log('Chat response generated successfully');
     return new Response(JSON.stringify({ response }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
