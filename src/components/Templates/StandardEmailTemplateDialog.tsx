@@ -136,6 +136,10 @@ export const StandardEmailTemplateDialog = ({
     setBodyContent(prev => prev + variable);
   };
 
+  const insertSubjectVariable = (variable: string) => {
+    setSubject(prev => prev + variable);
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
@@ -158,7 +162,10 @@ export const StandardEmailTemplateDialog = ({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="subject">Subject Line</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="subject">Subject Line</Label>
+                <VariableInserter onInsert={insertSubjectVariable} />
+              </div>
               <Input
                 id="subject"
                 value={subject}
