@@ -108,11 +108,13 @@ const BulkEmailSender = () => {
     const template = templates.find((t) => t.id === templateId);
     if (template) {
       setSubject(template.subject);
-      setHtmlContent(template.html_content);
+      // Use body_content if available (new templates), otherwise fall back to html_content (old templates)
+      const content = (template as any).body_content || template.html_content;
+      setHtmlContent(content);
       
       // Detect variables in template
       const vars = detectTemplateVariables(
-        template.html_content,
+        content,
         template.subject
       );
       setTemplateVariables(vars);

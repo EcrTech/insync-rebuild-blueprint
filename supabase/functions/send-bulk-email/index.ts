@@ -173,13 +173,67 @@ serve(async (req) => {
     // Send emails
     for (const recipient of recipients || []) {
       try {
-        const personalizedHtml = replaceVariables(
-          campaign.html_content,
+        // Use body_content if available (new templates), otherwise fall back to html_content (old templates)
+        const templateContent = campaign.body_content || campaign.html_content;
+        let personalizedHtml = replaceVariables(
+          templateContent,
           recipient.contacts,
           recipient.email,
           recipient.custom_data || {},
           campaign.variable_mappings
         );
+
+        // Add CTA buttons if present
+        if (campaign.buttons && campaign.buttons.length > 0) {
+          const buttonsHtml = campaign.buttons.map((btn: any) => {
+            const buttonUrl = replaceVariables(btn.url, recipient.contacts, recipient.email, recipient.custom_data || {}, campaign.variable_mappings);
+            const styles: Record<string, string> = {
+              primary: 'background: #2563eb; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; display: inline-block; margin: 10px 5px; font-weight: 500;',
+              secondary: 'background: #6b7280; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; display: inline-block; margin: 10px 5px; font-weight: 500;',
+              outline: 'background: transparent; color: #2563eb; border: 2px solid #2563eb; padding: 12px 24px; border-radius: 6px; text-decoration: none; display: inline-block; margin: 10px 5px; font-weight: 500;'
+            };
+            const btnStyle = styles[btn.style] || styles.primary;
+            return `
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin: 20px auto;">
+                <tr>
+                  <td style="border-radius: 6px; text-align: center;">
+                    <a href="${buttonUrl}" style="${btnStyle}">
+                      ${btn.text}
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            `;
+          }).join('');
+          personalizedHtml += buttonsHtml;
+        }
+
+        // Add attachments if present
+        if (campaign.attachments && campaign.attachments.length > 0) {
+          const attachmentsHtml = campaign.attachments.map((att: any) => {
+            if (att.type === 'image') {
+              return `<img src="${att.url}" alt="${att.name}" style="max-width: 100%; height: auto; margin: 10px 0;" />`;
+            } else if (att.type === 'video') {
+              return `<video controls style="max-width: 100%; margin: 10px 0;"><source src="${att.url}" type="video/mp4" /></video>`;
+            }
+            return '';
+          }).join('');
+          personalizedHtml += attachmentsHtml;
+        }
+
+        // Wrap in email template
+        personalizedHtml = `
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            </head>
+            <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+              ${personalizedHtml}
+            </body>
+          </html>
+        `;
 
         const emailResult = await sendEmail(
           recipient.email,

@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, MessageSquare, RefreshCw, Plus, Mail } from "lucide-react";
 import { format } from "date-fns";
-import { EmailTemplateDialog } from "@/components/Templates/EmailTemplateDialog";
+import { StandardEmailTemplateDialog } from "@/components/Templates/StandardEmailTemplateDialog";
 
 interface WhatsAppTemplate {
   id: string;
@@ -400,10 +400,20 @@ const Templates = () => {
                     </CardHeader>
                     <CardContent className="space-y-3">
                       <div className="p-3 bg-muted rounded-md text-sm max-h-32 overflow-hidden">
-                        <div dangerouslySetInnerHTML={{ __html: template.html_content }} />
+                        <div dangerouslySetInnerHTML={{ __html: (template as any).body_content || template.html_content }} />
                       </div>
-                      <div className="text-xs text-muted-foreground">
-                        Updated: {format(new Date(template.updated_at), "PPp")}
+                      <div className="flex items-center gap-4 flex-wrap text-xs text-muted-foreground">
+                        <span>Updated: {format(new Date(template.updated_at), "PPp")}</span>
+                        {(template as any).buttons && (template as any).buttons.length > 0 && (
+                          <span className="font-medium">
+                            {(template as any).buttons.length} button{(template as any).buttons.length !== 1 ? 's' : ''}
+                          </span>
+                        )}
+                        {(template as any).attachments && (template as any).attachments.length > 0 && (
+                          <span className="font-medium">
+                            {(template as any).attachments.length} attachment{(template as any).attachments.length !== 1 ? 's' : ''}
+                          </span>
+                        )}
                       </div>
                       <div className="flex gap-2">
                         <Button
@@ -432,7 +442,7 @@ const Templates = () => {
         </Tabs>
       </div>
 
-      <EmailTemplateDialog
+      <StandardEmailTemplateDialog
         open={emailDialogOpen}
         onOpenChange={setEmailDialogOpen}
         template={selectedEmailTemplate}

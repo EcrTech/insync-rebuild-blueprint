@@ -1539,9 +1539,12 @@ export type Database = {
       }
       email_templates: {
         Row: {
+          attachments: Json | null
+          body_content: string | null
+          buttons: Json | null
           created_at: string
           created_by: string | null
-          design_json: Json
+          design_json: Json | null
           html_content: string | null
           id: string
           is_active: boolean
@@ -1551,9 +1554,12 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          attachments?: Json | null
+          body_content?: string | null
+          buttons?: Json | null
           created_at?: string
           created_by?: string | null
-          design_json?: Json
+          design_json?: Json | null
           html_content?: string | null
           id?: string
           is_active?: boolean
@@ -1563,9 +1569,12 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          attachments?: Json | null
+          body_content?: string | null
+          buttons?: Json | null
           created_at?: string
           created_by?: string | null
-          design_json?: Json
+          design_json?: Json | null
           html_content?: string | null
           id?: string
           is_active?: boolean
