@@ -997,6 +997,7 @@ export type Database = {
           phone: string | null
           pipeline_stage_id: string | null
           postal_code: string | null
+          referred_by: string | null
           source: string | null
           state: string | null
           status: string | null
@@ -1026,6 +1027,7 @@ export type Database = {
           phone?: string | null
           pipeline_stage_id?: string | null
           postal_code?: string | null
+          referred_by?: string | null
           source?: string | null
           state?: string | null
           status?: string | null
@@ -1055,6 +1057,7 @@ export type Database = {
           phone?: string | null
           pipeline_stage_id?: string | null
           postal_code?: string | null
+          referred_by?: string | null
           source?: string | null
           state?: string | null
           status?: string | null
