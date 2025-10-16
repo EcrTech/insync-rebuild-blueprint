@@ -324,14 +324,14 @@ const App = () => (
             </ProtectedRoute>
           } />
           
-          <Route path="/billing" element={
-            <ProtectedRoute requiredRole="admin">
+          <Route path="/platform-admin/billing" element={
+            <ProtectedRoute>
               <Billing />
             </ProtectedRoute>
           } />
           
-          <Route path="/usage" element={
-            <ProtectedRoute requiredRole="admin">
+          <Route path="/platform-admin/usage" element={
+            <ProtectedRoute>
               <Usage />
             </ProtectedRoute>
           } />

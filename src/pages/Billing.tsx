@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,9 +13,22 @@ import { formatDistanceToNow } from "date-fns";
 import DashboardLayout from "@/components/Layout/DashboardLayout";
 
 export default function Billing() {
-  const { effectiveOrgId } = useOrgContext();
+  const { effectiveOrgId, isPlatformAdmin } = useOrgContext();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+
+  // Redirect non-platform admins
+  useEffect(() => {
+    if (isPlatformAdmin === false) {
+      toast({
+        title: "Access Denied",
+        description: "Only platform admins can access billing.",
+        variant: "destructive",
+      });
+      navigate("/dashboard");
+    }
+  }, [isPlatformAdmin, navigate, toast]);
 
   // Fetch organization details
   const { data: org } = useQuery({

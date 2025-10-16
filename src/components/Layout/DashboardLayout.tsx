@@ -257,6 +257,11 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
 
               {isPlatformAdmin && canAccessFeature("platform_admin") && (
                 <>
+                  <div className="pt-4 pb-2 section-accent-purple pl-4">
+                    <p className="px-4 text-xs font-semibold uppercase tracking-wider gradient-text-accent">
+                      Platform Admin
+                    </p>
+                  </div>
                   <Link
                     to="/platform-admin"
                     className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
@@ -273,13 +278,8 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                     <CreditCard size={20} />
                     <span>Subscriptions</span>
                   </Link>
-                </>
-              )}
-
-              {isAdmin && (
-                <>
                   <Link
-                    to="/billing"
+                    to="/platform-admin/billing"
                     className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
                     onClick={() => setSidebarOpen(false)}
                   >
@@ -287,7 +287,7 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                     <span>Billing</span>
                   </Link>
                   <Link
-                    to="/usage"
+                    to="/platform-admin/usage"
                     className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
                     onClick={() => setSidebarOpen(false)}
                   >

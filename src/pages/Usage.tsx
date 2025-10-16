@@ -1,13 +1,30 @@
+import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useOrgContext } from "@/hooks/useOrgContext";
+import { useToast } from "@/hooks/use-toast";
 import { Mail, MessageSquare, Phone } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import DashboardLayout from "@/components/Layout/DashboardLayout";
 
 export default function Usage() {
-  const { effectiveOrgId } = useOrgContext();
+  const { effectiveOrgId, isPlatformAdmin } = useOrgContext();
+  const { toast } = useToast();
+  const navigate = useNavigate();
+
+  // Redirect non-platform admins
+  useEffect(() => {
+    if (isPlatformAdmin === false) {
+      toast({
+        title: "Access Denied",
+        description: "Only platform admins can access usage analytics.",
+        variant: "destructive",
+      });
+      navigate("/dashboard");
+    }
+  }, [isPlatformAdmin, navigate, toast]);
 
   // Fetch usage logs
   const { data: usageLogs, isLoading } = useQuery({

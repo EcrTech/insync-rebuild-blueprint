@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { useOrgContext } from "@/hooks/useOrgContext";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar, DollarSign, Users, AlertCircle, Plus, Edit } from "lucide-react";
@@ -15,6 +17,20 @@ import DashboardLayout from "@/components/Layout/DashboardLayout";
 
 export default function PlatformAdminSubscriptions() {
   const { toast } = useToast();
+  const { isPlatformAdmin } = useOrgContext();
+  const navigate = useNavigate();
+
+  // Redirect non-platform admins
+  useEffect(() => {
+    if (isPlatformAdmin === false) {
+      toast({
+        title: "Access Denied",
+        description: "Only platform admins can access subscription management.",
+        variant: "destructive",
+      });
+      navigate("/dashboard");
+    }
+  }, [isPlatformAdmin, navigate, toast]);
   const [overrideDialogOpen, setOverrideDialogOpen] = useState(false);
   const [selectedSubscription, setSelectedSubscription] = useState<any>(null);
   const [overrideDate, setOverrideDate] = useState<Date>();
