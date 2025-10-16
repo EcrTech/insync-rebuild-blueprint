@@ -21,6 +21,7 @@ interface CustomField {
   field_label: string;
   field_type: string;
   is_active: boolean;
+  applies_to_table?: string;
 }
 
 interface Connector {
@@ -132,7 +133,7 @@ export default function Connectors() {
     try {
       const { data, error } = await supabase
         .from("custom_fields")
-        .select("id, field_name, field_label, field_type, is_active")
+        .select("id, field_name, field_label, field_type, is_active, applies_to_table")
         .eq("org_id", effectiveOrgId)
         .eq("is_active", true)
         .order("field_order");

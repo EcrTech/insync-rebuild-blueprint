@@ -21,7 +21,7 @@ interface WebhookConfigProps {
   onTargetTableChange: (value: 'contacts' | 'redefine_data_repository' | 'inventory_items') => void;
   onFieldMappingChange: (mappings: Record<string, string>) => void;
   onRegenerateToken?: () => void;
-  customFields: Array<{ id: string; field_name: string; field_label: string }>;
+  customFields: Array<{ id: string; field_name: string; field_label: string; applies_to_table?: string }>;
 }
 
 export function WebhookConfig({
@@ -69,6 +69,12 @@ export function WebhookConfig({
   };
 
   const getTargetFieldOptions = () => {
+    // Filter custom fields based on target table
+    const relevantCustomFields = customFields.filter(field => 
+      field.applies_to_table === targetTable || 
+      field.applies_to_table === 'all'
+    );
+
     if (targetTable === 'contacts') {
       return [
         { value: "first_name", label: "First Name" },
@@ -83,7 +89,7 @@ export function WebhookConfig({
         { value: "state", label: "State" },
         { value: "postal_code", label: "Postal Code" },
         { value: "country", label: "Country" },
-        ...customFields.map(field => ({
+        ...relevantCustomFields.map(field => ({
           value: field.field_name,
           label: `${field.field_label} (Custom)`,
         })),
@@ -102,6 +108,10 @@ export function WebhookConfig({
         { value: "website", label: "Website" },
         { value: "linkedin_url", label: "LinkedIn URL" },
         { value: "notes", label: "Notes" },
+        ...relevantCustomFields.map(field => ({
+          value: field.field_name,
+          label: `${field.field_label} (Custom)`,
+        })),
       ];
     } else if (targetTable === 'inventory_items') {
       return [
@@ -118,6 +128,10 @@ export function WebhookConfig({
         { value: "warehouse_branch", label: "Warehouse/Branch" },
         { value: "storage_location", label: "Storage Location" },
         { value: "hsn_code", label: "HSN Code" },
+        ...relevantCustomFields.map(field => ({
+          value: field.field_name,
+          label: `${field.field_label} (Custom)`,
+        })),
       ];
     }
     return [];

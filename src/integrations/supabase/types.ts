@@ -1101,6 +1101,7 @@ export type Database = {
       }
       custom_fields: {
         Row: {
+          applies_to_table: string
           created_at: string
           field_label: string
           field_name: string
@@ -1114,6 +1115,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          applies_to_table: string
           created_at?: string
           field_label: string
           field_name: string
@@ -1127,6 +1129,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          applies_to_table?: string
           created_at?: string
           field_label?: string
           field_name?: string

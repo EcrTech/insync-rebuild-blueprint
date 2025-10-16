@@ -39,6 +39,7 @@ interface CustomField {
   is_required: boolean;
   is_active: boolean;
   field_order: number;
+  applies_to_table: string;
 }
 
 const FIELD_TYPES = [
@@ -163,6 +164,7 @@ export default function CustomFields() {
     is_required: false,
     is_active: true,
     field_order: 0,
+    applies_to_table: "contacts",
   });
 
   useEffect(() => {
@@ -260,6 +262,7 @@ export default function CustomFields() {
         is_required: formData.is_required,
         is_active: formData.is_active,
         field_order: formData.field_order,
+        applies_to_table: formData.applies_to_table,
         org_id: effectiveOrgId,
       };
 
@@ -346,6 +349,7 @@ export default function CustomFields() {
       is_required: false,
       is_active: true,
       field_order: fields.length,
+      applies_to_table: "contacts",
     });
     setEditingField(null);
   };
@@ -360,16 +364,17 @@ export default function CustomFields() {
       is_required: field.is_required,
       is_active: field.is_active,
       field_order: field.field_order,
+      applies_to_table: field.applies_to_table || "contacts",
     });
     setIsDialogOpen(true);
   };
 
   const downloadTemplate = () => {
     const template = [
-      ["field_name", "field_label", "field_type", "field_options", "is_required", "is_active", "field_order"],
-      ["department", "Department", "select", "Sales,Marketing,Engineering", "true", "true", "1"],
-      ["budget", "Budget", "number", "", "false", "true", "2"],
-      ["notes", "Additional Notes", "textarea", "", "false", "true", "3"],
+      ["field_name", "field_label", "field_type", "field_options", "is_required", "is_active", "field_order", "applies_to_table"],
+      ["department", "Department", "select", "Sales;Marketing;Engineering", "true", "true", "1", "contacts"],
+      ["budget", "Budget", "number", "", "false", "true", "2", "contacts"],
+      ["notes", "Additional Notes", "textarea", "", "false", "true", "3", "contacts"],
     ];
 
     const csvContent = template.map(row => row.join(",")).join("\n");
@@ -423,6 +428,7 @@ export default function CustomFields() {
         is_required: row[4].trim().toLowerCase() === "true",
         is_active: row[5].trim().toLowerCase() === "true",
         field_order: parseInt(row[6].trim()) || index,
+        applies_to_table: row[7] && row[7].trim() ? row[7].trim() : "contacts",
         org_id: effectiveOrgId,
       }));
 
@@ -498,6 +504,7 @@ export default function CustomFields() {
                       <li>• is_required: true or false</li>
                       <li>• is_active: true or false</li>
                       <li>• field_order: Number for ordering</li>
+                      <li>• applies_to_table: contacts, redefine_data_repository, inventory_items, or all</li>
                     </ul>
                   </div>
 
@@ -562,7 +569,7 @@ export default function CustomFields() {
                   </p>
                 </div>
 
-                <div className="space-y-2">
+                 <div className="space-y-2">
                   <Label htmlFor="field_type">Field Type *</Label>
                   <Select 
                     value={formData.field_type} 
@@ -579,6 +586,27 @@ export default function CustomFields() {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="applies_to_table">Applies To Table *</Label>
+                  <Select 
+                    value={formData.applies_to_table} 
+                    onValueChange={(value) => setFormData({ ...formData, applies_to_table: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="contacts">Contacts</SelectItem>
+                      <SelectItem value="redefine_data_repository">Data Repository</SelectItem>
+                      <SelectItem value="inventory_items">Inventory</SelectItem>
+                      <SelectItem value="all">All Tables</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Which table this custom field applies to
+                  </p>
                 </div>
 
                 {formData.field_type === "select" && (
