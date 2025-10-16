@@ -27,6 +27,7 @@ export default function PlatformAdminSubscriptions() {
     next_billing_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     user_count: 1,
     monthly_subscription_amount: 500,
+    one_time_setup_fee: 0,
     wallet_balance: 5000,
     wallet_minimum_balance: 5000,
     wallet_auto_topup_enabled: true,
@@ -90,6 +91,7 @@ export default function PlatformAdminSubscriptions() {
             next_billing_date: formData.next_billing_date,
             user_count: formData.user_count,
             monthly_subscription_amount: formData.monthly_subscription_amount,
+            one_time_setup_fee: formData.one_time_setup_fee,
             wallet_balance: formData.wallet_balance,
             wallet_minimum_balance: formData.wallet_minimum_balance,
             wallet_auto_topup_enabled: formData.wallet_auto_topup_enabled,
@@ -110,6 +112,7 @@ export default function PlatformAdminSubscriptions() {
             next_billing_date: formData.next_billing_date,
             user_count: formData.user_count,
             monthly_subscription_amount: formData.monthly_subscription_amount,
+            one_time_setup_fee: formData.one_time_setup_fee,
             wallet_balance: formData.wallet_balance,
             wallet_minimum_balance: formData.wallet_minimum_balance,
             wallet_auto_topup_enabled: formData.wallet_auto_topup_enabled,
@@ -174,6 +177,7 @@ export default function PlatformAdminSubscriptions() {
       next_billing_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       user_count: 1,
       monthly_subscription_amount: 500,
+      one_time_setup_fee: 0,
       wallet_balance: 5000,
       wallet_minimum_balance: 5000,
       wallet_auto_topup_enabled: true,
@@ -191,6 +195,7 @@ export default function PlatformAdminSubscriptions() {
       next_billing_date: subscription.next_billing_date,
       user_count: subscription.user_count,
       monthly_subscription_amount: subscription.monthly_subscription_amount,
+      one_time_setup_fee: subscription.one_time_setup_fee || 0,
       wallet_balance: subscription.wallet_balance,
       wallet_minimum_balance: subscription.wallet_minimum_balance,
       wallet_auto_topup_enabled: subscription.wallet_auto_topup_enabled,
@@ -440,6 +445,15 @@ export default function PlatformAdminSubscriptions() {
                   onChange={(e) => setFormData({ ...formData, monthly_subscription_amount: parseFloat(e.target.value) })}
                 />
               </div>
+            </div>
+            <div>
+              <Label>One-Time Setup Fee (₹)</Label>
+              <Input
+                type="number"
+                value={formData.one_time_setup_fee}
+                onChange={(e) => setFormData({ ...formData, one_time_setup_fee: parseFloat(e.target.value) || 0 })}
+                placeholder="0"
+              />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>

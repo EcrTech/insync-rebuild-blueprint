@@ -2138,6 +2138,7 @@ export type Database = {
           lockout_date: string | null
           monthly_subscription_amount: number
           next_billing_date: string
+          one_time_setup_fee: number | null
           org_id: string
           override_by: string | null
           override_reason: string | null
@@ -2162,6 +2163,7 @@ export type Database = {
           lockout_date?: string | null
           monthly_subscription_amount?: number
           next_billing_date: string
+          one_time_setup_fee?: number | null
           org_id: string
           override_by?: string | null
           override_reason?: string | null
@@ -2186,6 +2188,7 @@ export type Database = {
           lockout_date?: string | null
           monthly_subscription_amount?: number
           next_billing_date?: string
+          one_time_setup_fee?: number | null
           org_id?: string
           override_by?: string | null
           override_reason?: string | null
