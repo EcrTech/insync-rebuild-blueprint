@@ -156,6 +156,7 @@ export function SendWhatsAppDialog({
         const { error } = await supabase
           .from("whatsapp_messages")
           .insert([{
+            org_id: effectiveOrgId,
             contact_id: contactId,
             phone_number: phoneNumber.replace(/[^\d]/g, ""),
             message_content: messageContent,

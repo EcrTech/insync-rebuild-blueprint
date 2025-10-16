@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
+import { useOrgContext } from "@/hooks/useOrgContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
@@ -27,6 +28,7 @@ export function SendEmailDialog({
   onEmailSent,
 }: SendEmailDialogProps) {
   const { toast } = useToast();
+  const { effectiveOrgId } = useOrgContext();
   const [loading, setLoading] = useState(false);
   const [recipientEmail, setRecipientEmail] = useState("");
   const [subject, setSubject] = useState("");
@@ -154,6 +156,7 @@ export function SendEmailDialog({
         const { error } = await supabase
           .from("email_conversations")
           .insert([{
+            org_id: profile.org_id,
             conversation_id: conversationId,
             contact_id: contactId,
             from_email: userInfo?.email || user.email || "",
