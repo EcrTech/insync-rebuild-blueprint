@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Send, ArrowRight, ArrowLeft } from "lucide-react";
@@ -15,6 +16,8 @@ import { useOrgContext } from "@/hooks/useOrgContext";
 import { VariableMappingStep } from "@/components/Campaigns/VariableMappingStep";
 import { TemplateVariable, VariableMapping, detectTemplateVariables } from "@/utils/templateVariables";
 import { ParsedCSVData } from "@/utils/csvParser";
+import { DateTimePicker } from "@/components/ui/date-time-picker";
+import { format } from "date-fns";
 
 interface Contact {
   id: string;
@@ -46,6 +49,10 @@ const BulkEmailSender = () => {
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [subject, setSubject] = useState("");
   const [htmlContent, setHtmlContent] = useState("");
+  
+  // Scheduling
+  const [sendImmediately, setSendImmediately] = useState(true);
+  const [scheduledAt, setScheduledAt] = useState<Date | null>(null);
 
   // Step 2: Recipients
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -204,10 +211,11 @@ const BulkEmailSender = () => {
           html_content: htmlContent,
           total_recipients: finalRecipients.length,
           pending_count: finalRecipients.length,
-          status: "sending",
+          status: sendImmediately ? "sending" : "scheduled",
+          scheduled_at: sendImmediately ? null : scheduledAt?.toISOString(),
           org_id: effectiveOrgId,
           created_by: session.session?.user.id,
-          started_at: new Date().toISOString(),
+          started_at: sendImmediately ? new Date().toISOString() : null,
           variable_mappings: variableMappings as any,
         }])
         .select()
@@ -258,20 +266,27 @@ const BulkEmailSender = () => {
 
       if (recipientsError) throw recipientsError;
 
-      // Trigger edge function to send emails
-      const { error: functionError } = await supabase.functions.invoke(
-        "send-bulk-email",
-        {
-          body: { campaignId: campaign.id },
-        }
-      );
+      // Trigger edge function to send emails only if sending immediately
+      if (sendImmediately) {
+        const { error: functionError } = await supabase.functions.invoke(
+          "send-bulk-email",
+          {
+            body: { campaignId: campaign.id },
+          }
+        );
 
-      if (functionError) throw functionError;
+        if (functionError) throw functionError;
 
-      toast({
-        title: "Success",
-        description: "Campaign started! Emails are being sent.",
-      });
+        toast({
+          title: "Success",
+          description: "Campaign started! Emails are being sent.",
+        });
+      } else {
+        toast({
+          title: "Campaign Scheduled",
+          description: `Campaign will be sent on ${scheduledAt?.toLocaleDateString()} at ${scheduledAt?.toLocaleTimeString()}`,
+        });
+      }
 
       navigate(`/email-campaigns/${campaign.id}`);
     } catch (error: any) {
@@ -380,6 +395,29 @@ const BulkEmailSender = () => {
                     <div className="border rounded-lg p-4 max-h-60 overflow-auto">
                       <div dangerouslySetInnerHTML={{ __html: htmlContent }} />
                     </div>
+                  </div>
+
+                  <div className="space-y-4 border-t pt-4 mt-4">
+                    <Label>Sending Schedule</Label>
+                    <RadioGroup value={sendImmediately ? "now" : "scheduled"} onValueChange={(v) => setSendImmediately(v === "now")}>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="now" id="send-now" />
+                        <Label htmlFor="send-now" className="cursor-pointer font-normal">Send immediately</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="scheduled" id="send-scheduled" />
+                        <Label htmlFor="send-scheduled" className="cursor-pointer font-normal">Schedule for later</Label>
+                      </div>
+                    </RadioGroup>
+                    
+                    {!sendImmediately && (
+                      <DateTimePicker
+                        value={scheduledAt}
+                        onChange={setScheduledAt}
+                        minDate={new Date()}
+                        label="Select date and time"
+                      />
+                    )}
                   </div>
                 </>
               )}
@@ -557,6 +595,18 @@ const BulkEmailSender = () => {
                 </div>
 
                 <div>
+                  <h3 className="font-semibold">Schedule</h3>
+                  <p className="text-muted-foreground">
+                    {sendImmediately ? 'Send immediately' : `Scheduled for ${scheduledAt?.toLocaleDateString()} at ${scheduledAt?.toLocaleTimeString()}`}
+                  </p>
+                  {!sendImmediately && scheduledAt && (
+                    <p className="text-sm text-amber-600 dark:text-amber-400 mt-1">
+                      ⏰ Campaign will be sent on {format(scheduledAt, "PPP 'at' p")}
+                    </p>
+                  )}
+                </div>
+
+                <div>
                   <h3 className="font-semibold mb-2">Email Preview (with sample data)</h3>
                   <div className="border rounded-lg p-4 max-h-60 overflow-auto">
                     <div
@@ -579,7 +629,7 @@ const BulkEmailSender = () => {
                   ) : (
                     <Send className="mr-2 h-4 w-4" />
                   )}
-                  Send Campaign
+                  {sendImmediately ? 'Send Campaign' : 'Schedule Campaign'}
                 </Button>
               </div>
             </CardContent>

@@ -10,12 +10,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Upload, Users, Send } from "lucide-react";
 import { VariableMappingStep } from "@/components/Campaigns/VariableMappingStep";
 import { TemplateVariable, VariableMapping, detectTemplateVariables } from "@/utils/templateVariables";
 import { ParsedCSVData } from "@/utils/csvParser";
 import DashboardLayout from "@/components/Layout/DashboardLayout";
+import { DateTimePicker } from "@/components/ui/date-time-picker";
+import { format } from "date-fns";
 
 export default function BulkWhatsAppSender() {
   const navigate = useNavigate();
@@ -34,6 +37,10 @@ export default function BulkWhatsAppSender() {
   const [templateVariables, setTemplateVariables] = useState<TemplateVariable[]>([]);
   const [variableMappings, setVariableMappings] = useState<Record<string, VariableMapping>>({});
   const [csvData, setCsvData] = useState<ParsedCSVData | null>(null);
+
+  // Scheduling
+  const [sendImmediately, setSendImmediately] = useState(true);
+  const [scheduledAt, setScheduledAt] = useState<Date | null>(null);
 
   const MAX_RECIPIENTS = 50000;
   const MAX_MESSAGE_LENGTH = 1024;
@@ -195,6 +202,9 @@ export default function BulkWhatsAppSender() {
           created_by: user?.id,
           total_recipients: finalRecipients.length,
           pending_count: finalRecipients.length,
+          status: sendImmediately ? "processing" : "scheduled",
+          scheduled_at: sendImmediately ? null : scheduledAt?.toISOString(),
+          started_at: sendImmediately ? new Date().toISOString() : null,
           variable_mappings: variableMappings as any,
         }])
         .select()
@@ -247,17 +257,24 @@ export default function BulkWhatsAppSender() {
 
       if (recipientsError) throw recipientsError;
 
-      // Start sending
-      const { error: sendError } = await supabase.functions.invoke('bulk-whatsapp-sender', {
-        body: { campaignId: campaign.id },
-      });
+      // Start sending only if sending immediately
+      if (sendImmediately) {
+        const { error: sendError } = await supabase.functions.invoke('bulk-whatsapp-sender', {
+          body: { campaignId: campaign.id },
+        });
 
-      if (sendError) throw sendError;
+        if (sendError) throw sendError;
 
-      toast({
-        title: "Campaign Started",
-        description: `Sending to ${finalRecipients.length} recipients`,
-      });
+        toast({
+          title: "Campaign Started",
+          description: `Sending to ${finalRecipients.length} recipients`,
+        });
+      } else {
+        toast({
+          title: "Campaign Scheduled",
+          description: `Campaign will be sent on ${scheduledAt?.toLocaleDateString()} at ${scheduledAt?.toLocaleTimeString()}`,
+        });
+      }
 
       navigate(`/whatsapp/campaigns/${campaign.id}`);
     } catch (error: any) {
@@ -357,12 +374,43 @@ export default function BulkWhatsAppSender() {
               )}
             </div>
 
+            <div className="space-y-4 border-t pt-4">
+              <Label>Sending Schedule</Label>
+              <RadioGroup value={sendImmediately ? "now" : "scheduled"} onValueChange={(v) => setSendImmediately(v === "now")}>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="now" id="send-now-wa" />
+                  <Label htmlFor="send-now-wa" className="cursor-pointer font-normal">Send immediately</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="scheduled" id="send-scheduled-wa" />
+                  <Label htmlFor="send-scheduled-wa" className="cursor-pointer font-normal">Schedule for later</Label>
+                </div>
+              </RadioGroup>
+              
+              {!sendImmediately && (
+                <DateTimePicker
+                  value={scheduledAt}
+                  onChange={setScheduledAt}
+                  minDate={new Date()}
+                  label="Select date and time"
+                />
+              )}
+            </div>
+
             <Button 
               onClick={() => {
                 if (!campaignName.trim() || !messageContent.trim()) {
                   toast({
                     title: "Error",
                     description: "Please fill in campaign name and message content",
+                    variant: "destructive",
+                  });
+                  return;
+                }
+                if (!sendImmediately && !scheduledAt) {
+                  toast({
+                    title: "Error",
+                    description: "Please select a scheduled date and time",
                     variant: "destructive",
                   });
                   return;
@@ -536,6 +584,17 @@ export default function BulkWhatsAppSender() {
                 </span>
               </div>
               <div className="flex justify-between">
+                <span className="text-muted-foreground">Schedule:</span>
+                <span className="font-medium">
+                  {sendImmediately ? 'Send immediately' : `${scheduledAt?.toLocaleDateString()} at ${scheduledAt?.toLocaleTimeString()}`}
+                </span>
+              </div>
+              {!sendImmediately && scheduledAt && (
+                <p className="text-sm text-amber-600 dark:text-amber-400">
+                  ⏰ Campaign will be sent on {format(scheduledAt, "PPP 'at' p")}
+                </p>
+              )}
+              <div className="flex justify-between">
                 <span className="text-muted-foreground">Data Source:</span>
                 <span className="font-medium">{csvData ? 'CSV Upload' : 'CRM Contacts'}</span>
               </div>
@@ -566,12 +625,12 @@ export default function BulkWhatsAppSender() {
                 {loading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Sending...
+                    {sendImmediately ? 'Sending...' : 'Scheduling...'}
                   </>
                 ) : (
                   <>
                     <Send className="mr-2 h-4 w-4" />
-                    Send Campaign
+                    {sendImmediately ? 'Send Campaign' : 'Schedule Campaign'}
                   </>
                 )}
               </Button>

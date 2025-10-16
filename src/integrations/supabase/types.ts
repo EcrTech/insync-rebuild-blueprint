@@ -1391,6 +1391,7 @@ export type Database = {
           received_at: string | null
           replied_to_message_id: string | null
           reply_to_email: string | null
+          scheduled_at: string | null
           sent_at: string | null
           sent_by: string | null
           status: string | null
@@ -1420,6 +1421,7 @@ export type Database = {
           received_at?: string | null
           replied_to_message_id?: string | null
           reply_to_email?: string | null
+          scheduled_at?: string | null
           sent_at?: string | null
           sent_by?: string | null
           status?: string | null
@@ -1449,6 +1451,7 @@ export type Database = {
           received_at?: string | null
           replied_to_message_id?: string | null
           reply_to_email?: string | null
+          scheduled_at?: string | null
           sent_at?: string | null
           sent_by?: string | null
           status?: string | null
@@ -3385,6 +3388,7 @@ export type Database = {
           phone_number: string
           read_at: string | null
           replied_to_message_id: string | null
+          scheduled_at: string | null
           sender_name: string | null
           sent_at: string | null
           sent_by: string | null
@@ -3408,6 +3412,7 @@ export type Database = {
           phone_number: string
           read_at?: string | null
           replied_to_message_id?: string | null
+          scheduled_at?: string | null
           sender_name?: string | null
           sent_at?: string | null
           sent_by?: string | null
@@ -3431,6 +3436,7 @@ export type Database = {
           phone_number?: string
           read_at?: string | null
           replied_to_message_id?: string | null
+          scheduled_at?: string | null
           sender_name?: string | null
           sent_at?: string | null
           sent_by?: string | null

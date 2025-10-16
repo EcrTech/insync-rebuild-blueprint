@@ -7,8 +7,11 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
+import { DateTimePicker } from "@/components/ui/date-time-picker";
+import { format } from "date-fns";
 
 interface Template {
   id: string;
@@ -42,6 +45,10 @@ export function SendWhatsAppDialog({
   const [templateVariables, setTemplateVariables] = useState<Record<string, string>>({});
   const [customMessage, setCustomMessage] = useState("");
   const [messageType, setMessageType] = useState<"template" | "custom">("template");
+  
+  // Scheduling
+  const [sendImmediately, setSendImmediately] = useState(true);
+  const [scheduledAt, setScheduledAt] = useState<Date | null>(null);
 
   useEffect(() => {
     if (open && effectiveOrgId) {
@@ -102,30 +109,69 @@ export function SendWhatsAppDialog({
       return;
     }
 
+    if (!sendImmediately && !scheduledAt) {
+      toast({
+        title: "Validation Error",
+        description: "Please select a scheduled date and time",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setSending(true);
     try {
-      const payload: any = {
-        contactId,
-        phoneNumber: phoneNumber.replace(/[^\d]/g, ""),
-      };
+      if (sendImmediately) {
+        // Send immediately via edge function
+        const payload: any = {
+          contactId,
+          phoneNumber: phoneNumber.replace(/[^\d]/g, ""),
+        };
 
-      if (messageType === "template") {
-        payload.templateId = selectedTemplateId;
-        payload.templateVariables = templateVariables;
+        if (messageType === "template") {
+          payload.templateId = selectedTemplateId;
+          payload.templateVariables = templateVariables;
+        } else {
+          payload.message = customMessage;
+        }
+
+        const { error } = await supabase.functions.invoke("send-whatsapp-message", {
+          body: payload,
+        });
+
+        if (error) throw error;
+
+        toast({
+          title: "Success",
+          description: "WhatsApp message sent successfully",
+        });
       } else {
-        payload.message = customMessage;
+        // Create scheduled message record
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("User not authenticated");
+
+        const messageContent = messageType === "custom" 
+          ? customMessage 
+          : templates.find(t => t.id === selectedTemplateId)?.content || "";
+
+        const { error } = await supabase
+          .from("whatsapp_messages")
+          .insert([{
+            contact_id: contactId,
+            phone_number: phoneNumber.replace(/[^\d]/g, ""),
+            message_content: messageContent,
+            template_id: messageType === "template" ? selectedTemplateId : null,
+            sent_by: user.id,
+            status: "scheduled",
+            scheduled_at: scheduledAt?.toISOString(),
+          }]);
+
+        if (error) throw error;
+
+        toast({
+          title: "Message scheduled",
+          description: `Message will be sent on ${format(scheduledAt, "PPP 'at' p")}`,
+        });
       }
-
-      const { error } = await supabase.functions.invoke("send-whatsapp-message", {
-        body: payload,
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "WhatsApp message sent successfully",
-      });
 
       onOpenChange(false);
       onMessageSent?.();

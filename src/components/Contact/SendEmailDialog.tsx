@@ -4,9 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
+import { DateTimePicker } from "@/components/ui/date-time-picker";
+import { format } from "date-fns";
 
 interface SendEmailDialogProps {
   open: boolean;
@@ -29,6 +32,10 @@ export function SendEmailDialog({
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [userInfo, setUserInfo] = useState<{ firstName: string; lastName: string; email: string } | null>(null);
+  
+  // Scheduling
+  const [sendImmediately, setSendImmediately] = useState(true);
+  const [scheduledAt, setScheduledAt] = useState<Date | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -100,30 +107,80 @@ export function SendEmailDialog({
       return;
     }
 
+    if (!sendImmediately && !scheduledAt) {
+      toast({
+        variant: "destructive",
+        title: "Missing schedule",
+        description: "Please select a scheduled date and time.",
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
-      // Call edge function to send email
-      // The trigger will automatically create the activity record
-      const { data, error } = await supabase.functions.invoke("send-email", {
-        body: {
-          to: recipientEmail,
-          subject: subject,
-          htmlContent: body.replace(/\n/g, '<br>'),
-          contactId: contactId,
-        },
-      });
+      if (sendImmediately) {
+        // Send immediately via edge function
+        const { data, error } = await supabase.functions.invoke("send-email", {
+          body: {
+            to: recipientEmail,
+            subject: subject,
+            htmlContent: body.replace(/\n/g, '<br>'),
+            contactId: contactId,
+          },
+        });
 
-      if (error) throw error;
+        if (error) throw error;
 
-      toast({
-        title: "Email sent",
-        description: `Email sent successfully to ${contactName}`,
-      });
+        toast({
+          title: "Email sent",
+          description: `Email sent successfully to ${contactName}`,
+        });
+      } else {
+        // Create scheduled email record
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("User not authenticated");
+
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("org_id")
+          .eq("id", user.id)
+          .single();
+
+        if (!profile) throw new Error("Profile not found");
+
+        const conversationId = crypto.randomUUID();
+        
+        const { error } = await supabase
+          .from("email_conversations")
+          .insert([{
+            conversation_id: conversationId,
+            contact_id: contactId,
+            from_email: userInfo?.email || user.email || "",
+            from_name: `${userInfo?.firstName} ${userInfo?.lastName}`,
+            to_email: recipientEmail,
+            subject: subject,
+            email_content: body.replace(/\n/g, '<br>'),
+            html_content: body.replace(/\n/g, '<br>'),
+            direction: "outbound",
+            status: "scheduled",
+            scheduled_at: scheduledAt?.toISOString(),
+            sent_by: user.id,
+          }]);
+
+        if (error) throw error;
+
+        toast({
+          title: "Email scheduled",
+          description: `Email will be sent on ${format(scheduledAt, "PPP 'at' p")}`,
+        });
+      }
 
       // Reset form
       setSubject("");
       setBody("");
+      setSendImmediately(true);
+      setScheduledAt(null);
       
       onEmailSent?.();
       onOpenChange(false);
@@ -186,6 +243,29 @@ export function SendEmailDialog({
               rows={8}
             />
           </div>
+
+          <div className="space-y-4 border-t pt-4">
+            <Label>Sending Schedule</Label>
+            <RadioGroup value={sendImmediately ? "now" : "scheduled"} onValueChange={(v) => setSendImmediately(v === "now")}>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="now" id="send-email-now" />
+                <Label htmlFor="send-email-now" className="cursor-pointer font-normal">Send immediately</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="scheduled" id="send-email-scheduled" />
+                <Label htmlFor="send-email-scheduled" className="cursor-pointer font-normal">Schedule for later</Label>
+              </div>
+            </RadioGroup>
+            
+            {!sendImmediately && (
+              <DateTimePicker
+                value={scheduledAt}
+                onChange={setScheduledAt}
+                minDate={new Date()}
+                label="Select date and time"
+              />
+            )}
+          </div>
         </div>
 
         <DialogFooter>
@@ -194,7 +274,7 @@ export function SendEmailDialog({
           </Button>
           <Button onClick={handleSend} disabled={loading}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Send Email
+            {sendImmediately ? 'Send Email' : 'Schedule Email'}
           </Button>
         </DialogFooter>
       </DialogContent>
