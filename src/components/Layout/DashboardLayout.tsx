@@ -132,11 +132,24 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
   const showOperationsSection = canAccessFeature("campaigns_email") || canAccessFeature("contacts") || 
     canAccessFeature("pipeline_stages") || canAccessFeature("calling") || canAccessFeature("redefine_data_repository");
   
-  const showAdminCommunicationSection = isAdmin && (canAccessFeature("campaigns_whatsapp") || 
-    canAccessFeature("calling") || canAccessFeature("templates"));
+  const showAdminCommunicationSection = isAdmin && (
+    canAccessFeature("campaigns_whatsapp") || 
+    canAccessFeature("email_settings") ||
+    canAccessFeature("calling") || 
+    canAccessFeature("templates")
+  );
   
-  const showAdminMainSection = isAdmin && (canAccessFeature("pipeline_stages") || canAccessFeature("calling") || 
-    canAccessFeature("designations") || canAccessFeature("custom_fields") || canAccessFeature("forms"));
+  const showAdminMainSection = isAdmin && (
+    canAccessFeature("organization_settings") || 
+    canAccessFeature("pipeline_stages") || 
+    canAccessFeature("calling") || 
+    canAccessFeature("approval_matrix") ||
+    canAccessFeature("designations") || 
+    canAccessFeature("custom_fields") || 
+    canAccessFeature("forms")
+  );
+  
+  const showManagementSection = isManager && (canAccessFeature("users") || canAccessFeature("teams"));
 
   return (
     <div className="min-h-screen bg-background">
@@ -394,7 +407,7 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                 </Link>
               )}
 
-              {isManager && (
+              {showManagementSection && (
                 <>
                   <div className="pt-4 pb-2 section-accent-purple pl-4">
                     <p className="px-4 text-xs font-semibold uppercase tracking-wider gradient-text-accent">
