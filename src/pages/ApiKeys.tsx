@@ -513,6 +513,20 @@ export default function ApiKeys() {
                   { method: 'GET', path: '/approval-rules', desc: 'List approval rules' },
                   { method: 'GET', path: '/approval-rules/{id}', desc: 'Get single approval rule' },
                   { method: 'GET', path: '/approval-rules/evaluate', desc: 'Evaluate approval rule for amount' },
+                  { method: 'GET', path: '/users', desc: 'List all users with filters' },
+                  { method: 'GET', path: '/users/{id}', desc: 'Get single user details' },
+                  { method: 'PATCH', path: '/users/{id}', desc: 'Update user profile' },
+                  { method: 'GET', path: '/users/{id}/roles', desc: 'Get user roles' },
+                  { method: 'GET', path: '/roles', desc: 'List all user roles in org' },
+                  { method: 'POST', path: '/users/{id}/roles', desc: 'Assign role to user' },
+                  { method: 'DELETE', path: '/users/{id}/roles/{role_id}', desc: 'Remove role from user' },
+                  { method: 'GET', path: '/designations', desc: 'List all designations' },
+                  { method: 'GET', path: '/designations/{id}', desc: 'Get single designation' },
+                  { method: 'POST', path: '/designations', desc: 'Create new designation' },
+                  { method: 'PATCH', path: '/designations/{id}', desc: 'Update designation' },
+                  { method: 'DELETE', path: '/designations/{id}', desc: 'Deactivate designation' },
+                  { method: 'GET', path: '/designations/{id}/features', desc: 'Get designation feature access' },
+                  { method: 'PATCH', path: '/designations/{id}/features', desc: 'Update designation feature access' },
                 ].map((endpoint, idx) => (
                   <div key={idx} className="border rounded-lg p-3">
                     <div className="flex items-start gap-2 mb-1">
@@ -690,6 +704,194 @@ Response:
     "approval_type_id": "uuid",
     "amount": 5000
   }
+}`}
+              </pre>
+
+              <h3>Users & Roles Endpoints</h3>
+              
+              <h4>List Users</h4>
+              <pre className="bg-muted p-4 rounded-lg overflow-x-auto">
+{`GET /users?limit=50&offset=0&designation_id=uuid&is_active=true&search=john
+
+Response:
+{
+  "success": true,
+  "data": {
+    "users": [
+      {
+        "id": "uuid",
+        "first_name": "John",
+        "last_name": "Doe",
+        "phone": "+1234567890",
+        "designation_id": "uuid",
+        "is_active": true,
+        "calling_enabled": true,
+        "whatsapp_enabled": true,
+        "email_enabled": true,
+        "sms_enabled": true,
+        "created_at": "2025-01-15T10:30:00Z",
+        "updated_at": "2025-10-15T14:20:00Z",
+        "roles": [
+          {
+            "id": "uuid",
+            "role": "sales_agent",
+            "role_label": "Sales Agent"
+          }
+        ],
+        "designations": {
+          "id": "uuid",
+          "name": "Senior Sales Executive",
+          "role": "sales_agent"
+        }
+      }
+    ],
+    "pagination": {
+      "total": 25,
+      "limit": 50,
+      "offset": 0,
+      "has_more": false
+    }
+  }
+}`}
+              </pre>
+
+              <h4>Get Single User</h4>
+              <pre className="bg-muted p-4 rounded-lg overflow-x-auto">
+{`GET /users/{user_id}
+
+Response includes full profile with roles and designation details`}
+              </pre>
+
+              <h4>Update User Profile</h4>
+              <pre className="bg-muted p-4 rounded-lg overflow-x-auto">
+{`PATCH /users/{user_id}
+Content-Type: application/json
+
+{
+  "first_name": "Jane",
+  "designation_id": "uuid",
+  "calling_enabled": true,
+  "is_active": true
+}
+
+Allowed fields: first_name, last_name, phone, designation_id, is_active,
+calling_enabled, whatsapp_enabled, email_enabled, sms_enabled`}
+              </pre>
+
+              <h4>User Roles Management</h4>
+              <pre className="bg-muted p-4 rounded-lg overflow-x-auto">
+{`# Get user's roles
+GET /users/{user_id}/roles
+
+# List all roles in organization
+GET /roles
+
+# Assign role to user
+POST /users/{user_id}/roles
+Content-Type: application/json
+
+{
+  "role": "sales_manager"
+}
+
+Available roles: super_admin, admin, sales_manager, sales_agent,
+support_manager, support_agent, analyst
+
+# Remove role from user
+DELETE /users/{user_id}/roles/{role_id}`}
+              </pre>
+
+              <h3>Designations Endpoints</h3>
+              
+              <h4>List Designations</h4>
+              <pre className="bg-muted p-4 rounded-lg overflow-x-auto">
+{`GET /designations?is_active=true
+
+Response:
+{
+  "success": true,
+  "data": {
+    "designations": [
+      {
+        "id": "uuid",
+        "org_id": "uuid",
+        "name": "Senior Sales Executive",
+        "description": "Handles major accounts",
+        "role": "sales_agent",
+        "role_label": "Sales Agent",
+        "is_active": true,
+        "created_at": "2025-01-15T10:30:00Z",
+        "updated_at": "2025-10-15T14:20:00Z"
+      }
+    ]
+  }
+}`}
+              </pre>
+
+              <h4>Create Designation</h4>
+              <pre className="bg-muted p-4 rounded-lg overflow-x-auto">
+{`POST /designations
+Content-Type: application/json
+
+{
+  "name": "Sales Executive",
+  "description": "Handles sales operations",
+  "role": "sales_agent",
+  "is_active": true
+}`}
+              </pre>
+
+              <h4>Update Designation</h4>
+              <pre className="bg-muted p-4 rounded-lg overflow-x-auto">
+{`PATCH /designations/{designation_id}
+Content-Type: application/json
+
+{
+  "name": "Senior Sales Executive",
+  "description": "Updated description"
+}`}
+              </pre>
+
+              <h4>Designation Feature Access</h4>
+              <pre className="bg-muted p-4 rounded-lg overflow-x-auto">
+{`# Get feature access for designation
+GET /designations/{designation_id}/features
+
+Response:
+{
+  "success": true,
+  "data": {
+    "feature_access": [
+      {
+        "id": "uuid",
+        "designation_id": "uuid",
+        "feature_key": "contacts",
+        "can_view": true,
+        "can_create": true,
+        "can_edit": true,
+        "can_delete": false,
+        "custom_permissions": {},
+        "feature_permissions": {
+          "feature_key": "contacts",
+          "feature_name": "Contacts",
+          "category": "core"
+        }
+      }
+    ]
+  }
+}
+
+# Update feature access
+PATCH /designations/{designation_id}/features
+Content-Type: application/json
+
+{
+  "feature_key": "contacts",
+  "can_view": true,
+  "can_create": true,
+  "can_edit": true,
+  "can_delete": false,
+  "custom_permissions": {}
 }`}
               </pre>
 

@@ -126,6 +126,45 @@ Deno.serve(async (req) => {
       response = await handleGetApprovalRule(supabaseAdmin, context, ruleId);
     } else if (path === '/approval-rules/evaluate' && method === 'GET') {
       response = await handleEvaluateApprovalRule(supabaseAdmin, context, url);
+    } else if (path === '/users' && method === 'GET') {
+      response = await handleListUsers(supabaseAdmin, context, url);
+    } else if (path.match(/^\/users\/[^/]+$/) && method === 'GET') {
+      const userId = path.split('/')[2];
+      response = await handleGetUser(supabaseAdmin, context, userId);
+    } else if (path.match(/^\/users\/[^/]+$/) && method === 'PATCH') {
+      const userId = path.split('/')[2];
+      response = await handleUpdateUser(supabaseAdmin, context, req, userId);
+    } else if (path.match(/^\/users\/[^/]+\/roles$/) && method === 'GET') {
+      const userId = path.split('/')[2];
+      response = await handleGetUserRoles(supabaseAdmin, context, userId);
+    } else if (path === '/roles' && method === 'GET') {
+      response = await handleListRoles(supabaseAdmin, context);
+    } else if (path.match(/^\/users\/[^/]+\/roles$/) && method === 'POST') {
+      const userId = path.split('/')[2];
+      response = await handleAssignRole(supabaseAdmin, context, req, userId);
+    } else if (path.match(/^\/users\/[^/]+\/roles\/[^/]+$/) && method === 'DELETE') {
+      const userId = path.split('/')[2];
+      const roleId = path.split('/')[4];
+      response = await handleRemoveRole(supabaseAdmin, context, userId, roleId);
+    } else if (path === '/designations' && method === 'GET') {
+      response = await handleListDesignations(supabaseAdmin, context, url);
+    } else if (path.match(/^\/designations\/[^/]+$/) && method === 'GET') {
+      const designationId = path.split('/')[2];
+      response = await handleGetDesignation(supabaseAdmin, context, designationId);
+    } else if (path === '/designations' && method === 'POST') {
+      response = await handleCreateDesignation(supabaseAdmin, context, req);
+    } else if (path.match(/^\/designations\/[^/]+$/) && method === 'PATCH') {
+      const designationId = path.split('/')[2];
+      response = await handleUpdateDesignation(supabaseAdmin, context, req, designationId);
+    } else if (path.match(/^\/designations\/[^/]+$/) && method === 'DELETE') {
+      const designationId = path.split('/')[2];
+      response = await handleDeleteDesignation(supabaseAdmin, context, designationId);
+    } else if (path.match(/^\/designations\/[^/]+\/features$/) && method === 'GET') {
+      const designationId = path.split('/')[2];
+      response = await handleGetDesignationFeatures(supabaseAdmin, context, designationId);
+    } else if (path.match(/^\/designations\/[^/]+\/features$/) && method === 'PATCH') {
+      const designationId = path.split('/')[2];
+      response = await handleUpdateDesignationFeatures(supabaseAdmin, context, req, designationId);
     } else {
       response = errorResponse('Endpoint not found', 404, requestId);
     }
@@ -616,4 +655,446 @@ async function handleEvaluateApprovalRule(supabase: any, context: RequestContext
     approval_type_id: approvalTypeId,
     amount: amount ? parseFloat(amount) : null
   }, crypto.randomUUID());
+}
+
+// Users (Profiles) Handlers
+
+async function handleListUsers(supabase: any, context: RequestContext, url: URL) {
+  const limit = parseInt(url.searchParams.get('limit') || '50');
+  const offset = parseInt(url.searchParams.get('offset') || '0');
+  const designationId = url.searchParams.get('designation_id');
+  const isActive = url.searchParams.get('is_active');
+  const search = url.searchParams.get('search');
+
+  let query = supabase
+    .from('profiles')
+    .select(`
+      id,
+      first_name,
+      last_name,
+      phone,
+      designation_id,
+      is_active,
+      calling_enabled,
+      whatsapp_enabled,
+      email_enabled,
+      sms_enabled,
+      created_at,
+      updated_at,
+      user_roles(id, role),
+      designations(id, name, role)
+    `, { count: 'exact' })
+    .eq('org_id', context.orgId)
+    .range(offset, offset + limit - 1)
+    .order('created_at', { ascending: false });
+
+  if (designationId) query = query.eq('designation_id', designationId);
+  if (isActive !== null) query = query.eq('is_active', isActive === 'true');
+  if (search) {
+    query = query.or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%,phone.ilike.%${search}%`);
+  }
+
+  const { data, error, count } = await query;
+
+  if (error) {
+    return errorResponse(error.message, 500, crypto.randomUUID());
+  }
+
+  const roleMap: Record<string, string> = {
+    'super_admin': 'Super Admin',
+    'admin': 'Admin',
+    'sales_manager': 'Sales Manager',
+    'sales_agent': 'Sales Agent',
+    'support_manager': 'Support Manager',
+    'support_agent': 'Support Agent',
+    'analyst': 'Analyst'
+  };
+
+  const formattedData = data?.map((user: any) => ({
+    ...user,
+    roles: user.user_roles?.map((ur: any) => ({
+      ...ur,
+      role_label: roleMap[ur.role] || ur.role
+    }))
+  }));
+
+  return successResponse({
+    users: formattedData,
+    pagination: {
+      total: count,
+      limit,
+      offset,
+      has_more: count ? offset + limit < count : false
+    }
+  }, crypto.randomUUID());
+}
+
+async function handleGetUser(supabase: any, context: RequestContext, userId: string) {
+  const { data: user, error } = await supabase
+    .from('profiles')
+    .select(`
+      *,
+      user_roles(id, role),
+      designations(id, name, description, role)
+    `)
+    .eq('org_id', context.orgId)
+    .eq('id', userId)
+    .single();
+
+  if (error || !user) {
+    return errorResponse('User not found', 404, crypto.randomUUID());
+  }
+
+  const roleMap: Record<string, string> = {
+    'super_admin': 'Super Admin',
+    'admin': 'Admin',
+    'sales_manager': 'Sales Manager',
+    'sales_agent': 'Sales Agent',
+    'support_manager': 'Support Manager',
+    'support_agent': 'Support Agent',
+    'analyst': 'Analyst'
+  };
+
+  const formattedUser = {
+    ...user,
+    roles: user.user_roles?.map((ur: any) => ({
+      ...ur,
+      role_label: roleMap[ur.role] || ur.role
+    }))
+  };
+
+  return successResponse(formattedUser, crypto.randomUUID());
+}
+
+async function handleUpdateUser(supabase: any, context: RequestContext, req: Request, userId: string) {
+  const body = await req.json();
+
+  // Allowed fields for update
+  const allowedFields = ['first_name', 'last_name', 'phone', 'designation_id', 'is_active', 'calling_enabled', 'whatsapp_enabled', 'email_enabled', 'sms_enabled'];
+  const updateData: any = {};
+  
+  for (const field of allowedFields) {
+    if (body[field] !== undefined) {
+      updateData[field] = body[field];
+    }
+  }
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .update(updateData)
+    .eq('org_id', context.orgId)
+    .eq('id', userId)
+    .select()
+    .single();
+
+  if (error) {
+    return errorResponse(error.message, 400, crypto.randomUUID());
+  }
+
+  return successResponse(data, crypto.randomUUID());
+}
+
+// User Roles Handlers
+
+async function handleGetUserRoles(supabase: any, context: RequestContext, userId: string) {
+  const { data, error } = await supabase
+    .from('user_roles')
+    .select('*')
+    .eq('org_id', context.orgId)
+    .eq('user_id', userId);
+
+  if (error) {
+    return errorResponse(error.message, 500, crypto.randomUUID());
+  }
+
+  const roleMap: Record<string, string> = {
+    'super_admin': 'Super Admin',
+    'admin': 'Admin',
+    'sales_manager': 'Sales Manager',
+    'sales_agent': 'Sales Agent',
+    'support_manager': 'Support Manager',
+    'support_agent': 'Support Agent',
+    'analyst': 'Analyst'
+  };
+
+  const formattedData = data?.map((ur: any) => ({
+    ...ur,
+    role_label: roleMap[ur.role] || ur.role
+  }));
+
+  return successResponse({ roles: formattedData }, crypto.randomUUID());
+}
+
+async function handleListRoles(supabase: any, context: RequestContext) {
+  const { data: profiles, error } = await supabase
+    .from('profiles')
+    .select('id, user_roles(id, role, created_at)')
+    .eq('org_id', context.orgId);
+
+  if (error) {
+    return errorResponse(error.message, 500, crypto.randomUUID());
+  }
+
+  const roleMap: Record<string, string> = {
+    'super_admin': 'Super Admin',
+    'admin': 'Admin',
+    'sales_manager': 'Sales Manager',
+    'sales_agent': 'Sales Agent',
+    'support_manager': 'Support Manager',
+    'support_agent': 'Support Agent',
+    'analyst': 'Analyst'
+  };
+
+  // Flatten and format all roles
+  const allRoles = profiles
+    ?.flatMap((p: any) => p.user_roles?.map((ur: any) => ({
+      ...ur,
+      user_id: p.id,
+      role_label: roleMap[ur.role] || ur.role
+    })) || []);
+
+  return successResponse({ roles: allRoles }, crypto.randomUUID());
+}
+
+async function handleAssignRole(supabase: any, context: RequestContext, req: Request, userId: string) {
+  const body = await req.json();
+  
+  if (!body.role) {
+    return errorResponse('Role is required', 400, crypto.randomUUID());
+  }
+
+  const { data, error } = await supabase
+    .from('user_roles')
+    .insert({
+      org_id: context.orgId,
+      user_id: userId,
+      role: body.role
+    })
+    .select()
+    .single();
+
+  if (error) {
+    return errorResponse(error.message, 400, crypto.randomUUID());
+  }
+
+  return successResponse(data, crypto.randomUUID(), 201);
+}
+
+async function handleRemoveRole(supabase: any, context: RequestContext, userId: string, roleId: string) {
+  const { error } = await supabase
+    .from('user_roles')
+    .delete()
+    .eq('org_id', context.orgId)
+    .eq('user_id', userId)
+    .eq('id', roleId);
+
+  if (error) {
+    return errorResponse(error.message, 400, crypto.randomUUID());
+  }
+
+  return successResponse({ message: 'Role removed successfully' }, crypto.randomUUID());
+}
+
+// Designations Handlers
+
+async function handleListDesignations(supabase: any, context: RequestContext, url: URL) {
+  const isActive = url.searchParams.get('is_active');
+
+  let query = supabase
+    .from('designations')
+    .select('*')
+    .eq('org_id', context.orgId)
+    .order('name', { ascending: true });
+
+  if (isActive !== null) {
+    query = query.eq('is_active', isActive === 'true');
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    return errorResponse(error.message, 500, crypto.randomUUID());
+  }
+
+  const roleMap: Record<string, string> = {
+    'super_admin': 'Super Admin',
+    'admin': 'Admin',
+    'sales_manager': 'Sales Manager',
+    'sales_agent': 'Sales Agent',
+    'support_manager': 'Support Manager',
+    'support_agent': 'Support Agent',
+    'analyst': 'Analyst'
+  };
+
+  const formattedData = data?.map((d: any) => ({
+    ...d,
+    role_label: roleMap[d.role] || d.role
+  }));
+
+  return successResponse({ designations: formattedData }, crypto.randomUUID());
+}
+
+async function handleGetDesignation(supabase: any, context: RequestContext, designationId: string) {
+  const { data, error } = await supabase
+    .from('designations')
+    .select('*')
+    .eq('org_id', context.orgId)
+    .eq('id', designationId)
+    .single();
+
+  if (error || !data) {
+    return errorResponse('Designation not found', 404, crypto.randomUUID());
+  }
+
+  const roleMap: Record<string, string> = {
+    'super_admin': 'Super Admin',
+    'admin': 'Admin',
+    'sales_manager': 'Sales Manager',
+    'sales_agent': 'Sales Agent',
+    'support_manager': 'Support Manager',
+    'support_agent': 'Support Agent',
+    'analyst': 'Analyst'
+  };
+
+  const formattedData = {
+    ...data,
+    role_label: roleMap[data.role] || data.role
+  };
+
+  return successResponse(formattedData, crypto.randomUUID());
+}
+
+async function handleCreateDesignation(supabase: any, context: RequestContext, req: Request) {
+  const body = await req.json();
+
+  const { data, error } = await supabase
+    .from('designations')
+    .insert({
+      org_id: context.orgId,
+      name: body.name,
+      description: body.description,
+      role: body.role,
+      is_active: body.is_active !== undefined ? body.is_active : true
+    })
+    .select()
+    .single();
+
+  if (error) {
+    return errorResponse(error.message, 400, crypto.randomUUID());
+  }
+
+  return successResponse(data, crypto.randomUUID(), 201);
+}
+
+async function handleUpdateDesignation(supabase: any, context: RequestContext, req: Request, designationId: string) {
+  const body = await req.json();
+
+  const { data, error } = await supabase
+    .from('designations')
+    .update(body)
+    .eq('org_id', context.orgId)
+    .eq('id', designationId)
+    .select()
+    .single();
+
+  if (error) {
+    return errorResponse(error.message, 400, crypto.randomUUID());
+  }
+
+  return successResponse(data, crypto.randomUUID());
+}
+
+async function handleDeleteDesignation(supabase: any, context: RequestContext, designationId: string) {
+  // Soft delete by setting is_active to false
+  const { data, error } = await supabase
+    .from('designations')
+    .update({ is_active: false })
+    .eq('org_id', context.orgId)
+    .eq('id', designationId)
+    .select()
+    .single();
+
+  if (error) {
+    return errorResponse(error.message, 400, crypto.randomUUID());
+  }
+
+  return successResponse({ message: 'Designation deactivated successfully', data }, crypto.randomUUID());
+}
+
+// Designation Feature Access Handlers
+
+async function handleGetDesignationFeatures(supabase: any, context: RequestContext, designationId: string) {
+  const { data, error } = await supabase
+    .from('designation_feature_access')
+    .select('*, feature_permissions(feature_key, feature_name, category)')
+    .eq('org_id', context.orgId)
+    .eq('designation_id', designationId);
+
+  if (error) {
+    return errorResponse(error.message, 500, crypto.randomUUID());
+  }
+
+  return successResponse({ feature_access: data }, crypto.randomUUID());
+}
+
+async function handleUpdateDesignationFeatures(supabase: any, context: RequestContext, req: Request, designationId: string) {
+  const body = await req.json();
+
+  if (!body.feature_key) {
+    return errorResponse('feature_key is required', 400, crypto.randomUUID());
+  }
+
+  // Check if record exists
+  const { data: existing } = await supabase
+    .from('designation_feature_access')
+    .select('id')
+    .eq('org_id', context.orgId)
+    .eq('designation_id', designationId)
+    .eq('feature_key', body.feature_key)
+    .single();
+
+  let result;
+  if (existing) {
+    // Update existing
+    const { data, error } = await supabase
+      .from('designation_feature_access')
+      .update({
+        can_view: body.can_view !== undefined ? body.can_view : true,
+        can_create: body.can_create !== undefined ? body.can_create : false,
+        can_edit: body.can_edit !== undefined ? body.can_edit : false,
+        can_delete: body.can_delete !== undefined ? body.can_delete : false,
+        custom_permissions: body.custom_permissions || {}
+      })
+      .eq('id', existing.id)
+      .select()
+      .single();
+
+    if (error) {
+      return errorResponse(error.message, 400, crypto.randomUUID());
+    }
+    result = data;
+  } else {
+    // Insert new
+    const { data, error } = await supabase
+      .from('designation_feature_access')
+      .insert({
+        org_id: context.orgId,
+        designation_id: designationId,
+        feature_key: body.feature_key,
+        can_view: body.can_view !== undefined ? body.can_view : true,
+        can_create: body.can_create !== undefined ? body.can_create : false,
+        can_edit: body.can_edit !== undefined ? body.can_edit : false,
+        can_delete: body.can_delete !== undefined ? body.can_delete : false,
+        custom_permissions: body.custom_permissions || {}
+      })
+      .select()
+      .single();
+
+    if (error) {
+      return errorResponse(error.message, 400, crypto.randomUUID());
+    }
+    result = data;
+  }
+
+  return successResponse(result, crypto.randomUUID());
 }
