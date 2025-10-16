@@ -13,14 +13,14 @@ import { formatDistanceToNow } from "date-fns";
 import DashboardLayout from "@/components/Layout/DashboardLayout";
 
 export default function Billing() {
-  const { effectiveOrgId, isPlatformAdmin } = useOrgContext();
+  const { effectiveOrgId, isPlatformAdmin, isLoading: orgLoading } = useOrgContext();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   // Redirect non-platform admins
   useEffect(() => {
-    if (isPlatformAdmin === false) {
+    if (!orgLoading && isPlatformAdmin === false) {
       toast({
         title: "Access Denied",
         description: "Only platform admins can access billing.",
@@ -28,7 +28,7 @@ export default function Billing() {
       });
       navigate("/dashboard");
     }
-  }, [isPlatformAdmin, navigate, toast]);
+  }, [isPlatformAdmin, orgLoading, navigate, toast]);
 
   // Fetch organization details
   const { data: org } = useQuery({

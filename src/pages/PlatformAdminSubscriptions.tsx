@@ -17,12 +17,12 @@ import DashboardLayout from "@/components/Layout/DashboardLayout";
 
 export default function PlatformAdminSubscriptions() {
   const { toast } = useToast();
-  const { isPlatformAdmin } = useOrgContext();
+  const { isPlatformAdmin, isLoading: orgLoading } = useOrgContext();
   const navigate = useNavigate();
 
   // Redirect non-platform admins
   useEffect(() => {
-    if (isPlatformAdmin === false) {
+    if (!orgLoading && isPlatformAdmin === false) {
       toast({
         title: "Access Denied",
         description: "Only platform admins can access subscription management.",
@@ -30,7 +30,7 @@ export default function PlatformAdminSubscriptions() {
       });
       navigate("/dashboard");
     }
-  }, [isPlatformAdmin, navigate, toast]);
+  }, [isPlatformAdmin, orgLoading, navigate, toast]);
   const [overrideDialogOpen, setOverrideDialogOpen] = useState(false);
   const [selectedSubscription, setSelectedSubscription] = useState<any>(null);
   const [overrideDate, setOverrideDate] = useState<Date>();

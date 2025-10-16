@@ -4,13 +4,18 @@ import { supabase } from "@/integrations/supabase/client";
 export function useOrgContext() {
   const [userOrgId, setUserOrgId] = useState<string | null>(null);
   const [effectiveOrgId, setEffectiveOrgId] = useState<string | null>(null);
-  const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
+  const [isPlatformAdmin, setIsPlatformAdmin] = useState<boolean | null>(null);
   const [isImpersonating, setIsImpersonating] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const loadOrgContext = async () => {
+      setIsLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        setIsLoading(false);
+        return;
+      }
 
       // Get user's actual org
       const { data: profile } = await supabase
@@ -34,6 +39,7 @@ export function useOrgContext() {
           setIsImpersonating(false);
         }
       }
+      setIsLoading(false);
     };
 
     loadOrgContext();
@@ -64,5 +70,6 @@ export function useOrgContext() {
     effectiveOrgId,
     isPlatformAdmin,
     isImpersonating,
+    isLoading,
   };
 }
