@@ -67,6 +67,30 @@ export const EmailPreview = ({ subject, bodyContent, buttons, attachments }: Ema
           </div>
           
           <div className="border-t pt-4">
+            {attachments.length > 0 && (
+              <div className="mb-6 space-y-2">
+                {attachments.map((attachment) => (
+                  <div key={attachment.id} className="rounded overflow-hidden">
+                    {attachment.type === 'image' ? (
+                      <img 
+                        src={attachment.url} 
+                        alt={attachment.name}
+                        className="max-w-full h-auto rounded"
+                      />
+                    ) : (
+                      <video 
+                        src={attachment.url} 
+                        controls
+                        className="max-w-full rounded"
+                      >
+                        Your browser does not support the video tag.
+                      </video>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div 
               className="prose prose-sm max-w-none"
               dangerouslySetInnerHTML={{ __html: replaceVariables(bodyContent) || "<p>No content</p>" }}
@@ -84,30 +108,6 @@ export const EmailPreview = ({ subject, bodyContent, buttons, attachments }: Ema
                   >
                     {button.text || "Button"}
                   </a>
-                ))}
-              </div>
-            )}
-
-            {attachments.length > 0 && (
-              <div className="mt-6 space-y-2">
-                {attachments.map((attachment) => (
-                  <div key={attachment.id} className="border rounded p-2">
-                    {attachment.type === 'image' ? (
-                      <img 
-                        src={attachment.url} 
-                        alt={attachment.name}
-                        className="max-w-full h-auto rounded"
-                      />
-                    ) : (
-                      <video 
-                        src={attachment.url} 
-                        controls
-                        className="max-w-full rounded"
-                      >
-                        Your browser does not support the video tag.
-                      </video>
-                    )}
-                  </div>
                 ))}
               </div>
             )}
