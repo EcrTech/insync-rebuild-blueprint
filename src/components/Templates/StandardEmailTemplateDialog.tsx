@@ -3,7 +3,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,6 +10,7 @@ import { CTAButtonManager, CTAButton } from "./CTAButtonManager";
 import { AttachmentManager, Attachment } from "./AttachmentManager";
 import { VariableInserter } from "./VariableInserter";
 import { EmailPreview } from "./EmailPreview";
+import { RichTextEditor } from "./RichTextEditor";
 import { Loader2 } from "lucide-react";
 
 interface StandardEmailTemplateDialogProps {
@@ -179,16 +179,13 @@ export const StandardEmailTemplateDialog = ({
                 <Label htmlFor="body-content">Email Body</Label>
                 <VariableInserter onInsert={insertVariable} />
               </div>
-              <Textarea
-                id="body-content"
+              <RichTextEditor
                 value={bodyContent}
-                onChange={(e) => setBodyContent(e.target.value)}
-                placeholder="Hi {{first_name}},&#10;&#10;Welcome to our platform!&#10;&#10;Best regards,&#10;The Team"
-                rows={10}
-                className="font-mono text-sm"
+                onChange={setBodyContent}
+                placeholder="Hi {{first_name}}, Welcome to our platform! Best regards, The Team"
               />
               <p className="text-xs text-muted-foreground">
-                You can use HTML tags for formatting. Use variables like {`{{first_name}}`} for personalization.
+                Use the toolbar above for formatting. Use variables like {`{{first_name}}`} for personalization.
               </p>
             </div>
 

@@ -267,5 +267,44 @@
   .pulse-glow {
     animation: pulse-glow 2s ease-in-out infinite;
   }
+
+  /* Rich Text Editor Styles */
+  .rich-text-editor .quill {
+    @apply rounded-md border border-input;
+  }
+
+  .rich-text-editor .ql-toolbar {
+    @apply rounded-t-md border-b border-input bg-muted/30;
+  }
+
+  .rich-text-editor .ql-container {
+    @apply rounded-b-md bg-background;
+    min-height: 200px;
+  }
+
+  .rich-text-editor .ql-editor {
+    @apply text-sm;
+    min-height: 200px;
+  }
+
+  .rich-text-editor .ql-editor.ql-blank::before {
+    @apply text-muted-foreground italic;
+  }
+
+  .dark .rich-text-editor .ql-toolbar {
+    @apply bg-muted/50;
+  }
+
+  .dark .rich-text-editor .ql-stroke {
+    stroke: hsl(var(--foreground));
+  }
+
+  .dark .rich-text-editor .ql-fill {
+    fill: hsl(var(--foreground));
+  }
+
+  .dark .rich-text-editor .ql-picker-label {
+    @apply text-foreground;
+  }
 }
 
