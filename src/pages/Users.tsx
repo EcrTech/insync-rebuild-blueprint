@@ -203,6 +203,36 @@ export default function Users() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!effectiveOrgId) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Organization context not available",
+      });
+      return;
+    }
+
+    // Validate required fields for new user
+    if (!editingUser) {
+      if (!formData.email || !formData.email.trim()) {
+        toast({
+          variant: "destructive",
+          title: "Validation Error",
+          description: "Email is required for new users",
+        });
+        return;
+      }
+      if (!formData.password || !formData.password.trim()) {
+        toast({
+          variant: "destructive",
+          title: "Validation Error",
+          description: "Password is required for new users",
+        });
+        return;
+      }
+    }
+
     setLoading(true);
 
     try {

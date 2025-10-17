@@ -93,6 +93,23 @@ serve(async (req) => {
         sms_enabled
       } = body;
 
+      // Validate required fields
+      if (!email || !email.trim()) {
+        console.error('Validation error: Email is required');
+        return new Response(JSON.stringify({ error: 'Email is required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      if (!password || !password.trim()) {
+        console.error('Validation error: Password is required');
+        return new Response(JSON.stringify({ error: 'Password is required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
       console.log('Creating user with data:', { email, first_name, last_name, role, phone, designation_id });
 
       // Create auth user
@@ -259,7 +276,8 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Unexpected error:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
