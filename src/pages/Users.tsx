@@ -117,7 +117,6 @@ export default function Users() {
   const fetchUsers = async () => {
     if (!effectiveOrgId) return;
     
-    console.log("🔍 FETCH USERS STARTED for org:", effectiveOrgId);
     try {
       const { data, error } = await supabase
         .from("user_roles")
@@ -131,13 +130,10 @@ export default function Users() {
         .eq("is_active", true)
         .order("created_at", { ascending: false });
 
-      console.log("📊 User roles fetched:", { count: data?.length, data, error });
-
       if (error) throw error;
 
       // Fetch profiles separately
       const userIds = data?.map(ur => ur.user_id) || [];
-      console.log("👤 Fetching profiles for user IDs:", userIds);
       
       const { data: profilesData } = await supabase
         .from("profiles")
@@ -155,8 +151,6 @@ export default function Users() {
           designations(id, name)
         `)
         .in("id", userIds);
-
-      console.log("👥 Profiles fetched:", { count: profilesData?.length, profilesData });
 
       // Combine the data
       const usersWithProfiles = data?.map(ur => ({
@@ -176,17 +170,8 @@ export default function Users() {
         }
       })) || [];
 
-      console.log("✅ Combined users with profiles:", usersWithProfiles.map(u => ({ 
-        id: u.id, 
-        user_id: u.user_id, 
-        name: `${u.profiles.first_name} ${u.profiles.last_name}`, 
-        role: u.role 
-      })));
-
       setUsers(usersWithProfiles);
-      console.log("🏁 FETCH USERS COMPLETED. Total users:", usersWithProfiles.length);
     } catch (error: any) {
-      console.error("❌ Fetch users error:", error);
       toast({
         variant: "destructive",
         title: "Error loading users",
@@ -208,12 +193,8 @@ export default function Users() {
         .eq("is_active", true)
         .order("name");
 
-      if (error) {
-        console.error("❌ Failed to load designations:", error);
-        throw error;
-      }
+      if (error) throw error;
       
-      console.log("📋 Designations loaded:", data?.length || 0, "designations", data);
       setDesignations(data || []);
     } catch (error: any) {
       console.error("Failed to load designations:", error);
@@ -225,12 +206,6 @@ export default function Users() {
     setLoading(true);
 
     try {
-      console.log("📝 Form submission started. Form data:", {
-        ...formData,
-        designation_id: formData.designation_id,
-        editingUser: editingUser?.id
-      });
-
       if (editingUser) {
         // Update existing user role
         const { error: roleError } = await supabase
@@ -238,11 +213,7 @@ export default function Users() {
           .update({ role: formData.role })
           .eq("id", editingUser.id);
 
-        if (roleError) {
-          console.error("❌ Role update error:", roleError);
-          throw roleError;
-        }
-        console.log("✅ Role updated successfully");
+        if (roleError) throw roleError;
 
         // Update profile
         const profileUpdateData = {
@@ -256,20 +227,12 @@ export default function Users() {
           designation_id: formData.designation_id || null,
         };
         
-        console.log("📤 Updating profile with data:", profileUpdateData);
-        
-        const { data: updatedProfile, error: profileError } = await supabase
+        const { error: profileError } = await supabase
           .from("profiles")
           .update(profileUpdateData)
-          .eq("id", editingUser.user_id)
-          .select();
+          .eq("id", editingUser.user_id);
 
-        if (profileError) {
-          console.error("❌ Profile update error:", profileError);
-          throw profileError;
-        }
-        
-        console.log("✅ Profile updated successfully:", updatedProfile);
+        if (profileError) throw profileError;
 
         toast({
           title: "User updated",
@@ -277,8 +240,6 @@ export default function Users() {
         });
       } else {
         // Create new user
-        console.log("👤 Creating new user with designation_id:", formData.designation_id);
-        
         const { data: { user }, error: signUpError } = await supabase.auth.signUp({
           email: formData.email,
           password: formData.password,
@@ -294,8 +255,6 @@ export default function Users() {
         if (signUpError) {
           // If user already exists, check if they're soft-deleted in this org
           if (signUpError.message.includes("already registered")) {
-            // Try to find and restore the user
-            // This is a best-effort attempt - we can't easily get the user ID from email
             toast({
               variant: "destructive",
               title: "User already registered",
@@ -306,8 +265,6 @@ export default function Users() {
           throw signUpError;
         }
         if (!user) throw new Error("User creation failed");
-
-        console.log("✅ Auth user created, updating profile with designation_id:", formData.designation_id);
 
         // Update new user's profile with org_id and communication settings
         const profileUpdateData = {
@@ -320,20 +277,12 @@ export default function Users() {
           designation_id: formData.designation_id || null,
         };
         
-        console.log("📤 Updating new user profile with data:", profileUpdateData);
-        
-        const { data: updatedProfile, error: profileError } = await supabase
+        const { error: profileError } = await supabase
           .from("profiles")
           .update(profileUpdateData)
-          .eq("id", user.id)
-          .select();
+          .eq("id", user.id);
 
-        if (profileError) {
-          console.error("❌ Profile update error:", profileError);
-          throw profileError;
-        }
-        
-        console.log("✅ New user profile updated:", updatedProfile);
+        if (profileError) throw profileError;
 
         // Create user role
         const { error: roleError } = await supabase
@@ -352,9 +301,12 @@ export default function Users() {
         });
       }
 
+      // Wait for data to refresh before closing dialog
+      await fetchUsers();
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
       setIsDialogOpen(false);
       resetForm();
-      fetchUsers();
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -509,20 +461,37 @@ export default function Users() {
     setEditingUser(null);
   };
 
-  const openEditDialog = (user: UserRole) => {
+  const openEditDialog = async (user: UserRole) => {
+    // Fetch fresh profile data to ensure we have the latest values
+    const { data: freshProfile } = await supabase
+      .from("profiles")
+      .select(`
+        id, 
+        first_name, 
+        last_name, 
+        phone, 
+        calling_enabled, 
+        whatsapp_enabled, 
+        email_enabled, 
+        sms_enabled,
+        designation_id
+      `)
+      .eq("id", user.user_id)
+      .single();
+
     setEditingUser(user);
     setFormData({
       email: "",
       password: "",
-      first_name: user.profiles.first_name || "",
-      last_name: user.profiles.last_name || "",
-      phone: user.profiles.phone || "",
+      first_name: freshProfile?.first_name || user.profiles.first_name || "",
+      last_name: freshProfile?.last_name || user.profiles.last_name || "",
+      phone: freshProfile?.phone || user.profiles.phone || "",
       role: user.role as any,
-      calling_enabled: user.profiles.calling_enabled || false,
-      whatsapp_enabled: user.profiles.whatsapp_enabled || false,
-      email_enabled: user.profiles.email_enabled || false,
-      sms_enabled: user.profiles.sms_enabled || false,
-      designation_id: user.profiles.designation_id || null,
+      calling_enabled: freshProfile?.calling_enabled ?? user.profiles.calling_enabled ?? false,
+      whatsapp_enabled: freshProfile?.whatsapp_enabled ?? user.profiles.whatsapp_enabled ?? false,
+      email_enabled: freshProfile?.email_enabled ?? user.profiles.email_enabled ?? false,
+      sms_enabled: freshProfile?.sms_enabled ?? user.profiles.sms_enabled ?? false,
+      designation_id: freshProfile?.designation_id ?? user.profiles.designation_id ?? null,
     });
     setIsDialogOpen(true);
   };
@@ -722,10 +691,7 @@ export default function Users() {
                   <Label htmlFor="designation">Designation</Label>
                   <Select
                     value={formData.designation_id || undefined}
-                    onValueChange={(value) => {
-                      console.log("🎯 Designation selected:", value);
-                      setFormData({ ...formData, designation_id: value || null });
-                    }}
+                    onValueChange={(value) => setFormData({ ...formData, designation_id: value || null })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select designation (optional)" />
