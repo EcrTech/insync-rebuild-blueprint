@@ -207,93 +207,47 @@ export default function Users() {
 
     try {
       if (editingUser) {
-        // Update existing user role
-        const { error: roleError } = await supabase
-          .from("user_roles")
-          .update({ role: formData.role })
-          .eq("id", editingUser.id);
+        // Update existing user via edge function
+        const { data, error } = await supabase.functions.invoke('manage-user', {
+          body: {
+            userId: editingUser.user_id,
+            first_name: formData.first_name,
+            last_name: formData.last_name,
+            role: formData.role,
+            phone: formData.phone,
+            designation_id: formData.designation_id,
+            calling_enabled: formData.calling_enabled,
+            whatsapp_enabled: formData.whatsapp_enabled,
+            email_enabled: formData.email_enabled,
+            sms_enabled: formData.sms_enabled,
+          }
+        });
 
-        if (roleError) throw roleError;
-
-        // Update profile
-        const profileUpdateData = {
-          first_name: formData.first_name,
-          last_name: formData.last_name,
-          phone: formData.phone,
-          calling_enabled: formData.calling_enabled,
-          whatsapp_enabled: formData.whatsapp_enabled,
-          email_enabled: formData.email_enabled,
-          sms_enabled: formData.sms_enabled,
-          designation_id: formData.designation_id || null,
-        };
-        
-        const { error: profileError } = await supabase
-          .from("profiles")
-          .update(profileUpdateData)
-          .eq("id", editingUser.user_id);
-
-        if (profileError) throw profileError;
+        if (error) throw error;
 
         toast({
           title: "User updated",
           description: "User has been updated successfully",
         });
       } else {
-        // Create new user
-        const { data: { user }, error: signUpError } = await supabase.auth.signUp({
-          email: formData.email,
-          password: formData.password,
-          options: {
-            data: {
-              first_name: formData.first_name,
-              last_name: formData.last_name,
-              org_id: effectiveOrgId,
-            },
-          },
+        // Create new user via edge function
+        const { data, error } = await supabase.functions.invoke('manage-user', {
+          body: {
+            email: formData.email,
+            password: formData.password,
+            first_name: formData.first_name,
+            last_name: formData.last_name,
+            role: formData.role,
+            phone: formData.phone,
+            designation_id: formData.designation_id,
+            calling_enabled: formData.calling_enabled,
+            whatsapp_enabled: formData.whatsapp_enabled,
+            email_enabled: formData.email_enabled,
+            sms_enabled: formData.sms_enabled,
+          }
         });
 
-        if (signUpError) {
-          // If user already exists, check if they're soft-deleted in this org
-          if (signUpError.message.includes("already registered")) {
-            toast({
-              variant: "destructive",
-              title: "User already registered",
-              description: "This email is already in use. If the user was previously deleted, please contact support.",
-            });
-            throw signUpError;
-          }
-          throw signUpError;
-        }
-        if (!user) throw new Error("User creation failed");
-
-        // Update new user's profile with org_id and communication settings
-        const profileUpdateData = {
-          org_id: effectiveOrgId,
-          phone: formData.phone,
-          calling_enabled: formData.calling_enabled,
-          whatsapp_enabled: formData.whatsapp_enabled,
-          email_enabled: formData.email_enabled,
-          sms_enabled: formData.sms_enabled,
-          designation_id: formData.designation_id || null,
-        };
-        
-        const { error: profileError } = await supabase
-          .from("profiles")
-          .update(profileUpdateData)
-          .eq("id", user.id);
-
-        if (profileError) throw profileError;
-
-        // Create user role
-        const { error: roleError } = await supabase
-          .from("user_roles")
-          .insert({
-            user_id: user.id,
-            org_id: effectiveOrgId,
-            role: formData.role,
-          });
-
-        if (roleError) throw roleError;
+        if (error) throw error;
 
         toast({
           title: "User created",

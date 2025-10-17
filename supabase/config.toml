@@ -1,5 +1,8 @@
 project_id = "aizgpxaqvtvvqarzjmze"
 
+[functions.manage-user]
+verify_jwt = true
+
 [functions.submit-public-form]
 verify_jwt = false
 
