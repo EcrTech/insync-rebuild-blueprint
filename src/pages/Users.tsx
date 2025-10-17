@@ -208,7 +208,12 @@ export default function Users() {
         .eq("is_active", true)
         .order("name");
 
-      if (error) throw error;
+      if (error) {
+        console.error("❌ Failed to load designations:", error);
+        throw error;
+      }
+      
+      console.log("📋 Designations loaded:", data?.length || 0, "designations", data);
       setDesignations(data || []);
     } catch (error: any) {
       console.error("Failed to load designations:", error);
@@ -220,6 +225,12 @@ export default function Users() {
     setLoading(true);
 
     try {
+      console.log("📝 Form submission started. Form data:", {
+        ...formData,
+        designation_id: formData.designation_id,
+        editingUser: editingUser?.id
+      });
+
       if (editingUser) {
         // Update existing user role
         const { error: roleError } = await supabase
@@ -227,24 +238,38 @@ export default function Users() {
           .update({ role: formData.role })
           .eq("id", editingUser.id);
 
-        if (roleError) throw roleError;
+        if (roleError) {
+          console.error("❌ Role update error:", roleError);
+          throw roleError;
+        }
+        console.log("✅ Role updated successfully");
 
         // Update profile
-        const { error: profileError } = await supabase
+        const profileUpdateData = {
+          first_name: formData.first_name,
+          last_name: formData.last_name,
+          phone: formData.phone,
+          calling_enabled: formData.calling_enabled,
+          whatsapp_enabled: formData.whatsapp_enabled,
+          email_enabled: formData.email_enabled,
+          sms_enabled: formData.sms_enabled,
+          designation_id: formData.designation_id || null,
+        };
+        
+        console.log("📤 Updating profile with data:", profileUpdateData);
+        
+        const { data: updatedProfile, error: profileError } = await supabase
           .from("profiles")
-          .update({
-            first_name: formData.first_name,
-            last_name: formData.last_name,
-            phone: formData.phone,
-            calling_enabled: formData.calling_enabled,
-            whatsapp_enabled: formData.whatsapp_enabled,
-            email_enabled: formData.email_enabled,
-            sms_enabled: formData.sms_enabled,
-            designation_id: formData.designation_id || null,
-          })
-          .eq("id", editingUser.user_id);
+          .update(profileUpdateData)
+          .eq("id", editingUser.user_id)
+          .select();
 
-        if (profileError) throw profileError;
+        if (profileError) {
+          console.error("❌ Profile update error:", profileError);
+          throw profileError;
+        }
+        
+        console.log("✅ Profile updated successfully:", updatedProfile);
 
         toast({
           title: "User updated",
@@ -252,6 +277,8 @@ export default function Users() {
         });
       } else {
         // Create new user
+        console.log("👤 Creating new user with designation_id:", formData.designation_id);
+        
         const { data: { user }, error: signUpError } = await supabase.auth.signUp({
           email: formData.email,
           password: formData.password,
@@ -280,21 +307,33 @@ export default function Users() {
         }
         if (!user) throw new Error("User creation failed");
 
-        // Update new user's profile with org_id and communication settings
-        const { error: profileError } = await supabase
-          .from("profiles")
-          .update({
-            org_id: effectiveOrgId,
-            phone: formData.phone,
-            calling_enabled: formData.calling_enabled,
-            whatsapp_enabled: formData.whatsapp_enabled,
-            email_enabled: formData.email_enabled,
-            sms_enabled: formData.sms_enabled,
-            designation_id: formData.designation_id || null,
-          })
-          .eq("id", user.id);
+        console.log("✅ Auth user created, updating profile with designation_id:", formData.designation_id);
 
-        if (profileError) throw profileError;
+        // Update new user's profile with org_id and communication settings
+        const profileUpdateData = {
+          org_id: effectiveOrgId,
+          phone: formData.phone,
+          calling_enabled: formData.calling_enabled,
+          whatsapp_enabled: formData.whatsapp_enabled,
+          email_enabled: formData.email_enabled,
+          sms_enabled: formData.sms_enabled,
+          designation_id: formData.designation_id || null,
+        };
+        
+        console.log("📤 Updating new user profile with data:", profileUpdateData);
+        
+        const { data: updatedProfile, error: profileError } = await supabase
+          .from("profiles")
+          .update(profileUpdateData)
+          .eq("id", user.id)
+          .select();
+
+        if (profileError) {
+          console.error("❌ Profile update error:", profileError);
+          throw profileError;
+        }
+        
+        console.log("✅ New user profile updated:", updatedProfile);
 
         // Create user role
         const { error: roleError } = await supabase
@@ -683,19 +722,26 @@ export default function Users() {
                   <Label htmlFor="designation">Designation</Label>
                   <Select
                     value={formData.designation_id || undefined}
-                    onValueChange={(value) =>
-                      setFormData({ ...formData, designation_id: value || null })
-                    }
+                    onValueChange={(value) => {
+                      console.log("🎯 Designation selected:", value);
+                      setFormData({ ...formData, designation_id: value || null });
+                    }}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select designation (optional)" />
                     </SelectTrigger>
                     <SelectContent>
-                      {designations.map((designation) => (
-                        <SelectItem key={designation.id} value={designation.id}>
-                          {designation.name}
-                        </SelectItem>
-                      ))}
+                      {designations.length === 0 ? (
+                        <div className="p-2 text-sm text-muted-foreground">
+                          No designations available. Create one in Designations page.
+                        </div>
+                      ) : (
+                        designations.map((designation) => (
+                          <SelectItem key={designation.id} value={designation.id}>
+                            {designation.name}
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
