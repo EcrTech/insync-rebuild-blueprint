@@ -682,16 +682,15 @@ export default function Users() {
                 <div className="space-y-2">
                   <Label htmlFor="designation">Designation</Label>
                   <Select
-                    value={formData.designation_id || ""}
+                    value={formData.designation_id || undefined}
                     onValueChange={(value) =>
                       setFormData({ ...formData, designation_id: value || null })
                     }
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select designation" />
+                      <SelectValue placeholder="Select designation (optional)" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">None</SelectItem>
                       {designations.map((designation) => (
                         <SelectItem key={designation.id} value={designation.id}>
                           {designation.name}
