@@ -197,7 +197,9 @@ serve(async (req) => {
         sms_enabled
       } = body;
 
+      // Validate required fields for update
       if (!userId) {
+        console.error('Validation error: userId is required');
         return new Response(JSON.stringify({ error: 'userId is required' }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
