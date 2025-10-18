@@ -18,7 +18,7 @@ export const RichTextEditor = ({ value, onChange, placeholder }: RichTextEditorP
       [{ 'color': [] }, { 'background': [] }],
       [{ 'list': 'ordered'}, { 'list': 'bullet' }],
       [{ 'align': [] }],
-      ['link'],
+      ['link', 'image'],
       ['clean']
     ],
   };
@@ -29,7 +29,8 @@ export const RichTextEditor = ({ value, onChange, placeholder }: RichTextEditorP
     'color', 'background',
     'list', 'bullet',
     'align',
-    'link'
+    'link',
+    'image'
   ];
 
   return (
