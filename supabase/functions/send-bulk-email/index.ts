@@ -173,6 +173,19 @@ serve(async (req) => {
     // Send emails
     for (const recipient of recipients || []) {
       try {
+        // Add attachments first if present
+        let attachmentsHtml = '';
+        if (campaign.attachments && campaign.attachments.length > 0) {
+          attachmentsHtml = campaign.attachments.map((att: any) => {
+            if (att.type === 'image') {
+              return `<div style="margin: 20px 0;"><img src="${att.url}" alt="${att.name}" style="max-width: 100%; height: auto; display: block; border-radius: 8px;" /></div>`;
+            } else if (att.type === 'video') {
+              return `<div style="margin: 20px 0;"><video controls style="max-width: 100%; display: block; border-radius: 8px;"><source src="${att.url}" type="video/mp4" /></video></div>`;
+            }
+            return '';
+          }).join('');
+        }
+
         // Use body_content if available (new templates), otherwise fall back to html_content (old templates)
         const templateContent = campaign.body_content || campaign.html_content;
         let personalizedHtml = replaceVariables(
@@ -208,18 +221,8 @@ serve(async (req) => {
           personalizedHtml += buttonsHtml;
         }
 
-        // Add attachments if present
-        if (campaign.attachments && campaign.attachments.length > 0) {
-          const attachmentsHtml = campaign.attachments.map((att: any) => {
-            if (att.type === 'image') {
-              return `<img src="${att.url}" alt="${att.name}" style="max-width: 100%; height: auto; margin: 10px 0;" />`;
-            } else if (att.type === 'video') {
-              return `<video controls style="max-width: 100%; margin: 10px 0;"><source src="${att.url}" type="video/mp4" /></video>`;
-            }
-            return '';
-          }).join('');
-          personalizedHtml += attachmentsHtml;
-        }
+        // Prepend attachments before content
+        personalizedHtml = attachmentsHtml + personalizedHtml;
 
         // Wrap in email template
         personalizedHtml = `
