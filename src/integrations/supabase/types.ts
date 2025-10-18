@@ -14,6 +14,74 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_participants: {
+        Row: {
+          activity_id: string
+          contact_id: string | null
+          created_at: string | null
+          email: string
+          id: string
+          name: string
+          org_id: string
+          response_status: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          activity_id: string
+          contact_id?: string | null
+          created_at?: string | null
+          email: string
+          id?: string
+          name: string
+          org_id: string
+          response_status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          activity_id?: string
+          contact_id?: string | null
+          created_at?: string | null
+          email?: string
+          id?: string
+          name?: string
+          org_id?: string
+          response_status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_participants_activity_id_fkey"
+            columns: ["activity_id"]
+            isOneToOne: false
+            referencedRelation: "contact_activities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activity_participants_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activity_participants_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activity_participants_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agent_call_sessions: {
         Row: {
           agent_id: string
@@ -767,9 +835,14 @@ export type Database = {
           created_by: string | null
           description: string | null
           duration_minutes: number | null
+          google_calendar_event_id: string | null
           id: string
           location_accuracy: number | null
+          meeting_duration_minutes: number | null
+          meeting_link: string | null
+          meeting_platform: string | null
           org_id: string
+          reminder_sent: boolean | null
           scheduled_at: string | null
           subject: string | null
           updated_at: string | null
@@ -789,9 +862,14 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           duration_minutes?: number | null
+          google_calendar_event_id?: string | null
           id?: string
           location_accuracy?: number | null
+          meeting_duration_minutes?: number | null
+          meeting_link?: string | null
+          meeting_platform?: string | null
           org_id: string
+          reminder_sent?: boolean | null
           scheduled_at?: string | null
           subject?: string | null
           updated_at?: string | null
@@ -811,9 +889,14 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           duration_minutes?: number | null
+          google_calendar_event_id?: string | null
           id?: string
           location_accuracy?: number | null
+          meeting_duration_minutes?: number | null
+          meeting_link?: string | null
+          meeting_platform?: string | null
           org_id?: string
+          reminder_sent?: boolean | null
           scheduled_at?: string | null
           subject?: string | null
           updated_at?: string | null
@@ -1816,6 +1899,47 @@ export type Database = {
           webhook_token?: string | null
         }
         Relationships: []
+      }
+      google_oauth_tokens: {
+        Row: {
+          access_token: string | null
+          calendar_id: string | null
+          created_at: string | null
+          id: string
+          org_id: string
+          refresh_token: string
+          token_expires_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          access_token?: string | null
+          calendar_id?: string | null
+          created_at?: string | null
+          id?: string
+          org_id: string
+          refresh_token: string
+          token_expires_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          access_token?: string | null
+          calendar_id?: string | null
+          created_at?: string | null
+          id?: string
+          org_id?: string
+          refresh_token?: string
+          token_expires_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "google_oauth_tokens_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       import_jobs: {
         Row: {
