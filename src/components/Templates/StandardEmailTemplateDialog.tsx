@@ -3,11 +3,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { CTAButtonManager, CTAButton } from "./CTAButtonManager";
-import { AttachmentManager, Attachment } from "./AttachmentManager";
 import { VariableInserter } from "./VariableInserter";
 import { EmailPreview } from "./EmailPreview";
 import { RichTextEditor } from "./RichTextEditor";
@@ -30,7 +28,6 @@ export const StandardEmailTemplateDialog = ({
   const [subject, setSubject] = useState("");
   const [bodyContent, setBodyContent] = useState("");
   const [buttons, setButtons] = useState<CTAButton[]>([]);
-  const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [loading, setLoading] = useState(false);
   const [orgId, setOrgId] = useState("");
   const { toast } = useToast();
@@ -56,13 +53,11 @@ export const StandardEmailTemplateDialog = ({
       setSubject(template.subject || "");
       setBodyContent(template.body_content || template.html_content || "");
       setButtons(template.buttons || []);
-      setAttachments(template.attachments || []);
     } else {
       setTemplateName("");
       setSubject("");
       setBodyContent("");
       setButtons([]);
-      setAttachments([]);
     }
   }, [template, open]);
 
@@ -87,7 +82,6 @@ export const StandardEmailTemplateDialog = ({
         subject: subject.trim(),
         body_content: bodyContent,
         buttons: JSON.parse(JSON.stringify(buttons)),
-        attachments: JSON.parse(JSON.stringify(attachments)),
         org_id: orgId,
         created_by: user.id,
         is_active: true,
@@ -189,22 +183,10 @@ export const StandardEmailTemplateDialog = ({
               </p>
             </div>
 
-            <Tabs defaultValue="buttons" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="buttons">CTA Buttons</TabsTrigger>
-                <TabsTrigger value="attachments">Attachments</TabsTrigger>
-              </TabsList>
-              <TabsContent value="buttons" className="mt-4">
-                <CTAButtonManager buttons={buttons} onChange={setButtons} />
-              </TabsContent>
-              <TabsContent value="attachments" className="mt-4">
-                <AttachmentManager 
-                  attachments={attachments} 
-                  onChange={setAttachments}
-                  orgId={orgId}
-                />
-              </TabsContent>
-            </Tabs>
+            <div className="space-y-2">
+              <Label>CTA Buttons</Label>
+              <CTAButtonManager buttons={buttons} onChange={setButtons} />
+            </div>
           </div>
 
           <div className="lg:sticky lg:top-6 lg:self-start">
@@ -212,7 +194,7 @@ export const StandardEmailTemplateDialog = ({
               subject={subject}
               bodyContent={bodyContent}
               buttons={buttons}
-              attachments={attachments}
+              attachments={[]}
             />
           </div>
         </div>
