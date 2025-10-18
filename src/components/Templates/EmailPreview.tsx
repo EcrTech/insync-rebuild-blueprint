@@ -40,15 +40,24 @@ export const EmailPreview = ({ subject, bodyContent, buttons, attachments }: Ema
     return result;
   };
 
-  const getButtonStyle = (style: CTAButton['style']) => {
-    const baseStyle = "display: inline-block; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 500; text-align: center; margin: 10px 5px;";
+  const getButtonStyle = (style: CTAButton['style']): React.CSSProperties => {
+    const baseStyle: React.CSSProperties = {
+      display: 'inline-block',
+      padding: '12px 24px',
+      borderRadius: '6px',
+      textDecoration: 'none',
+      fontWeight: '500',
+      textAlign: 'center',
+      margin: '10px 5px',
+    };
+
     switch (style) {
       case 'primary':
-        return baseStyle + " background: #2563eb; color: white;";
+        return { ...baseStyle, background: '#2563eb', color: 'white' };
       case 'secondary':
-        return baseStyle + " background: #6b7280; color: white;";
+        return { ...baseStyle, background: '#6b7280', color: 'white' };
       case 'outline':
-        return baseStyle + " background: transparent; color: #2563eb; border: 2px solid #2563eb;";
+        return { ...baseStyle, background: 'transparent', color: '#2563eb', border: '2px solid #2563eb' };
       default:
         return baseStyle;
     }
@@ -102,7 +111,7 @@ export const EmailPreview = ({ subject, bodyContent, buttons, attachments }: Ema
                   <a
                     key={button.id}
                     href={replaceVariables(button.url) || "#"}
-                    style={getButtonStyle(button.style) as any}
+                    style={getButtonStyle(button.style)}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
