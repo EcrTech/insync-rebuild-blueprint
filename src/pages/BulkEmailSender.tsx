@@ -69,6 +69,11 @@ const BulkEmailSender = () => {
   }, [effectiveOrgId]);
 
   const fetchTemplates = async () => {
+    if (!effectiveOrgId || effectiveOrgId === "null") {
+      console.log("No valid org_id available");
+      return;
+    }
+    
     try {
       const { data, error } = await supabase
         .from("email_templates")
@@ -90,6 +95,11 @@ const BulkEmailSender = () => {
   };
 
   const fetchContacts = async () => {
+    if (!effectiveOrgId || effectiveOrgId === "null") {
+      console.log("No valid org_id available");
+      return;
+    }
+    
     try {
       const { data, error } = await supabase
         .from("contacts")
