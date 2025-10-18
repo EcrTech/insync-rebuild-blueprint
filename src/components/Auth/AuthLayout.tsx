@@ -29,7 +29,7 @@ export function AuthLayout({ children, title, subtitle }: AuthLayoutProps) {
       <div className="w-full lg:w-1/2 flex items-center justify-center bg-background px-4 py-8">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
-            <img src={logo} alt="In-Sync Logo" className="w-[140px] h-[140px] mx-auto mb-6 object-contain" />
+            <img src={logo} alt="In-Sync Logo" className="w-[168px] h-[168px] mx-auto mb-6 object-contain drop-shadow-[0_10px_25px_rgba(0,0,0,0.3)] hover:drop-shadow-[0_15px_35px_rgba(0,0,0,0.4)] transition-all duration-300 hover:scale-105" style={{ filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.15))' }} />
             <h2 className="text-2xl font-bold text-foreground mb-2">{title}</h2>
             {subtitle && <p className="text-muted-foreground">{subtitle}</p>}
           </div>
