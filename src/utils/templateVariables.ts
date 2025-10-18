@@ -4,6 +4,7 @@ export interface TemplateVariable {
   variable: string; // "{{1}}" or "{{first_name}}"
   label?: string;
   isRequired: boolean;
+  source?: 'subject' | 'body'; // Where this variable appears
 }
 
 export interface CRMField {
@@ -14,44 +15,61 @@ export interface CRMField {
 
 export function detectTemplateVariables(
   templateContent: string,
+  subject?: string,
   headerContent?: string,
   footerText?: string
 ): TemplateVariable[] {
-  const fullContent = [templateContent, headerContent, footerText]
+  const variables: TemplateVariable[] = [];
+  const seen = new Map<string, 'subject' | 'body'>();
+
+  // Helper to detect variables in content
+  const detectInContent = (content: string, source: 'subject' | 'body') => {
+    // Match {{1}}, {{2}}, etc. (WhatsApp style)
+    const numberedMatches = content.match(/\{\{\d+\}\}/g) || [];
+    numberedMatches.forEach(match => {
+      if (!seen.has(match)) {
+        seen.set(match, source);
+        variables.push({
+          variable: match,
+          label: `Variable ${match.replace(/[{}]/g, '')}`,
+          isRequired: true,
+          source
+        });
+      }
+    });
+
+    // Match {{word}} (Email style)
+    const namedMatches = content.match(/\{\{[a-z_][a-z0-9_]*\}\}/gi) || [];
+    namedMatches.forEach(match => {
+      if (!seen.has(match)) {
+        seen.set(match, source);
+        const fieldName = match.replace(/[{}]/g, '');
+        variables.push({
+          variable: match,
+          label: fieldName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+          isRequired: true,
+          source
+        });
+      }
+    });
+  };
+
+  // Detect subject variables first
+  if (subject) {
+    detectInContent(subject, 'subject');
+  }
+
+  // Then detect body variables
+  const bodyContent = [templateContent, headerContent, footerText]
     .filter(Boolean)
     .join(' ');
-
-  const variables: TemplateVariable[] = [];
-  const seen = new Set<string>();
-
-  // Match {{1}}, {{2}}, etc. (WhatsApp style)
-  const numberedMatches = fullContent.match(/\{\{\d+\}\}/g) || [];
-  numberedMatches.forEach(match => {
-    if (!seen.has(match)) {
-      seen.add(match);
-      variables.push({
-        variable: match,
-        label: `Variable ${match.replace(/[{}]/g, '')}`,
-        isRequired: true
-      });
-    }
-  });
-
-  // Match {{word}} (Email style)
-  const namedMatches = fullContent.match(/\{\{[a-z_][a-z0-9_]*\}\}/gi) || [];
-  namedMatches.forEach(match => {
-    if (!seen.has(match)) {
-      seen.add(match);
-      const fieldName = match.replace(/[{}]/g, '');
-      variables.push({
-        variable: match,
-        label: fieldName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-        isRequired: true
-      });
-    }
-  });
+  detectInContent(bodyContent, 'body');
 
   return variables.sort((a, b) => {
+    // Sort by source first (subject, then body), then by variable
+    if (a.source !== b.source) {
+      return a.source === 'subject' ? -1 : 1;
+    }
     const aNum = a.variable.match(/\d+/);
     const bNum = b.variable.match(/\d+/);
     if (aNum && bNum) return parseInt(aNum[0]) - parseInt(bNum[0]);

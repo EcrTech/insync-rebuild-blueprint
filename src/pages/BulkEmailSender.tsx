@@ -119,7 +119,7 @@ const BulkEmailSender = () => {
       const content = (template as any).body_content || template.html_content;
       setHtmlContent(content);
       
-      // Detect variables in template
+      // Detect variables in template (subject and body separately)
       const vars = detectTemplateVariables(
         content,
         template.subject

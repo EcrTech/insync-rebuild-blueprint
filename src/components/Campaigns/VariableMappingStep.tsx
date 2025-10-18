@@ -161,16 +161,23 @@ export function VariableMappingStep({
       )}
 
       {templateVariables.length > 0 && (
-        <div className="space-y-4">
-          {templateVariables.map((tv) => (
-            <Card key={tv.variable} className="p-4">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label className="text-base font-semibold">{tv.variable}</Label>
-                    {tv.label && <p className="text-sm text-muted-foreground">{tv.label}</p>}
-                  </div>
-                </div>
+        <div className="space-y-6">
+          {/* Subject Variables Section */}
+          {templateVariables.some(tv => tv.source === 'subject') && (
+            <div className="space-y-4">
+              <div className="border-l-4 border-primary pl-4">
+                <h3 className="font-semibold text-lg">Subject Line Variables</h3>
+                <p className="text-sm text-muted-foreground">These variables appear in the email subject</p>
+              </div>
+              {templateVariables.filter(tv => tv.source === 'subject').map((tv) => (
+                <Card key={tv.variable} className="p-4">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label className="text-base font-semibold">{tv.variable}</Label>
+                        {tv.label && <p className="text-sm text-muted-foreground">{tv.label}</p>}
+                      </div>
+                    </div>
 
                 <RadioGroup
                   value={mappings[tv.variable]?.source || 'crm'}
@@ -266,6 +273,122 @@ export function VariableMappingStep({
               </div>
             </Card>
           ))}
+            </div>
+          )}
+
+          {/* Body Variables Section */}
+          {templateVariables.some(tv => tv.source === 'body') && (
+            <div className="space-y-4">
+              <div className="border-l-4 border-secondary pl-4">
+                <h3 className="font-semibold text-lg">Email Body Variables</h3>
+                <p className="text-sm text-muted-foreground">These variables appear in the email body</p>
+              </div>
+              {templateVariables.filter(tv => tv.source === 'body').map((tv) => (
+                <Card key={tv.variable} className="p-4">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label className="text-base font-semibold">{tv.variable}</Label>
+                        {tv.label && <p className="text-sm text-muted-foreground">{tv.label}</p>}
+                      </div>
+                    </div>
+
+                <RadioGroup
+                  value={mappings[tv.variable]?.source || 'crm'}
+                  onValueChange={(value) => updateMapping(tv.variable, { source: value as any })}
+                  className="space-y-3"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="crm" id={`${tv.variable}-crm`} />
+                    <Label htmlFor={`${tv.variable}-crm`} className="flex-1 flex items-center gap-2">
+                      <span>CRM Field</span>
+                      {mappings[tv.variable]?.source === 'crm' && (
+                        <Select
+                          value={mappings[tv.variable]?.field || ''}
+                          onValueChange={(value) => updateMapping(tv.variable, { field: value })}
+                        >
+                          <SelectTrigger className="w-[200px]">
+                            <SelectValue placeholder="Select field" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Standard Fields</div>
+                            {crmFields.standardFields.map(field => (
+                              <SelectItem key={field.key} value={field.key}>
+                                {field.label}
+                              </SelectItem>
+                            ))}
+                            {crmFields.customFields.length > 0 && (
+                              <>
+                                <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Custom Fields</div>
+                                {crmFields.customFields.map(field => (
+                                  <SelectItem key={field.key} value={field.key}>
+                                    {field.label}
+                                  </SelectItem>
+                                ))}
+                              </>
+                            )}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </Label>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="csv" id={`${tv.variable}-csv`} />
+                    <Label htmlFor={`${tv.variable}-csv`} className="flex-1 flex items-center gap-2">
+                      <span>CSV Column</span>
+                      {mappings[tv.variable]?.source === 'csv' && (
+                        <Select
+                          value={mappings[tv.variable]?.field || ''}
+                          onValueChange={(value) => updateMapping(tv.variable, { field: value })}
+                          disabled={!csvData}
+                        >
+                          <SelectTrigger className="w-[200px]">
+                            <SelectValue placeholder={csvData ? "Select column" : "Upload CSV first"} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {csvColumns.map(col => (
+                              <SelectItem key={col} value={col}>
+                                {col}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </Label>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="static" id={`${tv.variable}-static`} />
+                    <Label htmlFor={`${tv.variable}-static`} className="flex-1 flex items-center gap-2">
+                      <span>Static Value</span>
+                      {mappings[tv.variable]?.source === 'static' && (
+                        <Input
+                          placeholder="Enter value"
+                          value={mappings[tv.variable]?.value || ''}
+                          onChange={(e) => updateMapping(tv.variable, { value: e.target.value })}
+                          className="w-[200px]"
+                        />
+                      )}
+                    </Label>
+                  </div>
+                </RadioGroup>
+
+                {mappings[tv.variable] && (
+                  <div className="mt-2 p-2 bg-muted rounded text-sm">
+                    <span className="text-muted-foreground">Preview: </span>
+                    <span className="font-medium">
+                      {mappings[tv.variable].source === 'static' 
+                        ? mappings[tv.variable].value || '(empty)'
+                        : mappings[tv.variable].field || '(not selected)'}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </Card>
+          ))}
+            </div>
+          )}
         </div>
       )}
 
