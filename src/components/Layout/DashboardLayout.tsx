@@ -203,45 +203,42 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
             <nav className="flex-1 p-4 space-y-2">
               {/* Quick Access - Dynamic based on user usage */}
               {topModules.length > 0 && (
-                <div className="pb-3 mb-3 border-b border-border/40">
-                  <div className="flex items-center gap-2 px-4 mb-3">
-                    <Star size={16} className="text-primary fill-primary" />
-                    <p className="text-xs font-semibold uppercase tracking-wider text-primary">
+                <>
+                  <div className="pb-2 section-accent-teal pl-4">
+                    <p className="px-4 text-xs font-semibold uppercase tracking-wider gradient-text-primary">
                       Quick Access
                     </p>
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-2 px-2">
-                    {topModules.map((module) => {
-                      const IconComponent = {
-                        LayoutDashboard,
-                        Contact,
-                        GitBranch,
-                        FileText,
-                        Mail,
-                        MessageCircle,
-                        MessageSquare,
-                        BarChart3,
-                        Users,
-                        Package,
-                        Phone,
-                        Key,
-                      }[module.module_icon] || FileText;
+                  {topModules.map((module) => {
+                    const IconComponent = {
+                      LayoutDashboard,
+                      Contact,
+                      GitBranch,
+                      FileText,
+                      Mail,
+                      MessageCircle,
+                      MessageSquare,
+                      BarChart3,
+                      Users,
+                      Package,
+                      Phone,
+                      Key,
+                    }[module.module_icon] || FileText;
 
-                      return (
-                        <Link
-                          key={module.module_key}
-                          to={module.module_path}
-                          onClick={() => setSidebarOpen(false)}
-                          className="flex flex-col items-center gap-1.5 p-3 rounded-lg hover:bg-primary/10 transition-all group"
-                        >
-                          <IconComponent size={22} className="text-primary group-hover:scale-110 transition-transform" />
-                          <span className="text-xs font-medium text-center">{module.module_name}</span>
-                        </Link>
-                      );
-                    })}
-                  </div>
-                </div>
+                    return (
+                      <Link
+                        key={module.module_key}
+                        to={module.module_path}
+                        onClick={() => setSidebarOpen(false)}
+                        className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
+                      >
+                        <IconComponent size={20} />
+                        <span>{module.module_name}</span>
+                      </Link>
+                    );
+                  })}
+                </>
               )}
 
               {/* Dashboards & Reports Section */}
