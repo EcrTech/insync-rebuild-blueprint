@@ -29,15 +29,24 @@ export function AuthLayout({ children, title, subtitle }: AuthLayoutProps) {
       <div className="w-full lg:w-1/2 flex items-center justify-center bg-background px-4 py-8">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
-            <img 
-              src={logo} 
-              alt="In-Sync Logo" 
-              className="w-[168px] h-[168px] mx-auto mb-6 object-contain transition-all duration-300 hover:scale-110" 
-              style={{ 
-                filter: 'drop-shadow(0 8px 16px rgba(0,0,0,0.25)) drop-shadow(0 16px 32px rgba(0,0,0,0.15)) drop-shadow(0 2px 4px rgba(0,0,0,0.3))',
-                transform: 'perspective(1000px) rotateX(5deg)',
-              }} 
-            />
+            <div className="relative inline-block mx-auto mb-6">
+              <img 
+                src={logo} 
+                alt="In-Sync Logo" 
+                className="w-[168px] h-[168px] object-contain transition-all duration-500 hover:scale-110 relative z-10" 
+                style={{ 
+                  filter: 'drop-shadow(0 25px 50px rgba(0,0,0,0.4)) drop-shadow(0 15px 30px rgba(0,0,0,0.3)) drop-shadow(0 8px 16px rgba(0,0,0,0.25)) brightness(1.1) contrast(1.15)',
+                  transform: 'perspective(1200px) rotateX(8deg) translateZ(40px)',
+                }} 
+              />
+              <div 
+                className="absolute inset-0 -z-10 blur-2xl opacity-50"
+                style={{
+                  background: 'radial-gradient(circle, rgba(1,184,170,0.4) 0%, transparent 70%)',
+                  transform: 'scale(1.2) translateY(20px)',
+                }}
+              />
+            </div>
             <h2 className="text-2xl font-bold text-foreground mb-2">{title}</h2>
             {subtitle && <p className="text-muted-foreground">{subtitle}</p>}
           </div>
