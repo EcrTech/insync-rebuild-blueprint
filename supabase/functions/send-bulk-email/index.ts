@@ -235,9 +235,18 @@ serve(async (req) => {
           </html>
         `;
 
+        // Replace variables in subject line
+        const personalizedSubject = replaceVariables(
+          campaign.subject,
+          recipient.contacts,
+          recipient.email,
+          recipient.custom_data || {},
+          campaign.variable_mappings
+        );
+
         const emailResult = await sendEmail(
           recipient.email,
-          campaign.subject,
+          personalizedSubject,
           personalizedHtml,
           fromEmail,
           fromName
@@ -251,7 +260,7 @@ serve(async (req) => {
           from_email: fromEmail,
           from_name: fromName,
           to_email: recipient.email,
-          subject: campaign.subject,
+          subject: personalizedSubject,
           email_content: personalizedHtml,
           html_content: personalizedHtml,
           direction: "outbound",

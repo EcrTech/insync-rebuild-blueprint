@@ -201,6 +201,13 @@ const BulkEmailSender = () => {
         ? csvData.rows 
         : contacts.filter(c => selectedContacts.has(c.id));
 
+      // Get template details for buttons and attachments
+      const { data: templateData } = await supabase
+        .from("email_templates")
+        .select("body_content, buttons, attachments")
+        .eq("id", selectedTemplateId)
+        .single();
+
       // Create campaign
       const { data: campaign, error: campaignError } = await supabase
         .from("email_bulk_campaigns")
@@ -209,6 +216,9 @@ const BulkEmailSender = () => {
           template_id: selectedTemplateId,
           subject: subject,
           html_content: htmlContent,
+          body_content: templateData?.body_content || htmlContent,
+          buttons: templateData?.buttons || [],
+          attachments: templateData?.attachments || [],
           total_recipients: finalRecipients.length,
           pending_count: finalRecipients.length,
           status: sendImmediately ? "sending" : "scheduled",

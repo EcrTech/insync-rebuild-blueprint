@@ -1239,6 +1239,9 @@ export type Database = {
       }
       email_bulk_campaigns: {
         Row: {
+          attachments: Json | null
+          body_content: string | null
+          buttons: Json | null
           completed_at: string | null
           created_at: string
           created_by: string | null
@@ -1259,6 +1262,9 @@ export type Database = {
           variable_mappings: Json | null
         }
         Insert: {
+          attachments?: Json | null
+          body_content?: string | null
+          buttons?: Json | null
           completed_at?: string | null
           created_at?: string
           created_by?: string | null
@@ -1279,6 +1285,9 @@ export type Database = {
           variable_mappings?: Json | null
         }
         Update: {
+          attachments?: Json | null
+          body_content?: string | null
+          buttons?: Json | null
           completed_at?: string | null
           created_at?: string
           created_by?: string | null
