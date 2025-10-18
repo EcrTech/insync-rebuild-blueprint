@@ -11,7 +11,6 @@ import {
   ArrowLeft, Mail, Phone as PhoneIcon, Building, MapPin, Calendar,
   Edit, Plus, MessageSquare, PhoneCall, Video, FileText, Linkedin, MessageCircle
 } from "lucide-react";
-import { ActivityTimeline } from "@/components/Contact/ActivityTimeline";
 import { CustomerJourney } from "@/components/Contact/CustomerJourney";
 import { LogActivityDialog } from "@/components/Contact/LogActivityDialog";
 import { EditContactDialog } from "@/components/Contact/EditContactDialog";

@@ -189,6 +189,147 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Find activities needing 30-minute reminders
+    const { data: activities, error: activitiesError } = await supabaseClient
+      .from('contact_activities')
+      .select(`
+        *,
+        activity_participants (email, name),
+        profiles:created_by (first_name, last_name),
+        contacts!contact_activities_contact_id_fkey (email, first_name, last_name)
+      `)
+      .in('activity_type', ['meeting', 'call', 'task'])
+      .eq('reminder_sent', false)
+      .not('scheduled_at', 'is', null)
+      .gte('scheduled_at', new Date(Date.now() + 25 * 60 * 1000).toISOString())
+      .lte('scheduled_at', new Date(Date.now() + 35 * 60 * 1000).toISOString());
+
+    if (activitiesError) {
+      console.error('Error fetching activities for reminders:', activitiesError);
+    } else if (activities && activities.length > 0) {
+      console.log(`Found ${activities.length} activities needing reminders`);
+      
+      const { data: pricing } = await supabaseClient
+        .from('subscription_pricing')
+        .select('email_cost_per_unit')
+        .eq('is_active', true)
+        .single();
+
+      const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
+      
+      for (const activity of activities) {
+        try {
+          // Determine recipients
+          let recipients: Array<{ email: string; name: string }> = [];
+          
+          if (activity.activity_type === 'meeting' && activity.activity_participants?.length > 0) {
+            recipients = activity.activity_participants;
+          } else if (activity.contacts?.email) {
+            // For calls/tasks, notify the contact
+            recipients = [{
+              email: activity.contacts.email,
+              name: `${activity.contacts.first_name} ${activity.contacts.last_name || ''}`.trim()
+            }];
+          }
+
+          if (recipients.length === 0) {
+            console.log(`No recipients for activity ${activity.id}, skipping`);
+            continue;
+          }
+
+          // Generate reminder email
+          const activityType = activity.activity_type.charAt(0).toUpperCase() + activity.activity_type.slice(1);
+          const scheduledDate = new Date(activity.scheduled_at);
+          const formattedDate = scheduledDate.toLocaleString('en-IN', {
+            dateStyle: 'full',
+            timeStyle: 'short',
+            timeZone: 'Asia/Kolkata'
+          });
+
+          const meetingLink = activity.meeting_link ? `
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${activity.meeting_link}" 
+                 style="background: #4285F4; color: white; padding: 15px 40px; 
+                        text-decoration: none; border-radius: 4px; font-size: 16px; 
+                        font-weight: bold; display: inline-block;">
+                Join Meeting
+              </a>
+            </div>
+          ` : '';
+
+          const emailHtml = `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <div style="background: #FEF3C7; border-left: 4px solid #F59E0B; padding: 20px; margin-bottom: 20px;">
+                <h2 style="margin: 0; color: #92400E;">⏰ Reminder: ${activityType} in 30 minutes</h2>
+              </div>
+              
+              <p>This is a reminder that your ${activity.activity_type} is starting soon.</p>
+              
+              <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <h3 style="margin-top: 0;">${activity.subject || activityType}</h3>
+                <p><strong>When:</strong> ${formattedDate}</p>
+                ${activity.meeting_duration_minutes ? `<p><strong>Duration:</strong> ${activity.meeting_duration_minutes} minutes</p>` : ''}
+                ${activity.profiles ? `<p><strong>Organized by:</strong> ${activity.profiles.first_name} ${activity.profiles.last_name || ''}</p>` : ''}
+              </div>
+              
+              ${meetingLink}
+              
+              ${activity.description ? `
+                <div style="margin: 20px 0;">
+                  <h4>Details:</h4>
+                  <p>${activity.description}</p>
+                </div>
+              ` : ''}
+            </div>
+          `;
+
+          // Send reminders
+          for (const recipient of recipients) {
+            try {
+              await fetch('https://api.resend.com/emails', {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${RESEND_API_KEY}`,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  from: 'In-Sync Reminders <noreply@in-sync.co.in>',
+                  to: recipient.email,
+                  subject: `Reminder: ${activity.activity_type} in 30 minutes - ${activity.subject || 'Activity'}`,
+                  html: emailHtml
+                })
+              });
+
+              // Deduct from wallet
+              if (pricing) {
+                await supabaseClient.rpc('deduct_from_wallet', {
+                  _org_id: activity.org_id,
+                  _amount: pricing.email_cost_per_unit,
+                  _service_type: 'email',
+                  _reference_id: activity.id,
+                  _quantity: 1,
+                  _unit_cost: pricing.email_cost_per_unit,
+                  _user_id: activity.created_by
+                });
+              }
+            } catch (emailError) {
+              console.error(`Failed to send reminder to ${recipient.email}:`, emailError);
+            }
+          }
+
+          // Mark reminder as sent
+          await supabaseClient
+            .from('contact_activities')
+            .update({ reminder_sent: true })
+            .eq('id', activity.id);
+
+          console.log(`Sent ${recipients.length} reminders for activity ${activity.id}`);
+        } catch (activityError) {
+          console.error(`Error processing activity ${activity.id}:`, activityError);
+        }
+      }
+    }
+
     console.log('Scheduled messages processor completed successfully');
 
     return new Response(
@@ -199,6 +340,7 @@ Deno.serve(async (req) => {
           whatsappCampaigns: whatsappCampaigns?.length || 0,
           emailConversations: emailConversations?.length || 0,
           whatsappMessages: whatsappMessages?.length || 0,
+          activityReminders: activities?.length || 0,
         },
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

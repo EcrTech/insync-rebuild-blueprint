@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Phone, Mail, Calendar, FileText, CheckCircle2, Clock } from "lucide-react";
+import { Phone, Mail, Calendar, FileText, CheckCircle2, Clock, Video } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { formatDistanceToNow } from "date-fns";
+import { Button } from "@/components/ui/button";
+import { formatDistanceToNow, format } from "date-fns";
 
 interface Activity {
   id: string;
@@ -13,6 +14,10 @@ interface Activity {
   description: string | null;
   created_at: string;
   call_duration: number | null;
+  meeting_link: string | null;
+  meeting_duration_minutes: number | null;
+  scheduled_at: string | null;
+  reminder_sent: boolean | null;
   profiles: {
     first_name: string | null;
     last_name: string | null;
@@ -21,6 +26,16 @@ interface Activity {
     name: string;
     category: string;
   } | null;
+  activity_participants?: Array<{
+    id: string;
+    name: string;
+    email: string;
+    response_status: string;
+    profiles: {
+      first_name: string;
+      last_name: string | null;
+    } | null;
+  }>;
 }
 
 interface CustomerJourneyProps {
@@ -68,6 +83,10 @@ export const CustomerJourney = ({ contactId }: CustomerJourneyProps) => {
           description,
           created_at,
           call_duration,
+          meeting_link,
+          meeting_duration_minutes,
+          scheduled_at,
+          reminder_sent,
           profiles!contact_activities_created_by_fkey (
             first_name,
             last_name
@@ -75,6 +94,13 @@ export const CustomerJourney = ({ contactId }: CustomerJourneyProps) => {
           call_dispositions (
             name,
             category
+          ),
+          activity_participants (
+            id,
+            name,
+            email,
+            response_status,
+            profiles:user_id (first_name, last_name)
           )
         `
         )
@@ -209,16 +235,55 @@ export const CustomerJourney = ({ contactId }: CustomerJourneyProps) => {
                       By {activity.profiles.first_name} {activity.profiles.last_name}
                     </span>
                   )}
-                  {activity.call_duration && (
-                    <span>Duration: {Math.floor(activity.call_duration / 60)}:{(activity.call_duration % 60).toString().padStart(2, "0")}</span>
+                {activity.call_duration && (
+                  <span>Duration: {Math.floor(activity.call_duration / 60)}:{(activity.call_duration % 60).toString().padStart(2, "0")}</span>
+                )}
+                {activity.call_dispositions && (
+                  <span className={getDispositionColor(activity.call_dispositions.category)}>
+                    {activity.call_dispositions.name}
+                  </span>
+                )}
+              </div>
+
+              {activity.activity_type === 'meeting' && (
+                <div className="mt-3 space-y-2">
+                  {activity.meeting_link && (
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => window.open(activity.meeting_link!, '_blank')}
+                        className="flex items-center gap-2"
+                      >
+                        <Video className="h-4 w-4" />
+                        Join Google Meet
+                      </Button>
+                      {activity.scheduled_at && new Date(activity.scheduled_at) > new Date() && (
+                        <Badge variant="secondary">
+                          {format(new Date(activity.scheduled_at), 'MMM d, h:mm a')}
+                        </Badge>
+                      )}
+                    </div>
                   )}
-                  {activity.call_dispositions && (
-                    <span className={getDispositionColor(activity.call_dispositions.category)}>
-                      {activity.call_dispositions.name}
-                    </span>
+                  
+                  {activity.activity_participants && activity.activity_participants.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {activity.activity_participants.map(p => (
+                        <Badge key={p.id} variant="outline" className="text-xs">
+                          {p.profiles ? `${p.profiles.first_name} ${p.profiles.last_name || ''}` : p.name}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {activity.reminder_sent && (
+                    <Badge variant="secondary" className="text-xs">
+                      Reminder sent
+                    </Badge>
                   )}
                 </div>
-              </Card>
+              )}
+            </Card>
 
               {/* Connector line to next item */}
               {index < activities.length - 1 && (

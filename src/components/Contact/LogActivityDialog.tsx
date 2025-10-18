@@ -6,7 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Switch } from "@/components/ui/switch";
+import { DateTimePicker } from "@/components/ui/date-time-picker";
+import { ParticipantSelector } from "./ParticipantSelector";
 import { useToast } from "@/hooks/use-toast";
+import { Plus, X } from "lucide-react";
 
 interface CallDisposition {
   id: string;
@@ -49,12 +54,37 @@ export function LogActivityDialog({
     call_duration: "",
   });
 
+  const [meetingConfig, setMeetingConfig] = useState({
+    scheduledAt: null as Date | null,
+    duration: 30,
+    generateMeetLink: false,
+    internalParticipants: [] as string[],
+    externalParticipants: [] as { email: string; name: string }[],
+  });
+
+  const [orgId, setOrgId] = useState<string>("");
+
   useEffect(() => {
     if (open) {
       setFormData(prev => ({ ...prev, activity_type: defaultActivityType }));
       fetchDispositions();
+      fetchOrgId();
     }
   }, [open, defaultActivityType]);
+
+  const fetchOrgId = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("org_id")
+        .eq("id", user.id)
+        .single();
+      if (profile?.org_id) {
+        setOrgId(profile.org_id);
+      }
+    }
+  };
 
   useEffect(() => {
     if (formData.call_disposition_id) {
@@ -100,7 +130,7 @@ export function LogActivityDialog({
 
       if (!profile?.org_id) throw new Error("Organization not found");
 
-      const activityData = {
+      const activityData: any = {
         contact_id: contactId,
         org_id: profile.org_id,
         activity_type: formData.activity_type,
@@ -110,18 +140,132 @@ export function LogActivityDialog({
         call_sub_disposition_id: formData.call_sub_disposition_id || null,
         call_duration: formData.call_duration ? parseInt(formData.call_duration) * 60 : null,
         created_by: user.id,
-        completed_at: new Date().toISOString(),
       };
 
-      const { error } = await supabase
-        .from("contact_activities")
-        .insert([activityData]);
+      // For meetings: add meeting-specific fields
+      if (formData.activity_type === 'meeting') {
+        activityData.scheduled_at = meetingConfig.scheduledAt?.toISOString();
+        activityData.meeting_duration_minutes = meetingConfig.duration;
+        activityData.completed_at = meetingConfig.scheduledAt ? null : new Date().toISOString();
+      } else {
+        activityData.completed_at = new Date().toISOString();
+      }
 
-      if (error) throw error;
+      const { data: activity, error: activityError } = await supabase
+        .from("contact_activities")
+        .insert([activityData])
+        .select()
+        .single();
+
+      if (activityError) throw activityError;
+
+      // For meetings: handle participants and Google Meet
+      if (formData.activity_type === 'meeting') {
+        const participants = [];
+        
+        // Add internal participants
+        for (const userId of meetingConfig.internalParticipants) {
+          const { data: userProfile } = await supabase
+            .from('profiles')
+            .select('first_name, last_name, id')
+            .eq('id', userId)
+            .single();
+          
+          if (userProfile) {
+            // Get email from auth.users via a service call or use profile email if available
+            const { data: authUser } = await supabase.auth.admin.getUserById(userId);
+            const email = authUser.user?.email || `${userId}@placeholder.com`;
+            
+            participants.push({
+              activity_id: activity.id,
+              user_id: userId,
+              email: email,
+              name: `${userProfile.first_name} ${userProfile.last_name || ''}`.trim(),
+              org_id: profile.org_id
+            });
+          }
+        }
+        
+        // Add external participants
+        for (const external of meetingConfig.externalParticipants) {
+          if (external.email && external.name) {
+            // Try to link to contact
+            const { data: contact } = await supabase
+              .from('contacts')
+              .select('id')
+              .eq('email', external.email)
+              .eq('org_id', profile.org_id)
+              .maybeSingle();
+            
+            participants.push({
+              activity_id: activity.id,
+              contact_id: contact?.id || null,
+              email: external.email,
+              name: external.name,
+              org_id: profile.org_id
+            });
+          }
+        }
+        
+        // Insert participants
+        if (participants.length > 0) {
+          const { error: participantsError } = await supabase
+            .from('activity_participants')
+            .insert(participants);
+          
+          if (participantsError) {
+            console.error('Failed to add participants:', participantsError);
+          }
+        }
+        
+        // Generate Google Meet link if requested
+        if (meetingConfig.generateMeetLink) {
+          try {
+            const { data: meetData, error: meetError } = await supabase.functions.invoke('create-google-meet', {
+              body: {
+                activityId: activity.id,
+                orgId: profile.org_id,
+                title: formData.subject || 'Meeting',
+                description: formData.description || '',
+                startTime: meetingConfig.scheduledAt?.toISOString() || new Date().toISOString(),
+                durationMinutes: meetingConfig.duration,
+                participants: participants.map(p => ({ email: p.email, name: p.name }))
+              }
+            });
+            
+            if (meetError) {
+              console.error('Failed to create Google Meet link:', meetError);
+              toast({
+                variant: 'default',
+                title: 'Partial Success',
+                description: 'Meeting created but Google Meet link generation failed.',
+              });
+            } else {
+              // Update activity with meet link
+              await supabase
+                .from('contact_activities')
+                .update({
+                  meeting_link: meetData.meetLink,
+                  google_calendar_event_id: meetData.eventId
+                })
+                .eq('id', activity.id);
+              
+              // Send invitations
+              await supabase.functions.invoke('send-meeting-invitation', {
+                body: { activityId: activity.id }
+              });
+            }
+          } catch (meetError: any) {
+            console.error('Google Meet error:', meetError);
+          }
+        }
+      }
 
       toast({
         title: "Activity logged",
-        description: "Activity has been logged successfully",
+        description: formData.activity_type === 'meeting' && meetingConfig.generateMeetLink
+          ? "Meeting created and invitations sent"
+          : "Activity has been logged successfully",
       });
 
       resetForm();
@@ -146,6 +290,13 @@ export function LogActivityDialog({
       call_disposition_id: "",
       call_sub_disposition_id: "",
       call_duration: "",
+    });
+    setMeetingConfig({
+      scheduledAt: null,
+      duration: 30,
+      generateMeetLink: false,
+      internalParticipants: [],
+      externalParticipants: [],
     });
   };
 
@@ -242,6 +393,134 @@ export function LogActivityDialog({
                   </Select>
                 </div>
               )}
+            </>
+          )}
+
+          {formData.activity_type === "meeting" && (
+            <>
+              <div className="space-y-2">
+                <Label>When *</Label>
+                <RadioGroup
+                  value={meetingConfig.scheduledAt ? "scheduled" : "now"}
+                  onValueChange={(value) => {
+                    if (value === "now") {
+                      setMeetingConfig({ ...meetingConfig, scheduledAt: null });
+                    } else {
+                      setMeetingConfig({ ...meetingConfig, scheduledAt: new Date() });
+                    }
+                  }}
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="now" id="meeting-now" />
+                    <Label htmlFor="meeting-now" className="font-normal">Start immediately</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="scheduled" id="meeting-scheduled" />
+                    <Label htmlFor="meeting-scheduled" className="font-normal">Schedule for later</Label>
+                  </div>
+                </RadioGroup>
+                
+                {meetingConfig.scheduledAt && (
+                  <DateTimePicker
+                    value={meetingConfig.scheduledAt}
+                    onChange={(date) => setMeetingConfig({ ...meetingConfig, scheduledAt: date })}
+                    minDate={new Date()}
+                    label="Select date and time"
+                  />
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label>Duration (minutes) *</Label>
+                <Select
+                  value={meetingConfig.duration.toString()}
+                  onValueChange={(value) => setMeetingConfig({ ...meetingConfig, duration: parseInt(value) })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="15">15 minutes</SelectItem>
+                    <SelectItem value="30">30 minutes</SelectItem>
+                    <SelectItem value="45">45 minutes</SelectItem>
+                    <SelectItem value="60">1 hour</SelectItem>
+                    <SelectItem value="90">1.5 hours</SelectItem>
+                    <SelectItem value="120">2 hours</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Switch
+                  checked={meetingConfig.generateMeetLink}
+                  onCheckedChange={(checked) => setMeetingConfig({ ...meetingConfig, generateMeetLink: checked })}
+                />
+                <Label className="font-normal">Generate Google Meet link</Label>
+              </div>
+
+              {orgId && (
+                <div className="space-y-2">
+                  <Label>Invite team members</Label>
+                  <ParticipantSelector
+                    orgId={orgId}
+                    selectedUserIds={meetingConfig.internalParticipants}
+                    onChange={(userIds) => setMeetingConfig({ ...meetingConfig, internalParticipants: userIds })}
+                  />
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label>External participants</Label>
+                <div className="space-y-2">
+                  {meetingConfig.externalParticipants.map((p, idx) => (
+                    <div key={idx} className="flex gap-2">
+                      <Input
+                        placeholder="Name"
+                        value={p.name}
+                        onChange={(e) => {
+                          const updated = [...meetingConfig.externalParticipants];
+                          updated[idx].name = e.target.value;
+                          setMeetingConfig({ ...meetingConfig, externalParticipants: updated });
+                        }}
+                      />
+                      <Input
+                        type="email"
+                        placeholder="Email"
+                        value={p.email}
+                        onChange={(e) => {
+                          const updated = [...meetingConfig.externalParticipants];
+                          updated[idx].email = e.target.value;
+                          setMeetingConfig({ ...meetingConfig, externalParticipants: updated });
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          const updated = meetingConfig.externalParticipants.filter((_, i) => i !== idx);
+                          setMeetingConfig({ ...meetingConfig, externalParticipants: updated });
+                        }}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setMeetingConfig({
+                        ...meetingConfig,
+                        externalParticipants: [...meetingConfig.externalParticipants, { email: '', name: '' }]
+                      });
+                    }}
+                  >
+                    <Plus className="h-4 w-4 mr-2" /> Add external participant
+                  </Button>
+                </div>
+              </div>
             </>
           )}
 
