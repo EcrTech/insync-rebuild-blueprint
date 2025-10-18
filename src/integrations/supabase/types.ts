@@ -3126,6 +3126,45 @@ export type Database = {
           },
         ]
       }
+      user_module_usage: {
+        Row: {
+          created_at: string
+          id: string
+          last_visited_at: string
+          module_icon: string
+          module_key: string
+          module_name: string
+          module_path: string
+          org_id: string
+          user_id: string
+          visit_count: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_visited_at?: string
+          module_icon: string
+          module_key: string
+          module_name: string
+          module_path: string
+          org_id: string
+          user_id: string
+          visit_count?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_visited_at?: string
+          module_icon?: string
+          module_key?: string
+          module_name?: string
+          module_path?: string
+          org_id?: string
+          user_id?: string
+          visit_count?: number
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string | null

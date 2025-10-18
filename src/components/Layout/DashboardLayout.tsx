@@ -35,12 +35,17 @@ import {
   CreditCard,
   Activity,
   Key,
+  Star,
+  MessageCircle,
+  Phone,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { PlatformAdminBanner } from "@/components/PlatformAdminBanner";
 import { OnboardingDialog } from "@/components/Onboarding/OnboardingDialog";
 import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 import SubscriptionStatusBanner from "@/components/Subscription/SubscriptionStatusBanner";
+import { useModuleTracking } from "@/hooks/useModuleTracking";
+import { useTopModules } from "@/hooks/useTopModules";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -58,6 +63,10 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
   const [onboardingChecked, setOnboardingChecked] = useState(false);
   const [orgName, setOrgName] = useState<string>("");
   const { canAccessFeature, loading: featureAccessLoading } = useFeatureAccess();
+  
+  // Track module usage and get top modules
+  useModuleTracking();
+  const { data: topModules = [] } = useTopModules(6);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -192,6 +201,49 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
 
             {/* Navigation */}
             <nav className="flex-1 p-4 space-y-2">
+              {/* Quick Access - Dynamic based on user usage */}
+              {topModules.length > 0 && (
+                <div className="pb-3 mb-3 border-b border-border/40">
+                  <div className="flex items-center gap-2 px-4 mb-3">
+                    <Star size={16} className="text-primary fill-primary" />
+                    <p className="text-xs font-semibold uppercase tracking-wider text-primary">
+                      Quick Access
+                    </p>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-2 px-2">
+                    {topModules.map((module) => {
+                      const IconComponent = {
+                        LayoutDashboard,
+                        Contact,
+                        GitBranch,
+                        FileText,
+                        Mail,
+                        MessageCircle,
+                        MessageSquare,
+                        BarChart3,
+                        Users,
+                        Package,
+                        Phone,
+                        Key,
+                      }[module.module_icon] || FileText;
+
+                      return (
+                        <Link
+                          key={module.module_key}
+                          to={module.module_path}
+                          onClick={() => setSidebarOpen(false)}
+                          className="flex flex-col items-center gap-1.5 p-3 rounded-lg hover:bg-primary/10 transition-all group"
+                        >
+                          <IconComponent size={22} className="text-primary group-hover:scale-110 transition-transform" />
+                          <span className="text-xs font-medium text-center">{module.module_name}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* Dashboards & Reports Section */}
               {showDashboardsSection && (
                 <div className="pb-2 section-accent-teal pl-4">
