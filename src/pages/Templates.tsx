@@ -244,100 +244,59 @@ const Templates = () => {
 
   return (
     <DashboardLayout>
-      <div className="flex gap-6">
-        {/* Left Sidebar - Quick Actions */}
-        <div className="w-64 shrink-0">
-          <Card className="sticky top-6">
-            <CardHeader>
-              <CardTitle className="text-lg">Quick Actions</CardTitle>
-              <CardDescription>Most used templates actions</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {activeTab === "whatsapp" ? (
-                <>
-                  <Button 
-                    onClick={() => window.location.href = '/templates/create'} 
-                    variant="default"
-                    className="w-full justify-start"
-                  >
-                    <Plus className="mr-2 h-4 w-4" />
-                    Create Template
-                  </Button>
-                  <Button 
-                    onClick={handleSync} 
-                    disabled={syncing} 
-                    variant="outline"
-                    className="w-full justify-start"
-                  >
-                    {syncing ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Syncing...
-                      </>
-                    ) : (
-                      <>
-                        <RefreshCw className="mr-2 h-4 w-4" />
-                        Sync Templates
-                      </>
-                    )}
-                  </Button>
-                  <Button 
-                    onClick={() => setActiveTab("email")} 
-                    variant="ghost"
-                    className="w-full justify-start"
-                  >
-                    <Mail className="mr-2 h-4 w-4" />
-                    View Email Templates
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Button 
-                    onClick={handleCreateEmail} 
-                    variant="default"
-                    className="w-full justify-start"
-                  >
-                    <Plus className="mr-2 h-4 w-4" />
-                    Create Email Template
-                  </Button>
-                  <Button 
-                    onClick={() => setActiveTab("whatsapp")} 
-                    variant="ghost"
-                    className="w-full justify-start"
-                  >
-                    <MessageSquare className="mr-2 h-4 w-4" />
-                    View WhatsApp Templates
-                  </Button>
-                </>
-              )}
+      <div className="space-y-6">
+        {queueStatus === 'queued' && (
+          <Card className="border-primary">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                <div>
+                  <p className="font-medium">Template Sync Queued</p>
+                  <p className="text-sm text-muted-foreground">
+                    Your sync request is in the queue and will be processed shortly.
+                  </p>
+                </div>
+              </div>
             </CardContent>
           </Card>
-        </div>
+        )}
 
-        {/* Main Content */}
-        <div className="flex-1 space-y-6">
-          {queueStatus === 'queued' && (
-            <Card className="border-primary">
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-3">
-                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                  <div>
-                    <p className="font-medium">Template Sync Queued</p>
-                    <p className="text-sm text-muted-foreground">
-                      Your sync request is in the queue and will be processed shortly.
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
+        <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold">Message Templates</h1>
             <p className="text-muted-foreground mt-2">
               Manage your WhatsApp, Email, and SMS templates
             </p>
           </div>
+          <div className="flex gap-2">
+            {activeTab === "whatsapp" ? (
+              <>
+                <Button onClick={() => window.location.href = '/templates/create'} variant="default">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create Template
+                </Button>
+                <Button onClick={handleSync} disabled={syncing} variant="outline">
+                  {syncing ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Syncing...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      Sync Templates
+                    </>
+                  )}
+                </Button>
+              </>
+            ) : (
+              <Button onClick={handleCreateEmail} variant="default">
+                <Plus className="mr-2 h-4 w-4" />
+                Create Email Template
+              </Button>
+            )}
+          </div>
+        </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList>
@@ -481,7 +440,6 @@ const Templates = () => {
             )}
           </TabsContent>
         </Tabs>
-        </div>
       </div>
 
       <StandardEmailTemplateDialog
