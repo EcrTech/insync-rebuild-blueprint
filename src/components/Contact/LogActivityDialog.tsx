@@ -167,19 +167,15 @@ export function LogActivityDialog({
         for (const userId of meetingConfig.internalParticipants) {
           const { data: userProfile } = await supabase
             .from('profiles')
-            .select('first_name, last_name, id')
+            .select('first_name, last_name, email')
             .eq('id', userId)
             .single();
-          
-          if (userProfile) {
-            // Get email from auth.users via a service call or use profile email if available
-            const { data: authUser } = await supabase.auth.admin.getUserById(userId);
-            const email = authUser.user?.email || `${userId}@placeholder.com`;
-            
+
+          if (userProfile && userProfile.email) {
             participants.push({
               activity_id: activity.id,
               user_id: userId,
-              email: email,
+              email: userProfile.email,
               name: `${userProfile.first_name} ${userProfile.last_name || ''}`.trim(),
               org_id: profile.org_id
             });

@@ -2182,6 +2182,72 @@ export type Database = {
           },
         ]
       }
+      operation_queue: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          error_message: string | null
+          id: string
+          operation_type: string
+          org_id: string
+          payload: Json
+          priority: number
+          result: Json | null
+          scheduled_at: string | null
+          started_at: string | null
+          status: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          operation_type: string
+          org_id: string
+          payload?: Json
+          priority?: number
+          result?: Json | null
+          scheduled_at?: string | null
+          started_at?: string | null
+          status?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          operation_type?: string
+          org_id?: string
+          payload?: Json
+          priority?: number
+          result?: Json | null
+          scheduled_at?: string | null
+          started_at?: string | null
+          status?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "operation_queue_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operation_queue_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       org_feature_access: {
         Row: {
           created_at: string | null
@@ -2573,6 +2639,7 @@ export type Database = {
           calling_enabled: boolean | null
           created_at: string | null
           designation_id: string | null
+          email: string | null
           email_enabled: boolean | null
           first_name: string | null
           id: string
@@ -2591,6 +2658,7 @@ export type Database = {
           calling_enabled?: boolean | null
           created_at?: string | null
           designation_id?: string | null
+          email?: string | null
           email_enabled?: boolean | null
           first_name?: string | null
           id: string
@@ -2609,6 +2677,7 @@ export type Database = {
           calling_enabled?: boolean | null
           created_at?: string | null
           designation_id?: string | null
+          email?: string | null
           email_enabled?: boolean | null
           first_name?: string | null
           id?: string

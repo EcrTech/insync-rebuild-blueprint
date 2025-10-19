@@ -31,7 +31,7 @@ export function ParticipantSelector({ orgId, selectedUserIds, onChange }: Partic
       
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, first_name, last_name')
+        .select('id, first_name, last_name, email')
         .eq('org_id', orgId)
         .neq('id', currentUser?.id || '')
         .order('first_name');
