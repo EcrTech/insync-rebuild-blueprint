@@ -43,7 +43,7 @@ Deno.serve(async (req) => {
     let accessToken = tokens.access_token;
 
     // Check if token expired
-    if (!tokens.token_expires_at || new Date(tokens.token_expires_at) <= new Date()) {
+    if (!tokens.expires_at || new Date(tokens.expires_at) <= new Date()) {
       console.log('Access token expired, refreshing...');
       
       const response = await fetch('https://oauth2.googleapis.com/token', {
@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
         .from('google_oauth_tokens')
         .update({
           access_token: newTokens.access_token,
-          token_expires_at: new Date(Date.now() + newTokens.expires_in * 1000).toISOString()
+          expires_at: new Date(Date.now() + newTokens.expires_in * 1000).toISOString()
         })
         .eq('org_id', orgId);
     }
