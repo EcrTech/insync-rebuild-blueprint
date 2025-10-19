@@ -26,17 +26,16 @@ export function AuthLayout({ children, title, subtitle }: AuthLayoutProps) {
             <img 
               src={logo} 
               alt="In-Sync Logo" 
-              className="w-[168px] h-[168px] object-contain transition-all duration-500 hover:scale-110 relative z-10" 
+              className="w-[168px] h-[168px] object-contain transition-all duration-500 hover:scale-105 relative z-10" 
               style={{ 
-                filter: 'drop-shadow(0 25px 50px rgba(0,0,0,0.4)) drop-shadow(0 15px 30px rgba(0,0,0,0.3)) drop-shadow(0 8px 16px rgba(0,0,0,0.25)) brightness(1.1) contrast(1.15)',
-                transform: 'perspective(1200px) rotateX(8deg) translateZ(40px)',
+                filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.15)) brightness(1.05)',
               }} 
             />
             <div 
-              className="absolute inset-0 -z-10 blur-2xl opacity-50"
+              className="absolute inset-0 -z-10 blur-xl opacity-20"
               style={{
-                background: 'radial-gradient(circle, rgba(1,184,170,0.4) 0%, transparent 70%)',
-                transform: 'scale(1.2) translateY(20px)',
+                background: 'radial-gradient(circle, rgba(1,184,170,0.3) 0%, transparent 70%)',
+                transform: 'scale(1.1) translateY(10px)',
               }}
             />
           </div>
