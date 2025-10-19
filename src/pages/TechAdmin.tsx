@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Building2, Palette, Users, Upload } from "lucide-react";
+import GoogleCalendarSettings from "@/components/Settings/GoogleCalendarSettings";
 
 export default function TechAdmin() {
   const { toast } = useToast();
@@ -351,6 +352,8 @@ export default function TechAdmin() {
             </Button>
           </CardContent>
         </Card>
+
+        <GoogleCalendarSettings />
       </div>
     </DashboardLayout>
   );

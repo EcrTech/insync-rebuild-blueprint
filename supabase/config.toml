@@ -80,3 +80,6 @@ verify_jwt = true
 
 [functions.send-subscription-email]
 verify_jwt = true
+
+[functions.google-calendar-oauth]
+verify_jwt = true

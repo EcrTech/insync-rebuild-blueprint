@@ -52,6 +52,7 @@ import Usage from "./pages/Usage";
 import PlatformAdminSubscriptions from "./pages/PlatformAdminSubscriptions";
 import Inventory from "./pages/Inventory";
 import ApiKeys from "./pages/ApiKeys";
+import GoogleCalendarCallback from "./pages/GoogleCalendarCallback";
 import ProtectedRoute from "./components/Auth/ProtectedRoute";
 
 const App = () => (
@@ -65,6 +66,7 @@ const App = () => (
           <Route path="/signup" element={<SignUp />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/form/:formId" element={<PublicForm />} />
+          <Route path="/google-calendar-callback" element={<GoogleCalendarCallback />} />
           
           <Route path="/dashboard" element={
             <ProtectedRoute>

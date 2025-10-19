@@ -217,6 +217,23 @@ export function LogActivityDialog({
         // Generate Google Meet link if requested
         if (meetingConfig.generateMeetLink) {
           try {
+            // Check if Google Calendar is connected
+            const { data: tokens } = await supabase
+              .from('google_oauth_tokens')
+              .select('id')
+              .eq('org_id', profile.org_id)
+              .maybeSingle();
+
+            if (!tokens) {
+              toast({
+                variant: "destructive",
+                title: "Google Calendar Not Connected",
+                description: "Please connect Google Calendar in Organization Settings to generate Meet links",
+              });
+              setLoading(false);
+              return;
+            }
+
             const { data: meetData, error: meetError } = await supabase.functions.invoke('create-google-meet', {
               body: {
                 activityId: activity.id,
