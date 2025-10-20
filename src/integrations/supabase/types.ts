@@ -1320,6 +1320,236 @@ export type Database = {
         }
         Relationships: []
       }
+      email_automation_cooldowns: {
+        Row: {
+          contact_id: string
+          id: string
+          last_sent_at: string
+          org_id: string
+          rule_id: string
+          send_count: number | null
+        }
+        Insert: {
+          contact_id: string
+          id?: string
+          last_sent_at: string
+          org_id: string
+          rule_id: string
+          send_count?: number | null
+        }
+        Update: {
+          contact_id?: string
+          id?: string
+          last_sent_at?: string
+          org_id?: string
+          rule_id?: string
+          send_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_automation_cooldowns_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_automation_cooldowns_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_automation_cooldowns_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "email_automation_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_automation_executions: {
+        Row: {
+          contact_id: string
+          created_at: string | null
+          email_conversation_id: string | null
+          email_subject: string | null
+          email_template_id: string | null
+          error_message: string | null
+          id: string
+          org_id: string
+          rule_id: string
+          scheduled_for: string | null
+          sent_at: string | null
+          status: string
+          trigger_data: Json | null
+          trigger_type: string
+          updated_at: string | null
+        }
+        Insert: {
+          contact_id: string
+          created_at?: string | null
+          email_conversation_id?: string | null
+          email_subject?: string | null
+          email_template_id?: string | null
+          error_message?: string | null
+          id?: string
+          org_id: string
+          rule_id: string
+          scheduled_for?: string | null
+          sent_at?: string | null
+          status?: string
+          trigger_data?: Json | null
+          trigger_type: string
+          updated_at?: string | null
+        }
+        Update: {
+          contact_id?: string
+          created_at?: string | null
+          email_conversation_id?: string | null
+          email_subject?: string | null
+          email_template_id?: string | null
+          error_message?: string | null
+          id?: string
+          org_id?: string
+          rule_id?: string
+          scheduled_for?: string | null
+          sent_at?: string | null
+          status?: string
+          trigger_data?: Json | null
+          trigger_type?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_automation_executions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_automation_executions_email_conversation_id_fkey"
+            columns: ["email_conversation_id"]
+            isOneToOne: false
+            referencedRelation: "email_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_automation_executions_email_template_id_fkey"
+            columns: ["email_template_id"]
+            isOneToOne: false
+            referencedRelation: "email_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_automation_executions_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_automation_executions_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "email_automation_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_automation_rules: {
+        Row: {
+          condition_logic: string | null
+          conditions: Json | null
+          cooldown_period_days: number | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          email_template_id: string | null
+          id: string
+          is_active: boolean | null
+          max_sends_per_contact: number | null
+          name: string
+          org_id: string
+          priority: number | null
+          send_delay_minutes: number | null
+          total_failed: number | null
+          total_sent: number | null
+          total_triggered: number | null
+          trigger_config: Json
+          trigger_type: string
+          updated_at: string | null
+        }
+        Insert: {
+          condition_logic?: string | null
+          conditions?: Json | null
+          cooldown_period_days?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          email_template_id?: string | null
+          id?: string
+          is_active?: boolean | null
+          max_sends_per_contact?: number | null
+          name: string
+          org_id: string
+          priority?: number | null
+          send_delay_minutes?: number | null
+          total_failed?: number | null
+          total_sent?: number | null
+          total_triggered?: number | null
+          trigger_config?: Json
+          trigger_type: string
+          updated_at?: string | null
+        }
+        Update: {
+          condition_logic?: string | null
+          conditions?: Json | null
+          cooldown_period_days?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          email_template_id?: string | null
+          id?: string
+          is_active?: boolean | null
+          max_sends_per_contact?: number | null
+          name?: string
+          org_id?: string
+          priority?: number | null
+          send_delay_minutes?: number | null
+          total_failed?: number | null
+          total_sent?: number | null
+          total_triggered?: number | null
+          trigger_config?: Json
+          trigger_type?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_automation_rules_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_automation_rules_email_template_id_fkey"
+            columns: ["email_template_id"]
+            isOneToOne: false
+            referencedRelation: "email_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_automation_rules_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_bulk_campaigns: {
         Row: {
           attachments: Json | null
@@ -3927,6 +4157,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      increment_automation_rule_stats: {
+        Args: { _rule_id: string; _stat_type: string }
+        Returns: undefined
       }
       increment_campaign_stats: {
         Args: {

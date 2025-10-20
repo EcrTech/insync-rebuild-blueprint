@@ -1,0 +1,329 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+interface TriggerPayload {
+  orgId: string;
+  triggerType: 'stage_change' | 'disposition_set';
+  contactId: string;
+  triggerData: {
+    from_stage_id?: string;
+    to_stage_id?: string;
+    disposition_id?: string;
+    sub_disposition_id?: string;
+    activity_id?: string;
+    [key: string]: any;
+  };
+}
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    const payload: TriggerPayload = await req.json();
+    console.log('Automation trigger received:', payload);
+
+    const { orgId, triggerType, contactId, triggerData } = payload;
+
+    // 1. Find matching active rules for this trigger type and org
+    const { data: rules, error: rulesError } = await supabase
+      .from('email_automation_rules')
+      .select('*')
+      .eq('org_id', orgId)
+      .eq('trigger_type', triggerType)
+      .eq('is_active', true)
+      .order('priority', { ascending: false });
+
+    if (rulesError) throw rulesError;
+
+    if (!rules || rules.length === 0) {
+      console.log('No matching rules found');
+      return new Response(
+        JSON.stringify({ message: 'No matching rules' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      );
+    }
+
+    console.log(`Found ${rules.length} matching rules`);
+    let processedCount = 0;
+
+    // 2. Process each rule
+    for (const rule of rules) {
+      // Check if trigger config matches
+      if (!checkTriggerMatch(rule.trigger_config, triggerData, triggerType)) {
+        console.log(`Rule ${rule.name} trigger config doesn't match`);
+        continue;
+      }
+
+      // Check cooldown/frequency limits
+      const canSend = await checkCooldown(supabase, rule.id, contactId, rule);
+      if (!canSend) {
+        console.log(`Rule ${rule.name} cooldown not met`);
+        continue;
+      }
+
+      // Evaluate conditions (Phase 1: simple implementation)
+      const conditionsMet = await evaluateConditions(supabase, rule.conditions, contactId, orgId);
+      if (!conditionsMet) {
+        console.log(`Rule ${rule.name} conditions not met`);
+        continue;
+      }
+
+      // Get contact email
+      const { data: contact } = await supabase
+        .from('contacts')
+        .select('email, first_name, last_name')
+        .eq('id', contactId)
+        .single();
+
+      if (!contact?.email) {
+        console.log('Contact has no email');
+        continue;
+      }
+
+      // Calculate scheduled time
+      const scheduledFor = new Date();
+      scheduledFor.setMinutes(scheduledFor.getMinutes() + (rule.send_delay_minutes || 0));
+
+      // Create execution record
+      const { data: execution, error: execError } = await supabase
+        .from('email_automation_executions')
+        .insert({
+          org_id: orgId,
+          rule_id: rule.id,
+          contact_id: contactId,
+          trigger_type: triggerType,
+          trigger_data: triggerData,
+          status: rule.send_delay_minutes > 0 ? 'scheduled' : 'pending',
+          scheduled_for: rule.send_delay_minutes > 0 ? scheduledFor.toISOString() : null,
+          email_template_id: rule.email_template_id,
+        })
+        .select()
+        .single();
+
+      if (execError) {
+        console.error('Failed to create execution:', execError);
+        continue;
+      }
+
+      // Increment triggered count
+      await supabase.rpc('increment_automation_rule_stats', {
+        _rule_id: rule.id,
+        _stat_type: 'triggered',
+      });
+
+      // If immediate send, trigger email sender
+      if (rule.send_delay_minutes === 0) {
+        await sendAutomationEmail(supabase, execution.id);
+      }
+
+      processedCount++;
+      console.log(`Rule ${rule.name} processed for contact ${contactId}`);
+    }
+
+    return new Response(
+      JSON.stringify({ 
+        message: 'Automation processed', 
+        rulesProcessed: processedCount 
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+    );
+  } catch (error: any) {
+    console.error('Automation trigger error:', error);
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+    );
+  }
+});
+
+function checkTriggerMatch(config: any, triggerData: any, triggerType: string): boolean {
+  if (triggerType === 'stage_change') {
+    // Check from_stage_id and to_stage_id
+    if (config.from_stage_id && config.from_stage_id !== triggerData.from_stage_id) {
+      return false;
+    }
+    if (config.to_stage_id && config.to_stage_id !== triggerData.to_stage_id) {
+      return false;
+    }
+    return true;
+  }
+
+  if (triggerType === 'disposition_set') {
+    // Check disposition_ids or sub_disposition_ids
+    if (config.disposition_ids?.length > 0) {
+      if (!config.disposition_ids.includes(triggerData.disposition_id)) {
+        return false;
+      }
+    }
+    if (config.sub_disposition_ids?.length > 0) {
+      if (!config.sub_disposition_ids.includes(triggerData.sub_disposition_id)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  return false;
+}
+
+async function checkCooldown(supabase: any, ruleId: string, contactId: string, rule: any): Promise<boolean> {
+  // Check if there's a cooldown record
+  const { data: cooldown } = await supabase
+    .from('email_automation_cooldowns')
+    .select('*')
+    .eq('rule_id', ruleId)
+    .eq('contact_id', contactId)
+    .single();
+
+  if (!cooldown) return true; // No cooldown record, can send
+
+  // Check max sends per contact
+  if (rule.max_sends_per_contact && cooldown.send_count >= rule.max_sends_per_contact) {
+    return false;
+  }
+
+  // Check cooldown period
+  if (rule.cooldown_period_days) {
+    const lastSentDate = new Date(cooldown.last_sent_at);
+    const daysSinceLastSent = (Date.now() - lastSentDate.getTime()) / (1000 * 60 * 60 * 24);
+    if (daysSinceLastSent < rule.cooldown_period_days) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+async function evaluateConditions(supabase: any, conditions: any[], contactId: string, orgId: string): Promise<boolean> {
+  // Phase 1: Simple implementation - no conditions or all conditions pass
+  if (!conditions || conditions.length === 0) return true;
+
+  // For Phase 1, if conditions exist, we'll just return true
+  // Full condition evaluation will be added in Phase 3
+  return true;
+}
+
+async function sendAutomationEmail(supabase: any, executionId: string) {
+  try {
+    // Get execution details
+    const { data: execution } = await supabase
+      .from('email_automation_executions')
+      .select(`
+        *,
+        email_automation_rules(*),
+        contacts(email, first_name, last_name, org_id)
+      `)
+      .eq('id', executionId)
+      .single();
+
+    if (!execution) throw new Error('Execution not found');
+
+    // Get template
+    const { data: template } = await supabase
+      .from('email_templates')
+      .select('*')
+      .eq('id', execution.email_template_id)
+      .single();
+
+    if (!template) {
+      await supabase
+        .from('email_automation_executions')
+        .update({ 
+          status: 'failed', 
+          error_message: 'Template not found' 
+        })
+        .eq('id', executionId);
+      return;
+    }
+
+    // Simple variable replacement (Phase 1)
+    const personalizedSubject = replaceVariables(template.subject, execution.contacts, execution.trigger_data);
+    const personalizedHtml = replaceVariables(template.html_content, execution.contacts, execution.trigger_data);
+
+    // Call send-email function
+    const { error: sendError } = await supabase.functions.invoke('send-email', {
+      body: {
+        to: execution.contacts.email,
+        subject: personalizedSubject,
+        html: personalizedHtml,
+        contactId: execution.contact_id,
+      }
+    });
+
+    if (sendError) throw sendError;
+
+    // Update execution status
+    await supabase
+      .from('email_automation_executions')
+      .update({ 
+        status: 'sent', 
+        sent_at: new Date().toISOString(),
+        email_subject: personalizedSubject
+      })
+      .eq('id', executionId);
+
+    // Update rule stats
+    await supabase.rpc('increment_automation_rule_stats', {
+      _rule_id: execution.rule_id,
+      _stat_type: 'sent',
+    });
+
+    // Record cooldown
+    await supabase
+      .from('email_automation_cooldowns')
+      .upsert({
+        org_id: execution.contacts.org_id,
+        rule_id: execution.rule_id,
+        contact_id: execution.contact_id,
+        last_sent_at: new Date().toISOString(),
+        send_count: 1,
+      }, {
+        onConflict: 'rule_id,contact_id',
+        ignoreDuplicates: false,
+      });
+
+  } catch (error: any) {
+    console.error('Failed to send automation email:', error);
+    await supabase
+      .from('email_automation_executions')
+      .update({ 
+        status: 'failed', 
+        error_message: error.message 
+      })
+      .eq('id', executionId);
+
+    await supabase.rpc('increment_automation_rule_stats', {
+      _rule_id: executionId,
+      _stat_type: 'failed',
+    });
+  }
+}
+
+function replaceVariables(template: string, contact: any, triggerData: any): string {
+  let result = template;
+  
+  // Contact variables
+  result = result.replace(/{{first_name}}/g, contact.first_name || '');
+  result = result.replace(/{{last_name}}/g, contact.last_name || '');
+  result = result.replace(/{{email}}/g, contact.email || '');
+  
+  // Trigger data variables (Phase 1: basic)
+  if (triggerData) {
+    Object.keys(triggerData).forEach(key => {
+      const regex = new RegExp(`{{trigger\\.${key}}}`, 'g');
+      result = result.replace(regex, triggerData[key] || '');
+    });
+  }
+  
+  return result;
+}
