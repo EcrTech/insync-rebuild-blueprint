@@ -531,6 +531,80 @@ export type Database = {
           },
         ]
       }
+      blog_posts: {
+        Row: {
+          blog_excerpt: string | null
+          blog_title: string
+          blog_url: string
+          campaign_id: string | null
+          created_at: string
+          email_campaign_sent: boolean
+          email_recipients_count: number | null
+          error_message: string | null
+          facebook_url: string | null
+          featured_image_url: string | null
+          id: string
+          linkedin_url: string | null
+          org_id: string
+          posted_timestamp: string
+          publish_date: string
+          social_posted: boolean
+          status: string
+          twitter_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          blog_excerpt?: string | null
+          blog_title: string
+          blog_url: string
+          campaign_id?: string | null
+          created_at?: string
+          email_campaign_sent?: boolean
+          email_recipients_count?: number | null
+          error_message?: string | null
+          facebook_url?: string | null
+          featured_image_url?: string | null
+          id?: string
+          linkedin_url?: string | null
+          org_id: string
+          posted_timestamp?: string
+          publish_date: string
+          social_posted?: boolean
+          status?: string
+          twitter_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          blog_excerpt?: string | null
+          blog_title?: string
+          blog_url?: string
+          campaign_id?: string | null
+          created_at?: string
+          email_campaign_sent?: boolean
+          email_recipients_count?: number | null
+          error_message?: string | null
+          facebook_url?: string | null
+          featured_image_url?: string | null
+          id?: string
+          linkedin_url?: string | null
+          org_id?: string
+          posted_timestamp?: string
+          publish_date?: string
+          social_posted?: boolean
+          status?: string
+          twitter_url?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blog_posts_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       call_dispositions: {
         Row: {
           category: string | null
