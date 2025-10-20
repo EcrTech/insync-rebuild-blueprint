@@ -95,3 +95,6 @@ verify_jwt = false
 
 [functions.unsubscribe]
 verify_jwt = false
+
+[functions.blog-webhook]
+verify_jwt = false
