@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
-import { AlertCircle, Copy, Key, Plus, Trash2, Eye, EyeOff } from "lucide-react";
+import { AlertCircle, Copy, Key, Plus, Trash2, Eye, EyeOff, BookOpen } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { format } from "date-fns";
 import { Textarea } from "@/components/ui/textarea";
@@ -22,6 +22,7 @@ export default function ApiKeys() {
   const [newKeyDescription, setNewKeyDescription] = useState("");
   const [generatedKey, setGeneratedKey] = useState<string | null>(null);
   const [showGeneratedKey, setShowGeneratedKey] = useState(false);
+  const [selectedKeyForDocs, setSelectedKeyForDocs] = useState<any>(null);
   const queryClient = useQueryClient();
 
   // Fetch API keys
@@ -372,6 +373,13 @@ export default function ApiKeys() {
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setSelectedKeyForDocs(key)}
+                            >
+                              <BookOpen className="h-4 w-4" />
+                            </Button>
                             <Button
                               variant="outline"
                               size="sm"
@@ -998,6 +1006,213 @@ Content-Type: application/json
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* API Key Documentation Dialog */}
+      <Dialog open={!!selectedKeyForDocs} onOpenChange={() => setSelectedKeyForDocs(null)}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>API Documentation - {selectedKeyForDocs?.key_name}</DialogTitle>
+            <DialogDescription>
+              Integration guide for the {selectedKeyForDocs?.key_name} API
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedKeyForDocs?.key_name?.toLowerCase().includes('blog') ? (
+            // Blog Webhook Documentation
+            <div className="space-y-6">
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  This endpoint automatically triggers email campaigns to all platform subscribers when a blog post is published.
+                </AlertDescription>
+              </Alert>
+
+              <div>
+                <h3 className="text-lg font-semibold mb-2">Endpoint</h3>
+                <div className="flex items-center gap-2 bg-muted p-3 rounded-lg">
+                  <Badge>POST</Badge>
+                  <code className="flex-1 text-sm">
+                    https://aizgpxaqvtvvqarzjmze.supabase.co/functions/v1/blog-webhook
+                  </code>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => copyToClipboard('https://aizgpxaqvtvvqarzjmze.supabase.co/functions/v1/blog-webhook')}
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-semibold mb-2">Headers</h3>
+                <pre className="bg-muted p-4 rounded-lg text-sm overflow-x-auto">
+{`Content-Type: application/json`}
+                </pre>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-semibold mb-2">Request Body</h3>
+                <pre className="bg-muted p-4 rounded-lg text-sm overflow-x-auto">
+{`{
+  "org_id": "65e22e43-f23d-4c0a-9d84-2eba65ad0e12",
+  "blog_url": "https://example.com/blog/post",
+  "blog_title": "My Blog Post Title",
+  "blog_excerpt": "Short summary...",
+  "featured_image_url": "https://example.com/image.jpg",
+  "publish_date": "2025-10-20",
+  "status": "posted",
+  "social_posted": true
+}`}
+                </pre>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-semibold mb-2">Required Fields</h3>
+                <ul className="list-disc list-inside space-y-1 text-sm">
+                  <li><code>org_id</code> (UUID) - Organization ID: <code>65e22e43-f23d-4c0a-9d84-2eba65ad0e12</code></li>
+                  <li><code>blog_url</code> (URL) - Full URL of the blog post</li>
+                  <li><code>blog_title</code> (string, max 500 chars) - Title of the blog post</li>
+                  <li><code>status</code> (string) - Must be "posted" to trigger email campaign</li>
+                  <li><code>social_posted</code> (boolean) - Must be true to trigger email campaign</li>
+                </ul>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-semibold mb-2">Optional Fields</h3>
+                <ul className="list-disc list-inside space-y-1 text-sm">
+                  <li><code>blog_excerpt</code> (string, max 1000 chars) - Brief summary of the post</li>
+                  <li><code>featured_image_url</code> (URL) - Main image for the blog post</li>
+                  <li><code>publish_date</code> (YYYY-MM-DD) - Defaults to today if not provided</li>
+                </ul>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-semibold mb-2">Success Response (200)</h3>
+                <pre className="bg-muted p-4 rounded-lg text-sm overflow-x-auto">
+{`{
+  "success": true,
+  "message": "Blog post created and email campaign initiated",
+  "blog_post_id": "uuid",
+  "campaign_id": "uuid",
+  "request_id": "req_1729418426000_a1b2c3d4",
+  "timestamp": "2025-10-20T12:00:00.000Z"
+}`}
+                </pre>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-semibold mb-2">Error Responses</h3>
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-sm font-medium mb-1">400 Bad Request - Validation Error</p>
+                    <pre className="bg-muted p-3 rounded-lg text-xs overflow-x-auto">
+{`{
+  "success": false,
+  "error": "Validation failed: Missing required field 'blog_title'",
+  "request_id": "req_1729418426000_a1b2c3d4",
+  "timestamp": "2025-10-20T12:00:00.000Z"
+}`}
+                    </pre>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium mb-1">404 Not Found - Invalid Organization</p>
+                    <pre className="bg-muted p-3 rounded-lg text-xs overflow-x-auto">
+{`{
+  "success": false,
+  "error": "Organization not found",
+  "request_id": "req_1729418426000_a1b2c3d4",
+  "timestamp": "2025-10-20T12:00:00.000Z"
+}`}
+                    </pre>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-semibold mb-2">Example cURL Request</h3>
+                <pre className="bg-muted p-4 rounded-lg text-sm overflow-x-auto">
+{`curl -X POST https://aizgpxaqvtvvqarzjmze.supabase.co/functions/v1/blog-webhook \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "org_id": "65e22e43-f23d-4c0a-9d84-2eba65ad0e12",
+    "blog_url": "https://example.com/my-blog-post",
+    "blog_title": "Amazing New Feature Launch",
+    "blog_excerpt": "We are excited to announce...",
+    "featured_image_url": "https://example.com/featured.jpg",
+    "status": "posted",
+    "social_posted": true
+  }'`}
+                </pre>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-semibold mb-2">What Happens Next?</h3>
+                <ol className="list-decimal list-inside space-y-2 text-sm">
+                  <li>Blog post is created in the database</li>
+                  <li>Email campaign is automatically created</li>
+                  <li>All subscribers from <code>platform_email_sending_list</code> are added as recipients</li>
+                  <li>Emails are sent using the "Blog Announcement" template</li>
+                  <li>Template variables are populated: <code>blog_title</code>, <code>blog_url</code>, <code>blog_excerpt</code>, <code>featured_image_url</code></li>
+                </ol>
+              </div>
+            </div>
+          ) : (
+            // Default CRM Bridge API Documentation
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-lg font-semibold mb-2">Authentication</h3>
+                <p className="text-sm mb-2">Include your API key in the <code>X-API-Key</code> header:</p>
+                <div className="flex items-center gap-2 bg-muted p-3 rounded-lg">
+                  <code className="flex-1 text-sm">{selectedKeyForDocs?.key_prefix}...</code>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => copyToClipboard(selectedKeyForDocs?.key_prefix || '')}
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-semibold mb-2">Base URL</h3>
+                <div className="flex items-center gap-2 bg-muted p-3 rounded-lg">
+                  <code className="flex-1 text-sm">
+                    https://aizgpxaqvtvvqarzjmze.supabase.co/functions/v1/crm-bridge-api
+                  </code>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => copyToClipboard('https://aizgpxaqvtvvqarzjmze.supabase.co/functions/v1/crm-bridge-api')}
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-semibold mb-2">Example Request</h3>
+                <pre className="bg-muted p-4 rounded-lg text-sm overflow-x-auto">
+{`curl -H "X-API-Key: ${selectedKeyForDocs?.key_prefix}..." \\
+  https://aizgpxaqvtvvqarzjmze.supabase.co/functions/v1/crm-bridge-api/contacts`}
+                </pre>
+              </div>
+
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  For complete API documentation, visit the Documentation tab above
+                </AlertDescription>
+              </Alert>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button onClick={() => setSelectedKeyForDocs(null)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       </div>
     </DashboardLayout>
   );
