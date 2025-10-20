@@ -42,9 +42,12 @@ const sendEmail = async (to: string, subject: string, html: string, fromEmail: s
 interface SendEmailRequest {
   to: string;
   subject: string;
-  htmlContent: string;
+  htmlContent?: string;
+  html?: string;
   contactId?: string;
   conversationId?: string;
+  trackingPixelId?: string;
+  unsubscribeToken?: string;
 }
 
 serve(async (req) => {
@@ -118,7 +121,22 @@ serve(async (req) => {
 
     console.log('✓ User authenticated:', user.email);
 
-    const { to, subject, htmlContent, contactId, conversationId }: SendEmailRequest = await req.json();
+    const { 
+      to, 
+      subject, 
+      htmlContent, 
+      html, 
+      contactId, 
+      conversationId,
+      trackingPixelId,
+      unsubscribeToken 
+    }: SendEmailRequest = await req.json();
+
+    const emailHtml = htmlContent || html || '';
+
+    if (!emailHtml) {
+      throw new Error('Email content is required');
+    }
 
     // Fetch user profile and org_id
     console.log('Fetching user profile and org_id...');
@@ -171,7 +189,7 @@ serve(async (req) => {
     console.log("Sending email to:", to, "from:", fromEmail, "reply-to:", replyToEmail);
 
     // Send email via Resend
-    const emailData = await sendEmail(to, subject, htmlContent, fromEmail, fromName, replyToEmail);
+    const emailData = await sendEmail(to, subject, emailHtml, fromEmail, fromName, replyToEmail);
 
     console.log("Email sent successfully:", emailData);
 
@@ -209,12 +227,14 @@ serve(async (req) => {
         to_email: to,
         reply_to_email: replyToEmail,
         subject: subject,
-        email_content: htmlContent,
-        html_content: htmlContent,
+        email_content: emailHtml,
+        html_content: emailHtml,
         direction: "outbound",
         sent_by: user.id,
         status: "sent",
         sent_at: new Date().toISOString(),
+        tracking_pixel_id: trackingPixelId,
+        unsubscribe_token: unsubscribeToken,
       });
 
     if (logError) {

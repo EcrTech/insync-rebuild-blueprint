@@ -1426,6 +1426,48 @@ export type Database = {
           },
         ]
       }
+      email_automation_daily_limits: {
+        Row: {
+          contact_id: string
+          email_count: number
+          id: string
+          last_sent_at: string
+          org_id: string
+          send_date: string
+        }
+        Insert: {
+          contact_id: string
+          email_count?: number
+          id?: string
+          last_sent_at?: string
+          org_id: string
+          send_date?: string
+        }
+        Update: {
+          contact_id?: string
+          email_count?: number
+          id?: string
+          last_sent_at?: string
+          org_id?: string
+          send_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_automation_daily_limits_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_automation_daily_limits_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_automation_executions: {
         Row: {
           ab_test_id: string | null
@@ -1437,7 +1479,10 @@ export type Database = {
           email_template_id: string | null
           error_message: string | null
           id: string
+          max_retries: number | null
+          next_retry_at: string | null
           org_id: string
+          retry_count: number | null
           rule_id: string
           scheduled_for: string | null
           sent_at: string | null
@@ -1456,7 +1501,10 @@ export type Database = {
           email_template_id?: string | null
           error_message?: string | null
           id?: string
+          max_retries?: number | null
+          next_retry_at?: string | null
           org_id: string
+          retry_count?: number | null
           rule_id: string
           scheduled_for?: string | null
           sent_at?: string | null
@@ -1475,7 +1523,10 @@ export type Database = {
           email_template_id?: string | null
           error_message?: string | null
           id?: string
+          max_retries?: number | null
+          next_retry_at?: string | null
           org_id?: string
+          retry_count?: number | null
           rule_id?: string
           scheduled_for?: string | null
           sent_at?: string | null
@@ -1807,6 +1858,7 @@ export type Database = {
           thread_id: string | null
           to_email: string
           tracking_pixel_id: string | null
+          unsubscribe_token: string | null
           updated_at: string | null
         }
         Insert: {
@@ -1842,6 +1894,7 @@ export type Database = {
           thread_id?: string | null
           to_email: string
           tracking_pixel_id?: string | null
+          unsubscribe_token?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -1877,6 +1930,7 @@ export type Database = {
           thread_id?: string | null
           to_email?: string
           tracking_pixel_id?: string | null
+          unsubscribe_token?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -2049,6 +2103,57 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "email_templates_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_unsubscribes: {
+        Row: {
+          contact_id: string | null
+          email: string
+          id: string
+          ip_address: unknown | null
+          org_id: string
+          source: string
+          unsubscribe_token: string
+          unsubscribed_at: string
+          user_agent: string | null
+        }
+        Insert: {
+          contact_id?: string | null
+          email: string
+          id?: string
+          ip_address?: unknown | null
+          org_id: string
+          source: string
+          unsubscribe_token: string
+          unsubscribed_at?: string
+          user_agent?: string | null
+        }
+        Update: {
+          contact_id?: string | null
+          email?: string
+          id?: string
+          ip_address?: unknown | null
+          org_id?: string
+          source?: string
+          unsubscribe_token?: string
+          unsubscribed_at?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_unsubscribes_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_unsubscribes_org_id_fkey"
             columns: ["org_id"]
             isOneToOne: false
             referencedRelation: "organizations"
@@ -2851,6 +2956,7 @@ export type Database = {
           created_at: string | null
           id: string
           logo_url: string | null
+          max_automation_emails_per_day: number | null
           name: string
           primary_color: string | null
           services_enabled: boolean | null
@@ -2864,6 +2970,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           logo_url?: string | null
+          max_automation_emails_per_day?: number | null
           name: string
           primary_color?: string | null
           services_enabled?: boolean | null
@@ -2877,6 +2984,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           logo_url?: string | null
+          max_automation_emails_per_day?: number | null
           name?: string
           primary_color?: string | null
           services_enabled?: boolean | null
@@ -4191,6 +4299,10 @@ export type Database = {
         Args: { _org_id: string }
         Returns: number
       }
+      check_and_increment_daily_limit: {
+        Args: { _contact_id: string; _max_per_day: number; _org_id: string }
+        Returns: boolean
+      }
       check_and_update_subscription_status: {
         Args: { _org_id: string }
         Returns: undefined
@@ -4344,6 +4456,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_automation_cooldown: {
+        Args: { _contact_id: string; _org_id: string; _rule_id: string }
+        Returns: undefined
+      }
       increment_automation_rule_stats: {
         Args: { _rule_id: string; _stat_type: string }
         Returns: undefined
@@ -4367,6 +4483,10 @@ export type Database = {
         Returns: undefined
       }
       is_email_suppressed: {
+        Args: { _email: string; _org_id: string }
+        Returns: boolean
+      }
+      is_email_unsubscribed: {
         Args: { _email: string; _org_id: string }
         Returns: boolean
       }

@@ -89,3 +89,9 @@ verify_jwt = false
 
 [functions.automation-email-sender]
 verify_jwt = false
+
+[functions.email-tracking]
+verify_jwt = false
+
+[functions.unsubscribe]
+verify_jwt = false

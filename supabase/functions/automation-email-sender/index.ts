@@ -24,7 +24,7 @@ Deno.serve(async (req) => {
       .select(`
         *,
         email_automation_rules(*),
-        contacts(email, first_name, last_name, org_id)
+        contacts(*)
       `)
       .eq('status', 'scheduled')
       .lte('scheduled_for', now)
@@ -50,7 +50,53 @@ Deno.serve(async (req) => {
         const rule = execution.email_automation_rules;
         const contact = execution.contacts;
 
-        // 1. Check suppression list
+        if (!contact?.email) {
+          throw new Error('Contact has no email address');
+        }
+
+        // Get organization settings for daily limit
+        const { data: orgSettings } = await supabase
+          .from('organizations')
+          .select('max_automation_emails_per_day')
+          .eq('id', contact.org_id)
+          .single();
+
+        const maxPerDay = orgSettings?.max_automation_emails_per_day || 3;
+
+        // 1. Check daily email limit
+        const { data: canSend } = await supabase.rpc('check_and_increment_daily_limit', {
+          _org_id: contact.org_id,
+          _contact_id: contact.id,
+          _max_per_day: maxPerDay
+        });
+
+        if (!canSend) {
+          console.log(`Daily limit reached for contact ${contact.id} (${maxPerDay} emails)`);
+          await supabase.from('email_automation_executions').update({ 
+            status: 'failed', 
+            error_message: `Daily email limit reached (${maxPerDay} emails per day)` 
+          }).eq('id', execution.id);
+          failedCount++;
+          continue;
+        }
+
+        // 2. Check if email is unsubscribed
+        const { data: isUnsubscribed } = await supabase.rpc('is_email_unsubscribed', {
+          _org_id: contact.org_id,
+          _email: contact.email
+        });
+
+        if (isUnsubscribed) {
+          console.log(`Email ${contact.email} has unsubscribed, skipping`);
+          await supabase.from('email_automation_executions').update({ 
+            status: 'failed', 
+            error_message: 'Recipient has unsubscribed from automation emails' 
+          }).eq('id', execution.id);
+          failedCount++;
+          continue;
+        }
+
+        // 3. Check suppression list
         const { data: isSuppressed } = await supabase.rpc('is_email_suppressed', {
           _org_id: contact.org_id,
           _email: contact.email
@@ -58,18 +104,15 @@ Deno.serve(async (req) => {
 
         if (isSuppressed) {
           console.log(`Email ${contact.email} is suppressed, skipping`);
-          await supabase
-            .from('email_automation_executions')
-            .update({ 
-              status: 'failed', 
-              error_message: 'Email is on suppression list' 
-            })
-            .eq('id', execution.id);
+          await supabase.from('email_automation_executions').update({ 
+            status: 'failed', 
+            error_message: 'Email is on suppression list' 
+          }).eq('id', execution.id);
           failedCount++;
           continue;
         }
 
-        // 2. Check business hours if enforcement enabled
+        // 4. Check business hours if enforcement enabled
         if (rule.enforce_business_hours) {
           const { data: withinHours } = await supabase.rpc('is_within_business_hours', {
             _org_id: contact.org_id,
@@ -78,29 +121,22 @@ Deno.serve(async (req) => {
 
           if (!withinHours) {
             console.log(`Outside business hours, rescheduling`);
-            // Reschedule for next business day at 9 AM
             const tomorrow = new Date();
             tomorrow.setDate(tomorrow.getDate() + 1);
             tomorrow.setHours(9, 0, 0, 0);
             
-            await supabase
-              .from('email_automation_executions')
-              .update({ 
-                status: 'scheduled',
-                scheduled_for: tomorrow.toISOString()
-              })
-              .eq('id', execution.id);
+            await supabase.from('email_automation_executions').update({ 
+              status: 'scheduled',
+              scheduled_for: tomorrow.toISOString()
+            }).eq('id', execution.id);
             continue;
           }
         }
 
         // Mark as processing
-        await supabase
-          .from('email_automation_executions')
-          .update({ status: 'pending' })
-          .eq('id', execution.id);
+        await supabase.from('email_automation_executions').update({ status: 'pending' }).eq('id', execution.id);
 
-        // 3. Handle A/B testing
+        // 5. Handle A/B testing
         let templateId = execution.email_template_id;
         let subjectOverride = null;
 
@@ -113,7 +149,6 @@ Deno.serve(async (req) => {
             .single();
 
           if (abTest) {
-            // Select variant based on weights
             const variants = abTest.variants as any[];
             const totalWeight = variants.reduce((sum, v) => sum + (v.weight || 0), 0);
             const random = Math.random() * totalWeight;
@@ -125,14 +160,10 @@ Deno.serve(async (req) => {
                 templateId = variant.template_id;
                 subjectOverride = variant.subject;
                 
-                // Update execution with A/B test info
-                await supabase
-                  .from('email_automation_executions')
-                  .update({
-                    ab_test_id: abTest.id,
-                    ab_variant_name: variant.name
-                  })
-                  .eq('id', execution.id);
+                await supabase.from('email_automation_executions').update({
+                  ab_test_id: abTest.id,
+                  ab_variant_name: variant.name
+                }).eq('id', execution.id);
                 break;
               }
             }
@@ -147,18 +178,15 @@ Deno.serve(async (req) => {
           .single();
 
         if (!template) {
-          await supabase
-            .from('email_automation_executions')
-            .update({ 
-              status: 'failed', 
-              error_message: 'Template not found' 
-            })
-            .eq('id', execution.id);
+          await supabase.from('email_automation_executions').update({ 
+            status: 'failed', 
+            error_message: 'Template not found' 
+          }).eq('id', execution.id);
           failedCount++;
           continue;
         }
 
-        // Replace variables with enhanced system
+        // Replace variables
         const subjectTemplate = subjectOverride || template.subject;
         const personalizedSubject = await replaceVariables(
           subjectTemplate, 
@@ -167,8 +195,9 @@ Deno.serve(async (req) => {
           supabase
         );
         
-        // Generate tracking ID
+        // Generate unique IDs for tracking and unsubscribe
         const trackingPixelId = `${execution.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const unsubscribeToken = crypto.randomUUID();
         
         let personalizedHtml = await replaceVariables(
           template.html_content, 
@@ -177,7 +206,19 @@ Deno.serve(async (req) => {
           supabase
         );
 
-        // Add tracking pixel to HTML
+        // Add unsubscribe link (before tracking pixel)
+        const unsubscribeUrl = `${supabaseUrl}/functions/v1/unsubscribe?token=${unsubscribeToken}`;
+        const unsubscribeLink = `
+          <div style="margin: 40px 0 20px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
+            <p style="margin: 0; font-size: 12px; color: #6b7280; line-height: 1.5;">
+              You're receiving this email because of your interaction with our platform.<br>
+              <a href="${unsubscribeUrl}" style="color: #6b7280; text-decoration: underline;">Unsubscribe</a> from automated emails
+            </p>
+          </div>
+        `;
+        personalizedHtml = personalizedHtml.replace('</body>', `${unsubscribeLink}</body>`);
+
+        // Add tracking pixel
         const trackingPixel = `<img src="${supabaseUrl}/functions/v1/email-tracking/open?id=${trackingPixelId}" width="1" height="1" style="display:none" alt="" />`;
         personalizedHtml = personalizedHtml.replace('</body>', `${trackingPixel}</body>`);
         
@@ -185,6 +226,7 @@ Deno.serve(async (req) => {
         personalizedHtml = personalizedHtml.replace(
           /<a\s+([^>]*href=["']([^"']+)["'][^>]*)>/gi,
           (match, attrs, url) => {
+            if (url.includes('unsubscribe')) return match; // Don't track unsubscribe link
             const trackedUrl = `${supabaseUrl}/functions/v1/email-tracking/click?id=${trackingPixelId}&url=${encodeURIComponent(url)}`;
             return `<a ${attrs.replace(url, trackedUrl)}>`;
           }
@@ -197,20 +239,19 @@ Deno.serve(async (req) => {
             subject: personalizedSubject,
             html: personalizedHtml,
             contactId: execution.contact_id,
+            trackingPixelId: trackingPixelId,
+            unsubscribeToken: unsubscribeToken,
           }
         });
 
         if (sendError) throw sendError;
 
         // Update execution status
-        await supabase
-          .from('email_automation_executions')
-          .update({ 
-            status: 'sent', 
-            sent_at: new Date().toISOString(),
-            email_subject: personalizedSubject
-          })
-          .eq('id', execution.id);
+        await supabase.from('email_automation_executions').update({ 
+          status: 'sent', 
+          sent_at: new Date().toISOString(),
+          email_subject: personalizedSubject
+        }).eq('id', execution.id);
 
         // Update rule stats
         await supabase.rpc('increment_automation_rule_stats', {
@@ -218,33 +259,12 @@ Deno.serve(async (req) => {
           _stat_type: 'sent',
         });
 
-        // Record/update cooldown
-        const { data: existingCooldown } = await supabase
-          .from('email_automation_cooldowns')
-          .select('*')
-          .eq('rule_id', execution.rule_id)
-          .eq('contact_id', execution.contact_id)
-          .single();
-
-        if (existingCooldown) {
-          await supabase
-            .from('email_automation_cooldowns')
-            .update({
-              last_sent_at: new Date().toISOString(),
-              send_count: existingCooldown.send_count + 1,
-            })
-            .eq('id', existingCooldown.id);
-        } else {
-          await supabase
-            .from('email_automation_cooldowns')
-            .insert({
-              org_id: execution.contacts.org_id,
-              rule_id: execution.rule_id,
-              contact_id: execution.contact_id,
-              last_sent_at: new Date().toISOString(),
-              send_count: 1,
-            });
-        }
+        // Record cooldown using atomic function
+        await supabase.rpc('increment_automation_cooldown', {
+          _rule_id: execution.rule_id,
+          _contact_id: execution.contact_id,
+          _org_id: contact.org_id
+        });
 
         sentCount++;
         console.log(`Successfully sent email for execution ${execution.id}`);
@@ -252,20 +272,38 @@ Deno.serve(async (req) => {
       } catch (error: any) {
         console.error(`Failed to send email for execution ${execution.id}:`, error);
         
-        await supabase
-          .from('email_automation_executions')
-          .update({ 
+        // Implement retry logic
+        const retryCount = execution.retry_count || 0;
+        const maxRetries = execution.max_retries || 3;
+
+        if (retryCount < maxRetries) {
+          // Exponential backoff: 5min, 30min, 2hours
+          const backoffMinutes = Math.pow(6, retryCount) * 5;
+          const nextRetry = new Date(Date.now() + backoffMinutes * 60 * 1000);
+          
+          await supabase.from('email_automation_executions').update({
+            status: 'scheduled',
+            retry_count: retryCount + 1,
+            next_retry_at: nextRetry.toISOString(),
+            scheduled_for: nextRetry.toISOString(),
+            error_message: `${error.message} (retry ${retryCount + 1}/${maxRetries})`
+          }).eq('id', execution.id);
+          
+          console.log(`Scheduled retry ${retryCount + 1} at ${nextRetry}`);
+        } else {
+          // Max retries reached
+          await supabase.from('email_automation_executions').update({ 
             status: 'failed', 
-            error_message: error.message 
-          })
-          .eq('id', execution.id);
+            error_message: `${error.message} (failed after ${retryCount} retries)` 
+          }).eq('id', execution.id);
 
-        await supabase.rpc('increment_automation_rule_stats', {
-          _rule_id: execution.rule_id,
-          _stat_type: 'failed',
-        });
+          await supabase.rpc('increment_automation_rule_stats', {
+            _rule_id: execution.rule_id,
+            _stat_type: 'failed',
+          });
 
-        failedCount++;
+          failedCount++;
+        }
       }
     }
 
@@ -382,7 +420,6 @@ async function replaceVariables(
   
   // Trigger-specific variables
   if (triggerData) {
-    // Basic trigger data
     Object.keys(triggerData).forEach(key => {
       const regex = new RegExp(`{{trigger\\.${key}}}`, 'g');
       result = result.replace(regex, String(triggerData[key] || ''));
@@ -443,18 +480,16 @@ async function replaceVariables(
     }
   }
   
-  // Conditional blocks - {{#if variable}}content{{/if}}
+  // Conditional blocks
   const ifRegex = /{{#if\s+([^}]+)}}([\s\S]*?){{\/if}}/g;
   result = result.replace(ifRegex, (match, condition, content) => {
     let conditionValue = false;
     
-    // Check contact fields
     if (condition === 'company' && contact.company) conditionValue = true;
     else if (condition === 'job_title' && contact.job_title) conditionValue = true;
     else if (condition === 'phone' && contact.phone) conditionValue = true;
     else if (condition === 'city' && contact.city) conditionValue = true;
     
-    // Check for equality conditions (e.g., status == "active")
     const eqMatch = condition.match(/(\w+)\s*==\s*"([^"]+)"/);
     if (eqMatch) {
       const [, field, value] = eqMatch;

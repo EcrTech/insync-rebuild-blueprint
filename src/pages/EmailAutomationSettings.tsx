@@ -1,7 +1,9 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BusinessHoursConfig } from "@/components/EmailAutomation/BusinessHoursConfig";
 import { SuppressionListManager } from "@/components/EmailAutomation/SuppressionListManager";
-import { Clock, Ban, Settings } from "lucide-react";
+import { UnsubscribeManager } from "@/components/EmailAutomation/UnsubscribeManager";
+import { SendLimitsConfig } from "@/components/EmailAutomation/SendLimitsConfig";
+import { Clock, Ban, Settings, UserX, Gauge } from "lucide-react";
 
 export default function EmailAutomationSettings() {
   return (
@@ -26,6 +28,14 @@ export default function EmailAutomationSettings() {
             <Ban className="mr-2 h-4 w-4" />
             Suppression List
           </TabsTrigger>
+          <TabsTrigger value="unsubscribes">
+            <UserX className="mr-2 h-4 w-4" />
+            Unsubscribes
+          </TabsTrigger>
+          <TabsTrigger value="limits">
+            <Gauge className="mr-2 h-4 w-4" />
+            Send Limits
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="business-hours">
@@ -34,6 +44,14 @@ export default function EmailAutomationSettings() {
 
         <TabsContent value="suppression">
           <SuppressionListManager />
+        </TabsContent>
+
+        <TabsContent value="unsubscribes">
+          <UnsubscribeManager />
+        </TabsContent>
+
+        <TabsContent value="limits">
+          <SendLimitsConfig />
         </TabsContent>
       </Tabs>
     </div>
