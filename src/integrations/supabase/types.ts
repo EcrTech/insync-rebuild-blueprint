@@ -1474,7 +1474,9 @@ export type Database = {
           name: string
           org_id: string
           priority: number | null
+          send_at_specific_time: string | null
           send_delay_minutes: number | null
+          send_on_business_days_only: boolean | null
           total_failed: number | null
           total_sent: number | null
           total_triggered: number | null
@@ -1496,7 +1498,9 @@ export type Database = {
           name: string
           org_id: string
           priority?: number | null
+          send_at_specific_time?: string | null
           send_delay_minutes?: number | null
+          send_on_business_days_only?: boolean | null
           total_failed?: number | null
           total_sent?: number | null
           total_triggered?: number | null
@@ -1518,7 +1522,9 @@ export type Database = {
           name?: string
           org_id?: string
           priority?: number | null
+          send_at_specific_time?: string | null
           send_delay_minutes?: number | null
+          send_on_business_days_only?: boolean | null
           total_failed?: number | null
           total_sent?: number | null
           total_triggered?: number | null
@@ -4017,6 +4023,10 @@ export type Database = {
         Args: { _form_id: string; _limit: number }
         Returns: boolean
       }
+      check_inactive_contacts: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       cleanup_orphaned_profile: {
         Args: { user_id: string }
         Returns: undefined
@@ -4187,6 +4197,10 @@ export type Database = {
       is_platform_admin: {
         Args: { _user_id: string }
         Returns: boolean
+      }
+      process_time_based_triggers: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
       trigger_retry_failed_whatsapp: {
         Args: Record<PropertyKey, never>

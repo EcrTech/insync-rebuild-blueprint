@@ -7,7 +7,7 @@ const corsHeaders = {
 
 interface TriggerPayload {
   orgId: string;
-  triggerType: 'stage_change' | 'disposition_set';
+  triggerType: 'stage_change' | 'disposition_set' | 'activity_logged' | 'field_updated' | 'inactivity' | 'time_based' | 'assignment_changed';
   contactId: string;
   triggerData: {
     from_stage_id?: string;
@@ -15,6 +15,17 @@ interface TriggerPayload {
     disposition_id?: string;
     sub_disposition_id?: string;
     activity_id?: string;
+    activity_type?: string;
+    custom_field_id?: string;
+    field_id?: string;
+    old_value?: string;
+    new_value?: string;
+    old_user_id?: string;
+    new_user_id?: string;
+    old_team_id?: string;
+    new_team_id?: string;
+    days_inactive?: number;
+    last_activity?: string;
     [key: string]: any;
   };
 }
@@ -149,10 +160,10 @@ Deno.serve(async (req) => {
 function checkTriggerMatch(config: any, triggerData: any, triggerType: string): boolean {
   if (triggerType === 'stage_change') {
     // Check from_stage_id and to_stage_id
-    if (config.from_stage_id && config.from_stage_id !== triggerData.from_stage_id) {
+    if (config.from_stage_id && config.from_stage_id !== 'any' && config.from_stage_id !== triggerData.from_stage_id) {
       return false;
     }
-    if (config.to_stage_id && config.to_stage_id !== triggerData.to_stage_id) {
+    if (config.to_stage_id && config.to_stage_id !== 'any' && config.to_stage_id !== triggerData.to_stage_id) {
       return false;
     }
     return true;
@@ -167,6 +178,73 @@ function checkTriggerMatch(config: any, triggerData: any, triggerType: string): 
     }
     if (config.sub_disposition_ids?.length > 0) {
       if (!config.sub_disposition_ids.includes(triggerData.sub_disposition_id)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  if (triggerType === 'activity_logged') {
+    // Check activity types
+    if (config.activity_types?.length > 0) {
+      if (!config.activity_types.includes(triggerData.activity_type)) {
+        return false;
+      }
+    }
+    // Check minimum call duration
+    if (config.min_call_duration_seconds && triggerData.call_duration) {
+      if (triggerData.call_duration < config.min_call_duration_seconds) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  if (triggerType === 'field_updated') {
+    // Check specific field
+    if (config.field_id && config.field_id !== triggerData.custom_field_id) {
+      return false;
+    }
+    // Check change type
+    if (config.change_type) {
+      if (config.change_type === 'set' && !triggerData.new_value) return false;
+      if (config.change_type === 'cleared' && triggerData.new_value) return false;
+      // For numeric fields, check threshold
+      if (config.value_threshold && triggerData.new_value) {
+        const newValue = parseFloat(triggerData.new_value);
+        if (isNaN(newValue)) return false;
+        
+        if (config.value_threshold.startsWith('>')) {
+          const threshold = parseFloat(config.value_threshold.substring(1).trim());
+          if (newValue <= threshold) return false;
+        } else if (config.value_threshold.startsWith('<')) {
+          const threshold = parseFloat(config.value_threshold.substring(1).trim());
+          if (newValue >= threshold) return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  if (triggerType === 'inactivity') {
+    // Inactivity matching is done in the database function
+    return true;
+  }
+
+  if (triggerType === 'time_based') {
+    // Time-based matching is done in the database function
+    return true;
+  }
+
+  if (triggerType === 'assignment_changed') {
+    // Check specific users or teams
+    if (config.assigned_to_user_ids?.length > 0) {
+      if (!config.assigned_to_user_ids.includes(triggerData.new_user_id)) {
+        return false;
+      }
+    }
+    if (config.assigned_to_team_ids?.length > 0) {
+      if (!config.assigned_to_team_ids.includes(triggerData.new_team_id)) {
         return false;
       }
     }

@@ -128,14 +128,16 @@ export default function EmailAutomations() {
   });
 
   const getTriggerTypeLabel = (type: string) => {
-    switch (type) {
-      case "stage_change":
-        return "Stage Change";
-      case "disposition_set":
-        return "Call Disposition";
-      default:
-        return type;
-    }
+    const labels: Record<string, string> = {
+      stage_change: "Stage Change",
+      disposition_set: "Call Disposition",
+      activity_logged: "Activity Logged",
+      field_updated: "Field Updated",
+      inactivity: "Contact Inactivity",
+      time_based: "Time Based",
+      assignment_changed: "Assignment Changed",
+    };
+    return labels[type] || type;
   };
 
   const handleCreateRule = () => {

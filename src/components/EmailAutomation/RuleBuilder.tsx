@@ -21,12 +21,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface RuleBuilderProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingRule?: any;
 }
+
+type TriggerType = "stage_change" | "disposition_set" | "activity_logged" | "field_updated" | "inactivity" | "time_based" | "assignment_changed";
 
 export function RuleBuilder({ open, onOpenChange, editingRule }: RuleBuilderProps) {
   const { effectiveOrgId } = useOrgContext();
@@ -35,7 +38,7 @@ export function RuleBuilder({ open, onOpenChange, editingRule }: RuleBuilderProp
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [triggerType, setTriggerType] = useState<"stage_change" | "disposition_set">("stage_change");
+  const [triggerType, setTriggerType] = useState<TriggerType>("stage_change");
   const [templateId, setTemplateId] = useState("");
   const [sendDelayMinutes, setSendDelayMinutes] = useState(0);
   const [maxSends, setMaxSends] = useState<number | undefined>();
@@ -48,6 +51,23 @@ export function RuleBuilder({ open, onOpenChange, editingRule }: RuleBuilderProp
 
   // Disposition config
   const [dispositionIds, setDispositionIds] = useState<string[]>([]);
+
+  // Activity logged config
+  const [activityTypes, setActivityTypes] = useState<string[]>([]);
+  const [minCallDuration, setMinCallDuration] = useState<number | undefined>();
+
+  // Field updated config
+  const [customFieldId, setCustomFieldId] = useState<string | undefined>();
+  const [valueThreshold, setValueThreshold] = useState("");
+
+  // Inactivity config
+  const [inactivityDays, setInactivityDays] = useState(30);
+
+  // Time based config
+  const [relativeDays, setRelativeDays] = useState(0);
+
+  // Assignment config
+  const [assignedToUserIds, setAssignedToUserIds] = useState<string[]>([]);
 
   // Fetch pipeline stages
   const { data: stages } = useQuery({
@@ -81,6 +101,38 @@ export function RuleBuilder({ open, onOpenChange, editingRule }: RuleBuilderProp
     enabled: !!effectiveOrgId,
   });
 
+  // Fetch custom fields
+  const { data: customFields } = useQuery({
+    queryKey: ["custom_fields", effectiveOrgId],
+    queryFn: async () => {
+      if (!effectiveOrgId) return [];
+      const { data, error } = await supabase
+        .from("custom_fields")
+        .select("*")
+        .eq("org_id", effectiveOrgId)
+        .eq("applies_to_table", "contacts")
+        .eq("is_active", true);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!effectiveOrgId && triggerType === "field_updated",
+  });
+
+  // Fetch users
+  const { data: users } = useQuery({
+    queryKey: ["profiles", effectiveOrgId],
+    queryFn: async () => {
+      if (!effectiveOrgId) return [];
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, first_name, last_name")
+        .eq("org_id", effectiveOrgId);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!effectiveOrgId && triggerType === "assignment_changed",
+  });
+
   // Fetch templates
   const { data: templates } = useQuery({
     queryKey: ["email_templates", effectiveOrgId],
@@ -109,11 +161,17 @@ export function RuleBuilder({ open, onOpenChange, editingRule }: RuleBuilderProp
       setCooldownDays(editingRule.cooldown_period_days);
       setPriority(editingRule.priority || 50);
 
-      if (editingRule.trigger_config) {
-        setFromStageId(editingRule.trigger_config.from_stage_id);
-        setToStageId(editingRule.trigger_config.to_stage_id);
-        setDispositionIds(editingRule.trigger_config.disposition_ids || []);
-      }
+      const config = editingRule.trigger_config || {};
+      setFromStageId(config.from_stage_id);
+      setToStageId(config.to_stage_id);
+      setDispositionIds(config.disposition_ids || []);
+      setActivityTypes(config.activity_types || []);
+      setMinCallDuration(config.min_call_duration_seconds);
+      setCustomFieldId(config.field_id);
+      setValueThreshold(config.value_threshold || "");
+      setInactivityDays(config.inactivity_days || 30);
+      setRelativeDays(config.relative_days || 0);
+      setAssignedToUserIds(config.assigned_to_user_ids || []);
     } else {
       resetForm();
     }
@@ -131,6 +189,13 @@ export function RuleBuilder({ open, onOpenChange, editingRule }: RuleBuilderProp
     setFromStageId(undefined);
     setToStageId(undefined);
     setDispositionIds([]);
+    setActivityTypes([]);
+    setMinCallDuration(undefined);
+    setCustomFieldId(undefined);
+    setValueThreshold("");
+    setInactivityDays(30);
+    setRelativeDays(0);
+    setAssignedToUserIds([]);
   };
 
   // Save rule mutation
@@ -138,10 +203,31 @@ export function RuleBuilder({ open, onOpenChange, editingRule }: RuleBuilderProp
     mutationFn: async () => {
       if (!effectiveOrgId) throw new Error("No organization selected");
 
-      const triggerConfig =
-        triggerType === "stage_change"
-          ? { from_stage_id: fromStageId, to_stage_id: toStageId }
-          : { disposition_ids: dispositionIds };
+      let triggerConfig = {};
+      if (triggerType === "stage_change") {
+        triggerConfig = { from_stage_id: fromStageId, to_stage_id: toStageId };
+      } else if (triggerType === "disposition_set") {
+        triggerConfig = { disposition_ids: dispositionIds };
+      } else if (triggerType === "activity_logged") {
+        triggerConfig = { 
+          activity_types: activityTypes,
+          min_call_duration_seconds: minCallDuration
+        };
+      } else if (triggerType === "field_updated") {
+        triggerConfig = { 
+          field_id: customFieldId,
+          value_threshold: valueThreshold
+        };
+      } else if (triggerType === "inactivity") {
+        triggerConfig = { inactivity_days: inactivityDays };
+      } else if (triggerType === "time_based") {
+        triggerConfig = { 
+          trigger_date_type: "contact_created",
+          relative_days: relativeDays
+        };
+      } else if (triggerType === "assignment_changed") {
+        triggerConfig = { assigned_to_user_ids: assignedToUserIds };
+      }
 
       const ruleData = {
         org_id: effectiveOrgId,
@@ -208,30 +294,33 @@ export function RuleBuilder({ open, onOpenChange, editingRule }: RuleBuilderProp
       return;
     }
 
-    if (triggerType === "stage_change" && !fromStageId && !toStageId) {
-      toast({
-        title: "Validation Error",
-        description: "Please select at least one stage (from or to)",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (triggerType === "disposition_set" && dispositionIds.length === 0) {
-      toast({
-        title: "Validation Error",
-        description: "Please select at least one disposition",
-        variant: "destructive",
-      });
-      return;
-    }
-
     saveMutation.mutate();
+  };
+
+  const getTriggerLabel = (type: TriggerType) => {
+    const labels: Record<TriggerType, string> = {
+      stage_change: "Stage Change",
+      disposition_set: "Call Disposition",
+      activity_logged: "Activity Logged",
+      field_updated: "Field Updated",
+      inactivity: "Contact Inactivity",
+      time_based: "Time Based",
+      assignment_changed: "Assignment Changed",
+    };
+    return labels[type];
+  };
+
+  const toggleActivityType = (type: string) => {
+    if (activityTypes.includes(type)) {
+      setActivityTypes(activityTypes.filter(t => t !== type));
+    } else {
+      setActivityTypes([...activityTypes, type]);
+    }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {editingRule ? "Edit Automation Rule" : "Create Automation Rule"}
@@ -260,26 +349,30 @@ export function RuleBuilder({ open, onOpenChange, editingRule }: RuleBuilderProp
               placeholder="Describe what this rule does..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
+              rows={2}
             />
           </div>
 
           {/* Trigger Type */}
           <div className="space-y-2">
             <Label htmlFor="trigger">Trigger Type *</Label>
-            <Select value={triggerType} onValueChange={(v: any) => setTriggerType(v)}>
+            <Select value={triggerType} onValueChange={(v: TriggerType) => setTriggerType(v)}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="stage_change">Stage Change</SelectItem>
-                <SelectItem value="disposition_set">Call Disposition</SelectItem>
+                {(["stage_change", "disposition_set", "activity_logged", "field_updated", "inactivity", "time_based", "assignment_changed"] as TriggerType[]).map(type => (
+                  <SelectItem key={type} value={type}>
+                    {getTriggerLabel(type)}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
 
           {/* Stage Change Config */}
           {triggerType === "stage_change" && (
-            <div className="space-y-2 border rounded-lg p-4">
+            <div className="space-y-2 border rounded-lg p-4 bg-muted/50">
               <Label>Stage Configuration</Label>
               <p className="text-sm text-muted-foreground">
                 Select stages to trigger this rule (leave blank for "any")
@@ -287,7 +380,7 @@ export function RuleBuilder({ open, onOpenChange, editingRule }: RuleBuilderProp
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>From Stage</Label>
-                  <Select value={fromStageId} onValueChange={setFromStageId}>
+                  <Select value={fromStageId || "any"} onValueChange={(v) => setFromStageId(v === "any" ? undefined : v)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Any stage" />
                     </SelectTrigger>
@@ -303,7 +396,7 @@ export function RuleBuilder({ open, onOpenChange, editingRule }: RuleBuilderProp
                 </div>
                 <div className="space-y-2">
                   <Label>To Stage</Label>
-                  <Select value={toStageId} onValueChange={setToStageId}>
+                  <Select value={toStageId || "any"} onValueChange={(v) => setToStageId(v === "any" ? undefined : v)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Any stage" />
                     </SelectTrigger>
@@ -323,7 +416,7 @@ export function RuleBuilder({ open, onOpenChange, editingRule }: RuleBuilderProp
 
           {/* Disposition Config */}
           {triggerType === "disposition_set" && (
-            <div className="space-y-2 border rounded-lg p-4">
+            <div className="space-y-2 border rounded-lg p-4 bg-muted/50">
               <Label>Disposition Selection *</Label>
               <p className="text-sm text-muted-foreground">
                 Select which dispositions trigger this rule
@@ -343,6 +436,148 @@ export function RuleBuilder({ open, onOpenChange, editingRule }: RuleBuilderProp
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+          )}
+
+          {/* Activity Logged Config */}
+          {triggerType === "activity_logged" && (
+            <div className="space-y-3 border rounded-lg p-4 bg-muted/50">
+              <Label>Activity Configuration</Label>
+              <p className="text-sm text-muted-foreground">
+                Select which activity types trigger this rule
+              </p>
+              <div className="space-y-2">
+                {["call", "meeting", "email", "note", "task"].map(type => (
+                  <div key={type} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={type}
+                      checked={activityTypes.includes(type)}
+                      onCheckedChange={() => toggleActivityType(type)}
+                    />
+                    <Label htmlFor={type} className="capitalize cursor-pointer">
+                      {type}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+              <div className="space-y-2 pt-2">
+                <Label>Minimum Call Duration (seconds)</Label>
+                <Input
+                  type="number"
+                  placeholder="Optional, e.g., 300 for 5 minutes"
+                  value={minCallDuration || ""}
+                  onChange={(e) => setMinCallDuration(e.target.value ? parseInt(e.target.value) : undefined)}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Field Updated Config */}
+          {triggerType === "field_updated" && (
+            <div className="space-y-3 border rounded-lg p-4 bg-muted/50">
+              <Label>Field Configuration</Label>
+              <p className="text-sm text-muted-foreground">
+                Trigger when a custom field changes
+              </p>
+              <div className="space-y-2">
+                <Label>Custom Field *</Label>
+                <Select value={customFieldId || ""} onValueChange={setCustomFieldId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select field" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {customFields?.map((field) => (
+                      <SelectItem key={field.id} value={field.id}>
+                        {field.field_label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Value Threshold (optional)</Label>
+                <Input
+                  placeholder="e.g., >50000 or <100"
+                  value={valueThreshold}
+                  onChange={(e) => setValueThreshold(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  For numeric fields only. Examples: &gt;50000, &lt;100
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Inactivity Config */}
+          {triggerType === "inactivity" && (
+            <div className="space-y-3 border rounded-lg p-4 bg-muted/50">
+              <Label>Inactivity Configuration</Label>
+              <p className="text-sm text-muted-foreground">
+                Trigger when contact has no activity for specified days
+              </p>
+              <div className="space-y-2">
+                <Label>Inactivity Days *</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  value={inactivityDays}
+                  onChange={(e) => setInactivityDays(parseInt(e.target.value) || 30)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Checked daily at 9 AM
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Time Based Config */}
+          {triggerType === "time_based" && (
+            <div className="space-y-3 border rounded-lg p-4 bg-muted/50">
+              <Label>Time-Based Configuration</Label>
+              <p className="text-sm text-muted-foreground">
+                Trigger X days after contact created
+              </p>
+              <div className="space-y-2">
+                <Label>Days After Contact Created *</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={relativeDays}
+                  onChange={(e) => setRelativeDays(parseInt(e.target.value) || 0)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  0 = same day, 7 = one week later, etc.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Assignment Changed Config */}
+          {triggerType === "assignment_changed" && (
+            <div className="space-y-3 border rounded-lg p-4 bg-muted/50">
+              <Label>Assignment Configuration</Label>
+              <p className="text-sm text-muted-foreground">
+                Trigger when contact is assigned to specific users (optional filter)
+              </p>
+              <div className="space-y-2">
+                <Label>Assigned To User (optional)</Label>
+                <Select 
+                  value={assignedToUserIds[0] || "any"} 
+                  onValueChange={(v) => setAssignedToUserIds(v === "any" ? [] : [v])}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Any user" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="any">Any user</SelectItem>
+                    {users?.map((user) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {user.first_name} {user.last_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           )}
 
@@ -425,7 +660,7 @@ export function RuleBuilder({ open, onOpenChange, editingRule }: RuleBuilderProp
           </div>
         </div>
 
-        <div className="flex justify-end gap-2">
+        <div className="flex justify-end gap-2 pt-4 border-t">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
