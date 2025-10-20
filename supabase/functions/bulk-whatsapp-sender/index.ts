@@ -226,11 +226,14 @@ Deno.serve(async (req) => {
     let totalSent = 0;
     let totalFailed = 0;
 
-    // Process in batches
+    // Process in batches with parallel execution
+    console.log(`Processing ${recipients.length} recipients in batches of ${batchSize}`);
+    
     for (let i = 0; i < recipients.length; i += batchSize) {
       const batch = recipients.slice(i, i + batchSize);
+      console.log(`Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(recipients.length / batchSize)}`);
 
-      // Send messages in parallel within the batch
+      // Send messages in parallel within the batch using Promise.allSettled
       const batchResults = await Promise.allSettled(
         batch.map(async (recipient) => {
           try {

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getSupabaseClient } from "../_shared/supabaseClient.ts";
+import { replaceVariables } from "../_shared/templateVariables.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -8,6 +9,7 @@ const corsHeaders = {
 };
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+const BATCH_SIZE = 50; // Process 50 emails in parallel
 
 const sendEmail = async (to: string, subject: string, html: string, fromEmail: string, fromName: string) => {
   const response = await fetch("https://api.resend.com/emails", {
@@ -46,41 +48,6 @@ interface RecipientData {
   };
 }
 
-const replaceVariables = (
-  html: string,
-  contact: RecipientData["contacts"] | null,
-  email: string,
-  customData: any = {},
-  variableMappings: any = null
-) => {
-  let result = html;
-  
-  if (variableMappings) {
-    for (const [variable, mapping] of Object.entries(variableMappings)) {
-      const mappingObj = mapping as any;
-      let value = '';
-      if (mappingObj.source === 'crm' && contact) {
-        value = (contact as any)[mappingObj.field] || '';
-      } else if (mappingObj.source === 'csv') {
-        value = customData?.[mappingObj.field] || '';
-      } else if (mappingObj.source === 'static') {
-        value = mappingObj.value || '';
-      }
-      result = result.replace(new RegExp(variable.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), value);
-    }
-  } else {
-    // Fallback to old method
-    result = result
-      .replace(/\{\{first_name\}\}/g, contact?.first_name || "")
-      .replace(/\{\{last_name\}\}/g, contact?.last_name || "")
-      .replace(/\{\{email\}\}/g, email || "")
-      .replace(/\{\{company\}\}/g, contact?.company || "")
-      .replace(/\{\{phone\}\}/g, contact?.phone || "");
-  }
-  
-  return result;
-};
-
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -88,11 +55,7 @@ serve(async (req) => {
   }
 
   try {
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
-
+    const supabaseClient = getSupabaseClient();
     const { campaignId } = await req.json();
 
     console.log("Starting bulk email send for campaign:", campaignId);
@@ -170,135 +133,181 @@ serve(async (req) => {
     let sentCount = 0;
     let failedCount = 0;
 
-    // Send emails
-    for (const recipient of recipients || []) {
-      try {
-        // Add attachments first if present
-        let attachmentsHtml = '';
-        if (campaign.attachments && campaign.attachments.length > 0) {
-          attachmentsHtml = campaign.attachments.map((att: any) => {
-            if (att.type === 'image') {
-              return `<div style="margin: 20px 0;"><img src="${att.url}" alt="${att.name}" style="max-width: 100%; height: auto; display: block; border-radius: 8px;" /></div>`;
-            } else if (att.type === 'video') {
-              return `<div style="margin: 20px 0;"><video controls style="max-width: 100%; display: block; border-radius: 8px;"><source src="${att.url}" type="video/mp4" /></video></div>`;
+    // Process emails in batches for better performance
+    console.log(`Processing ${recipients?.length || 0} recipients in batches of ${BATCH_SIZE}`);
+    
+    for (let i = 0; i < (recipients?.length || 0); i += BATCH_SIZE) {
+      const batch = recipients!.slice(i, i + BATCH_SIZE);
+      console.log(`Processing batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(recipients!.length / BATCH_SIZE)}`);
+
+      // Process batch in parallel using Promise.allSettled
+      const batchResults = await Promise.allSettled(
+        batch.map(async (recipient) => {
+          try {
+            // Add attachments first if present
+            let attachmentsHtml = '';
+            if (campaign.attachments && campaign.attachments.length > 0) {
+              attachmentsHtml = campaign.attachments.map((att: any) => {
+                if (att.type === 'image') {
+                  return `<div style="margin: 20px 0;"><img src="${att.url}" alt="${att.name}" style="max-width: 100%; height: auto; display: block; border-radius: 8px;" /></div>`;
+                } else if (att.type === 'video') {
+                  return `<div style="margin: 20px 0;"><video controls style="max-width: 100%; display: block; border-radius: 8px;"><source src="${att.url}" type="video/mp4" /></video></div>`;
+                }
+                return '';
+              }).join('');
             }
-            return '';
-          }).join('');
-        }
 
-        // Use body_content if available (new templates), otherwise fall back to html_content (old templates)
-        const templateContent = campaign.body_content || campaign.html_content;
-        let personalizedHtml = replaceVariables(
-          templateContent,
-          recipient.contacts,
-          recipient.email,
-          recipient.custom_data || {},
-          campaign.variable_mappings
-        );
+            // Use body_content if available (new templates), otherwise fall back to html_content (old templates)
+            const templateContent = campaign.body_content || campaign.html_content;
+            let personalizedHtml = await replaceVariables(
+              templateContent,
+              recipient.contacts,
+              recipient.custom_data || {},
+              supabaseClient,
+              campaign.variable_mappings
+            );
 
-        // Add CTA buttons if present
-        if (campaign.buttons && campaign.buttons.length > 0) {
-          const buttonsHtml = campaign.buttons.map((btn: any) => {
-            const buttonUrl = replaceVariables(btn.url, recipient.contacts, recipient.email, recipient.custom_data || {}, campaign.variable_mappings);
-            const styles: Record<string, string> = {
-              primary: 'background: #2563eb; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; display: inline-block; margin: 10px 5px; font-weight: 500;',
-              secondary: 'background: #6b7280; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; display: inline-block; margin: 10px 5px; font-weight: 500;',
-              outline: 'background: transparent; color: #2563eb; border: 2px solid #2563eb; padding: 12px 24px; border-radius: 6px; text-decoration: none; display: inline-block; margin: 10px 5px; font-weight: 500;'
-            };
-            const btnStyle = styles[btn.style] || styles.primary;
-            return `
-              <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin: 20px auto;">
-                <tr>
-                  <td style="border-radius: 6px; text-align: center;">
-                    <a href="${buttonUrl}" style="${btnStyle}">
-                      ${btn.text}
-                    </a>
-                  </td>
-                </tr>
-              </table>
+            // Add CTA buttons if present
+            if (campaign.buttons && campaign.buttons.length > 0) {
+              const buttonsHtml = await Promise.all(campaign.buttons.map(async (btn: any) => {
+                const buttonUrl = await replaceVariables(
+                  btn.url,
+                  recipient.contacts,
+                  recipient.custom_data || {},
+                  supabaseClient,
+                  campaign.variable_mappings
+                );
+                const styles: Record<string, string> = {
+                  primary: 'background: #2563eb; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; display: inline-block; margin: 10px 5px; font-weight: 500;',
+                  secondary: 'background: #6b7280; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; display: inline-block; margin: 10px 5px; font-weight: 500;',
+                  outline: 'background: transparent; color: #2563eb; border: 2px solid #2563eb; padding: 12px 24px; border-radius: 6px; text-decoration: none; display: inline-block; margin: 10px 5px; font-weight: 500;'
+                };
+                const btnStyle = styles[btn.style] || styles.primary;
+                return `
+                  <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin: 20px auto;">
+                    <tr>
+                      <td style="border-radius: 6px; text-align: center;">
+                        <a href="${buttonUrl}" style="${btnStyle}">
+                          ${btn.text}
+                        </a>
+                      </td>
+                    </tr>
+                  </table>
+                `;
+              }));
+              personalizedHtml += buttonsHtml.join('');
+            }
+
+            // Prepend attachments before content
+            personalizedHtml = attachmentsHtml + personalizedHtml;
+
+            // Wrap in email template
+            personalizedHtml = `
+              <!DOCTYPE html>
+              <html>
+                <head>
+                  <meta charset="UTF-8">
+                  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                </head>
+                <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                  ${personalizedHtml}
+                </body>
+              </html>
             `;
-          }).join('');
-          personalizedHtml += buttonsHtml;
-        }
 
-        // Prepend attachments before content
-        personalizedHtml = attachmentsHtml + personalizedHtml;
+            // Replace variables in subject line
+            const personalizedSubject = await replaceVariables(
+              campaign.subject,
+              recipient.contacts,
+              recipient.custom_data || {},
+              supabaseClient,
+              campaign.variable_mappings
+            );
 
-        // Wrap in email template
-        personalizedHtml = `
-          <!DOCTYPE html>
-          <html>
-            <head>
-              <meta charset="UTF-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            </head>
-            <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-              ${personalizedHtml}
-            </body>
-          </html>
-        `;
+            const emailResult = await sendEmail(
+              recipient.email,
+              personalizedSubject,
+              personalizedHtml,
+              fromEmail,
+              fromName
+            );
 
-        // Replace variables in subject line
-        const personalizedSubject = replaceVariables(
-          campaign.subject,
-          recipient.contacts,
-          recipient.email,
-          recipient.custom_data || {},
-          campaign.variable_mappings
-        );
+            return {
+              success: true,
+              recipientId: recipient.id,
+              contactId: recipient.contact_id,
+              email: recipient.email,
+              subject: personalizedSubject,
+              html: personalizedHtml,
+              emailResult
+            };
+          } catch (error: any) {
+            console.error(`Failed to send email to ${recipient.email}:`, error);
+            return {
+              success: false,
+              recipientId: recipient.id,
+              email: recipient.email,
+              error: error.message || "Unknown error"
+            };
+          }
+        })
+      );
 
-        const emailResult = await sendEmail(
-          recipient.email,
-          personalizedSubject,
-          personalizedHtml,
-          fromEmail,
-          fromName
-        );
+      // Separate successful and failed results
+      const successfulResults = batchResults
+        .filter((r): r is PromiseFulfilledResult<any> => r.status === 'fulfilled' && r.value.success)
+        .map(r => r.value);
+      
+      const failedResults = batchResults
+        .filter((r): r is PromiseFulfilledResult<any> | PromiseRejectedResult => 
+          r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.success)
+        )
+        .map(r => r.status === 'fulfilled' ? r.value : { success: false, error: r.reason });
 
-        // Log to email_conversations
-        await supabaseClient.from("email_conversations").insert({
+      // Bulk insert to email_conversations for successful sends
+      if (successfulResults.length > 0) {
+        const conversationsToInsert = successfulResults.map(result => ({
           org_id: campaign.org_id,
-          contact_id: recipient.contact_id,
-          conversation_id: emailResult?.id || crypto.randomUUID(),
+          contact_id: result.contactId,
+          conversation_id: result.emailResult?.id || crypto.randomUUID(),
           from_email: fromEmail,
           from_name: fromName,
-          to_email: recipient.email,
-          subject: personalizedSubject,
-          email_content: personalizedHtml,
-          html_content: personalizedHtml,
+          to_email: result.email,
+          subject: result.subject,
+          email_content: result.html,
+          html_content: result.html,
           direction: "outbound",
           status: "sent",
           sent_at: new Date().toISOString(),
-        });
+        }));
 
-        // Update recipient status to sent
-        await supabaseClient
-          .from("email_campaign_recipients")
-          .update({
-            status: "sent",
-            sent_at: new Date().toISOString(),
-          })
-          .eq("id", recipient.id);
-
-        sentCount++;
-        console.log(`Email sent successfully to: ${recipient.email}`);
-      } catch (error: any) {
-        console.error(`Failed to send email to ${recipient.email}:`, error);
-
-        // Update recipient status to failed
-        await supabaseClient
-          .from("email_campaign_recipients")
-          .update({
-            status: "failed",
-            error_message: error.message || "Unknown error",
-          })
-          .eq("id", recipient.id);
-
-        failedCount++;
+        await supabaseClient.from("email_conversations").insert(conversationsToInsert);
       }
 
-      // Add small delay to avoid rate limiting
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      // Bulk update recipient statuses
+      const statusUpdates = [
+        ...successfulResults.map(r => ({
+          id: r.recipientId,
+          status: "sent",
+          sent_at: new Date().toISOString(),
+        })),
+        ...failedResults.map((r: any) => ({
+          id: r.recipientId,
+          status: "failed",
+          error_message: r.error,
+        }))
+      ];
+
+      if (statusUpdates.length > 0) {
+        await supabaseClient
+          .from("email_campaign_recipients")
+          .upsert(statusUpdates, { onConflict: 'id' });
+      }
+
+      sentCount += successfulResults.length;
+      failedCount += failedResults.length;
+
+      console.log(`Batch complete. Sent: ${successfulResults.length}, Failed: ${failedResults.length}`);
     }
 
     // Update campaign stats
