@@ -3676,6 +3676,48 @@ export type Database = {
           },
         ]
       }
+      platform_email_sending_list: {
+        Row: {
+          bounce_count: number
+          created_at: string
+          email: string
+          first_seen_at: string
+          id: string
+          is_unsubscribed: boolean
+          last_bounce_at: string | null
+          last_synced_at: string
+          name: string | null
+          source_type: string
+          updated_at: string
+        }
+        Insert: {
+          bounce_count?: number
+          created_at?: string
+          email: string
+          first_seen_at?: string
+          id?: string
+          is_unsubscribed?: boolean
+          last_bounce_at?: string | null
+          last_synced_at?: string
+          name?: string | null
+          source_type: string
+          updated_at?: string
+        }
+        Update: {
+          bounce_count?: number
+          created_at?: string
+          email?: string
+          first_seen_at?: string
+          id?: string
+          is_unsubscribed?: boolean
+          last_bounce_at?: string | null
+          last_synced_at?: string
+          name?: string | null
+          source_type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -5050,6 +5092,10 @@ export type Database = {
         Returns: undefined
       }
       process_time_based_triggers: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      sync_platform_email_list: {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
