@@ -72,6 +72,10 @@ export function RuleBuilder({ open, onOpenChange, editingRule }: RuleBuilderProp
   // Assignment config
   const [assignedToUserIds, setAssignedToUserIds] = useState<string[]>([]);
 
+  // Advanced features
+  const [enforceBusinessHours, setEnforceBusinessHours] = useState(false);
+  const [abTestEnabled, setAbTestEnabled] = useState(false);
+
   // Fetch pipeline stages
   const { data: stages } = useQuery({
     queryKey: ["pipeline_stages", effectiveOrgId],
@@ -177,6 +181,8 @@ export function RuleBuilder({ open, onOpenChange, editingRule }: RuleBuilderProp
       setAssignedToUserIds(config.assigned_to_user_ids || []);
       setConditions(editingRule.conditions || []);
       setConditionLogic(editingRule.condition_logic || 'AND');
+      setEnforceBusinessHours(editingRule.enforce_business_hours || false);
+      setAbTestEnabled(editingRule.ab_test_enabled || false);
     } else {
       resetForm();
     }
@@ -203,6 +209,8 @@ export function RuleBuilder({ open, onOpenChange, editingRule }: RuleBuilderProp
     setAssignedToUserIds([]);
     setConditions([]);
     setConditionLogic('AND');
+    setEnforceBusinessHours(false);
+    setAbTestEnabled(false);
   };
 
   // Save rule mutation
@@ -249,6 +257,8 @@ export function RuleBuilder({ open, onOpenChange, editingRule }: RuleBuilderProp
         priority,
         conditions,
         condition_logic: conditionLogic,
+        enforce_business_hours: enforceBusinessHours,
+        ab_test_enabled: abTestEnabled,
         is_active: true,
       };
 
@@ -679,6 +689,33 @@ export function RuleBuilder({ open, onOpenChange, editingRule }: RuleBuilderProp
             <p className="text-sm text-muted-foreground">
               Higher priority rules execute first when multiple rules match
             </p>
+          </div>
+
+          {/* Advanced Features */}
+          <div className="space-y-4 border rounded-lg p-4 bg-muted/50">
+            <h3 className="font-semibold">Advanced Features</h3>
+            
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="businessHours"
+                checked={enforceBusinessHours}
+                onCheckedChange={(checked) => setEnforceBusinessHours(checked as boolean)}
+              />
+              <Label htmlFor="businessHours" className="cursor-pointer">
+                Enforce business hours
+              </Label>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="abTest"
+                checked={abTestEnabled}
+                onCheckedChange={(checked) => setAbTestEnabled(checked as boolean)}
+              />
+              <Label htmlFor="abTest" className="cursor-pointer">
+                Enable A/B testing
+              </Label>
+            </div>
           </div>
         </div>
 

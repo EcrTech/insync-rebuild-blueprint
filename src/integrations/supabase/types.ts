@@ -332,6 +332,63 @@ export type Database = {
           },
         ]
       }
+      automation_ab_tests: {
+        Row: {
+          created_at: string
+          end_date: string | null
+          id: string
+          org_id: string
+          rule_id: string
+          start_date: string
+          status: string
+          test_name: string
+          updated_at: string
+          variants: Json
+          winner_variant: string | null
+        }
+        Insert: {
+          created_at?: string
+          end_date?: string | null
+          id?: string
+          org_id: string
+          rule_id: string
+          start_date?: string
+          status?: string
+          test_name: string
+          updated_at?: string
+          variants: Json
+          winner_variant?: string | null
+        }
+        Update: {
+          created_at?: string
+          end_date?: string | null
+          id?: string
+          org_id?: string
+          rule_id?: string
+          start_date?: string
+          status?: string
+          test_name?: string
+          updated_at?: string
+          variants?: Json
+          winner_variant?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_ab_tests_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_ab_tests_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "email_automation_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       call_dispositions: {
         Row: {
           category: string | null
@@ -1371,6 +1428,8 @@ export type Database = {
       }
       email_automation_executions: {
         Row: {
+          ab_test_id: string | null
+          ab_variant_name: string | null
           contact_id: string
           created_at: string | null
           email_conversation_id: string | null
@@ -1388,6 +1447,8 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          ab_test_id?: string | null
+          ab_variant_name?: string | null
           contact_id: string
           created_at?: string | null
           email_conversation_id?: string | null
@@ -1405,6 +1466,8 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          ab_test_id?: string | null
+          ab_variant_name?: string | null
           contact_id?: string
           created_at?: string | null
           email_conversation_id?: string | null
@@ -1422,6 +1485,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "email_automation_executions_ab_test_id_fkey"
+            columns: ["ab_test_id"]
+            isOneToOne: false
+            referencedRelation: "automation_ab_tests"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "email_automation_executions_contact_id_fkey"
             columns: ["contact_id"]
@@ -1461,6 +1531,7 @@ export type Database = {
       }
       email_automation_rules: {
         Row: {
+          ab_test_enabled: boolean
           condition_logic: string | null
           conditions: Json | null
           cooldown_period_days: number | null
@@ -1468,6 +1539,7 @@ export type Database = {
           created_by: string | null
           description: string | null
           email_template_id: string | null
+          enforce_business_hours: boolean
           id: string
           is_active: boolean | null
           max_sends_per_contact: number | null
@@ -1485,6 +1557,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          ab_test_enabled?: boolean
           condition_logic?: string | null
           conditions?: Json | null
           cooldown_period_days?: number | null
@@ -1492,6 +1565,7 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           email_template_id?: string | null
+          enforce_business_hours?: boolean
           id?: string
           is_active?: boolean | null
           max_sends_per_contact?: number | null
@@ -1509,6 +1583,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          ab_test_enabled?: boolean
           condition_logic?: string | null
           conditions?: Json | null
           cooldown_period_days?: number | null
@@ -1516,6 +1591,7 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           email_template_id?: string | null
+          enforce_business_hours?: boolean
           id?: string
           is_active?: boolean | null
           max_sends_per_contact?: number | null
@@ -1702,17 +1778,21 @@ export type Database = {
           attachments: Json | null
           bcc_emails: string[] | null
           cc_emails: string[] | null
+          click_count: number
           contact_id: string | null
           conversation_id: string
           created_at: string | null
           direction: string
           email_content: string
+          first_clicked_at: string | null
           from_email: string
           from_name: string | null
           has_attachments: boolean | null
           html_content: string | null
           id: string
           is_read: boolean | null
+          open_count: number
+          opened_at: string | null
           org_id: string
           provider_message_id: string | null
           read_at: string | null
@@ -1726,23 +1806,28 @@ export type Database = {
           subject: string
           thread_id: string | null
           to_email: string
+          tracking_pixel_id: string | null
           updated_at: string | null
         }
         Insert: {
           attachments?: Json | null
           bcc_emails?: string[] | null
           cc_emails?: string[] | null
+          click_count?: number
           contact_id?: string | null
           conversation_id: string
           created_at?: string | null
           direction: string
           email_content: string
+          first_clicked_at?: string | null
           from_email: string
           from_name?: string | null
           has_attachments?: boolean | null
           html_content?: string | null
           id?: string
           is_read?: boolean | null
+          open_count?: number
+          opened_at?: string | null
           org_id: string
           provider_message_id?: string | null
           read_at?: string | null
@@ -1756,23 +1841,28 @@ export type Database = {
           subject: string
           thread_id?: string | null
           to_email: string
+          tracking_pixel_id?: string | null
           updated_at?: string | null
         }
         Update: {
           attachments?: Json | null
           bcc_emails?: string[] | null
           cc_emails?: string[] | null
+          click_count?: number
           contact_id?: string | null
           conversation_id?: string
           created_at?: string | null
           direction?: string
           email_content?: string
+          first_clicked_at?: string | null
           from_email?: string
           from_name?: string | null
           has_attachments?: boolean | null
           html_content?: string | null
           id?: string
           is_read?: boolean | null
+          open_count?: number
+          opened_at?: string | null
           org_id?: string
           provider_message_id?: string | null
           read_at?: string | null
@@ -1786,6 +1876,7 @@ export type Database = {
           subject?: string
           thread_id?: string | null
           to_email?: string
+          tracking_pixel_id?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -1863,6 +1954,47 @@ export type Database = {
             foreignKeyName: "email_settings_org_id_fkey"
             columns: ["org_id"]
             isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_suppression_list: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          notes: string | null
+          org_id: string
+          reason: string
+          suppressed_at: string
+          suppressed_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          notes?: string | null
+          org_id: string
+          reason: string
+          suppressed_at?: string
+          suppressed_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          notes?: string | null
+          org_id?: string
+          reason?: string
+          suppressed_at?: string
+          suppressed_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_suppression_list_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
@@ -2483,6 +2615,50 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      org_business_hours: {
+        Row: {
+          created_at: string
+          day_of_week: number
+          end_time: string
+          id: string
+          is_enabled: boolean
+          org_id: string
+          start_time: string
+          timezone: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          day_of_week: number
+          end_time: string
+          id?: string
+          is_enabled?: boolean
+          org_id: string
+          start_time: string
+          timezone?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          day_of_week?: number
+          end_time?: string
+          id?: string
+          is_enabled?: boolean
+          org_id?: string
+          start_time?: string
+          timezone?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_business_hours_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -4190,12 +4366,20 @@ export type Database = {
         }
         Returns: undefined
       }
+      is_email_suppressed: {
+        Args: { _email: string; _org_id: string }
+        Returns: boolean
+      }
       is_feature_enabled_for_org: {
         Args: { _feature_key: string; _org_id: string }
         Returns: boolean
       }
       is_platform_admin: {
         Args: { _user_id: string }
+        Returns: boolean
+      }
+      is_within_business_hours: {
+        Args: { _check_time: string; _org_id: string }
         Returns: boolean
       }
       process_time_based_triggers: {

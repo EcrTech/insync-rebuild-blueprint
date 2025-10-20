@@ -47,17 +47,103 @@ Deno.serve(async (req) => {
 
     for (const execution of executions) {
       try {
+        const rule = execution.email_automation_rules;
+        const contact = execution.contacts;
+
+        // 1. Check suppression list
+        const { data: isSuppressed } = await supabase.rpc('is_email_suppressed', {
+          _org_id: contact.org_id,
+          _email: contact.email
+        });
+
+        if (isSuppressed) {
+          console.log(`Email ${contact.email} is suppressed, skipping`);
+          await supabase
+            .from('email_automation_executions')
+            .update({ 
+              status: 'failed', 
+              error_message: 'Email is on suppression list' 
+            })
+            .eq('id', execution.id);
+          failedCount++;
+          continue;
+        }
+
+        // 2. Check business hours if enforcement enabled
+        if (rule.enforce_business_hours) {
+          const { data: withinHours } = await supabase.rpc('is_within_business_hours', {
+            _org_id: contact.org_id,
+            _check_time: new Date().toISOString()
+          });
+
+          if (!withinHours) {
+            console.log(`Outside business hours, rescheduling`);
+            // Reschedule for next business day at 9 AM
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            tomorrow.setHours(9, 0, 0, 0);
+            
+            await supabase
+              .from('email_automation_executions')
+              .update({ 
+                status: 'scheduled',
+                scheduled_for: tomorrow.toISOString()
+              })
+              .eq('id', execution.id);
+            continue;
+          }
+        }
+
         // Mark as processing
         await supabase
           .from('email_automation_executions')
           .update({ status: 'pending' })
           .eq('id', execution.id);
 
+        // 3. Handle A/B testing
+        let templateId = execution.email_template_id;
+        let subjectOverride = null;
+
+        if (rule.ab_test_enabled) {
+          const { data: abTest } = await supabase
+            .from('automation_ab_tests')
+            .select('*')
+            .eq('rule_id', rule.id)
+            .eq('status', 'active')
+            .single();
+
+          if (abTest) {
+            // Select variant based on weights
+            const variants = abTest.variants as any[];
+            const totalWeight = variants.reduce((sum, v) => sum + (v.weight || 0), 0);
+            const random = Math.random() * totalWeight;
+            
+            let cumulativeWeight = 0;
+            for (const variant of variants) {
+              cumulativeWeight += variant.weight || 0;
+              if (random <= cumulativeWeight) {
+                templateId = variant.template_id;
+                subjectOverride = variant.subject;
+                
+                // Update execution with A/B test info
+                await supabase
+                  .from('email_automation_executions')
+                  .update({
+                    ab_test_id: abTest.id,
+                    ab_variant_name: variant.name
+                  })
+                  .eq('id', execution.id);
+                break;
+              }
+            }
+          }
+        }
+
         // Get template
         const { data: template } = await supabase
           .from('email_templates')
           .select('*')
-          .eq('id', execution.email_template_id)
+          .eq('id', templateId)
           .single();
 
         if (!template) {
@@ -73,23 +159,41 @@ Deno.serve(async (req) => {
         }
 
         // Replace variables with enhanced system
+        const subjectTemplate = subjectOverride || template.subject;
         const personalizedSubject = await replaceVariables(
-          template.subject, 
-          execution.contacts, 
+          subjectTemplate, 
+          contact, 
           execution.trigger_data,
           supabase
         );
-        const personalizedHtml = await replaceVariables(
+        
+        // Generate tracking ID
+        const trackingPixelId = `${execution.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        
+        let personalizedHtml = await replaceVariables(
           template.html_content, 
-          execution.contacts, 
+          contact, 
           execution.trigger_data,
           supabase
+        );
+
+        // Add tracking pixel to HTML
+        const trackingPixel = `<img src="${supabaseUrl}/functions/v1/email-tracking/open?id=${trackingPixelId}" width="1" height="1" style="display:none" alt="" />`;
+        personalizedHtml = personalizedHtml.replace('</body>', `${trackingPixel}</body>`);
+        
+        // Wrap links with tracking
+        personalizedHtml = personalizedHtml.replace(
+          /<a\s+([^>]*href=["']([^"']+)["'][^>]*)>/gi,
+          (match, attrs, url) => {
+            const trackedUrl = `${supabaseUrl}/functions/v1/email-tracking/click?id=${trackingPixelId}&url=${encodeURIComponent(url)}`;
+            return `<a ${attrs.replace(url, trackedUrl)}>`;
+          }
         );
 
         // Send email via send-email function
         const { error: sendError } = await supabase.functions.invoke('send-email', {
           body: {
-            to: execution.contacts.email,
+            to: contact.email,
             subject: personalizedSubject,
             html: personalizedHtml,
             contactId: execution.contact_id,

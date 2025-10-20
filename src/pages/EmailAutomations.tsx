@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgContext } from "@/hooks/useOrgContext";
 import { Button } from "@/components/ui/button";
-import { Plus, RefreshCw, Zap, TrendingUp, Mail, AlertCircle, BarChart3, History } from "lucide-react";
+import { Plus, RefreshCw, Zap, TrendingUp, Mail, AlertCircle, BarChart3, History, Settings } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   Card,
@@ -23,6 +23,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Clock } from "lucide-react";
 import { RuleBuilder } from "@/components/EmailAutomation/RuleBuilder";
 import { AutomationAnalytics } from "@/components/EmailAutomation/AutomationAnalytics";
 import { ExecutionHistoryTable } from "@/components/EmailAutomation/ExecutionHistoryTable";
@@ -170,6 +171,13 @@ export default function EmailAutomations() {
             <RefreshCw className="mr-2 h-4 w-4" />
             Refresh
           </Button>
+          <Button
+            variant="outline"
+            onClick={() => (window.location.href = "/email-automations/settings")}
+          >
+            <Settings className="mr-2 h-4 w-4" />
+            Settings
+          </Button>
           <Button onClick={handleCreateRule}>
             <Plus className="mr-2 h-4 w-4" />
             Create Rule
@@ -289,16 +297,29 @@ export default function EmailAutomations() {
                           }
                         />
                       </TableCell>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{rule.name}</div>
-                          {rule.description && (
-                            <div className="text-sm text-muted-foreground">
-                              {rule.description}
-                            </div>
-                          )}
+                  <TableCell>
+                    <div>
+                      <div className="font-medium">{rule.name}</div>
+                      {rule.description && (
+                        <div className="text-sm text-muted-foreground">
+                          {rule.description}
                         </div>
-                      </TableCell>
+                      )}
+                      <div className="flex gap-2 mt-2">
+                        {rule.enforce_business_hours && (
+                          <Badge variant="outline" className="text-xs">
+                            <Clock className="h-3 w-3 mr-1" />
+                            Business Hours
+                          </Badge>
+                        )}
+                        {rule.ab_test_enabled && (
+                          <Badge variant="outline" className="text-xs">
+                            A/B Test
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </TableCell>
                       <TableCell>
                         <Badge variant="outline">
                           {getTriggerTypeLabel(rule.trigger_type)}

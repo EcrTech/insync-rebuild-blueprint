@@ -44,6 +44,7 @@ import BulkEmailSender from "./pages/BulkEmailSender";
 import EmailCampaigns from "./pages/EmailCampaigns";
 import EmailCampaignDetail from "./pages/EmailCampaignDetail";
 import EmailAutomations from "./pages/EmailAutomations";
+import EmailAutomationSettings from "./pages/EmailAutomationSettings";
 import CampaignOverview from "./pages/Campaigns/CampaignOverview";
 import AIInsightsDashboard from "./pages/Campaigns/AIInsightsDashboard";
 import Documentation from "./pages/Documentation";
@@ -288,6 +289,12 @@ const App = () => (
           <Route path="/email-automations" element={
             <ProtectedRoute requiredRole="admin">
               <EmailAutomations />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/email-automations/settings" element={
+            <ProtectedRoute requiredRole="admin">
+              <EmailAutomationSettings />
             </ProtectedRoute>
           } />
           
