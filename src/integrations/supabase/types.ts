@@ -1473,6 +1473,9 @@ export type Database = {
           ab_test_id: string | null
           ab_variant_name: string | null
           contact_id: string
+          conversion_type: string | null
+          conversion_value: number | null
+          converted_at: string | null
           created_at: string | null
           email_conversation_id: string | null
           email_subject: string | null
@@ -1495,6 +1498,9 @@ export type Database = {
           ab_test_id?: string | null
           ab_variant_name?: string | null
           contact_id: string
+          conversion_type?: string | null
+          conversion_value?: number | null
+          converted_at?: string | null
           created_at?: string | null
           email_conversation_id?: string | null
           email_subject?: string | null
@@ -1517,6 +1523,9 @@ export type Database = {
           ab_test_id?: string | null
           ab_variant_name?: string | null
           contact_id?: string
+          conversion_type?: string | null
+          conversion_value?: number | null
+          converted_at?: string | null
           created_at?: string | null
           email_conversation_id?: string | null
           email_subject?: string | null
@@ -4501,6 +4510,14 @@ export type Database = {
       is_within_business_hours: {
         Args: { _check_time: string; _org_id: string }
         Returns: boolean
+      }
+      mark_automation_conversion: {
+        Args: {
+          _conversion_type: string
+          _conversion_value?: number
+          _execution_id: string
+        }
+        Returns: undefined
       }
       process_time_based_triggers: {
         Args: Record<PropertyKey, never>

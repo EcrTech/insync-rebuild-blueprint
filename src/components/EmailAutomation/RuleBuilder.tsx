@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { ConditionsBuilder } from "./ConditionsBuilder";
+import { ABTestManager } from "./ABTestManager";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgContext } from "@/hooks/useOrgContext";
@@ -30,7 +31,7 @@ interface RuleBuilderProps {
   editingRule?: any;
 }
 
-type TriggerType = "stage_change" | "disposition_set" | "activity_logged" | "field_updated" | "inactivity" | "time_based" | "assignment_changed";
+type TriggerType = "stage_change" | "disposition_set" | "activity_logged" | "field_updated" | "inactivity" | "time_based" | "assignment_changed" | "email_engagement";
 
 export function RuleBuilder({ open, onOpenChange, editingRule }: RuleBuilderProps) {
   const { effectiveOrgId } = useOrgContext();
@@ -72,9 +73,14 @@ export function RuleBuilder({ open, onOpenChange, editingRule }: RuleBuilderProp
   // Assignment config
   const [assignedToUserIds, setAssignedToUserIds] = useState<string[]>([]);
 
+  // Email engagement config
+  const [engagementType, setEngagementType] = useState<string>("either");
+  const [withinHours, setWithinHours] = useState<number | undefined>();
+
   // Advanced features
   const [enforceBusinessHours, setEnforceBusinessHours] = useState(false);
   const [abTestEnabled, setAbTestEnabled] = useState(false);
+  const [showAbTestManager, setShowAbTestManager] = useState(false);
 
   // Fetch pipeline stages
   const { data: stages } = useQuery({
@@ -179,6 +185,8 @@ export function RuleBuilder({ open, onOpenChange, editingRule }: RuleBuilderProp
       setInactivityDays(config.inactivity_days || 30);
       setRelativeDays(config.relative_days || 0);
       setAssignedToUserIds(config.assigned_to_user_ids || []);
+      setEngagementType(config.engagement_type || "either");
+      setWithinHours(config.within_hours);
       setConditions(editingRule.conditions || []);
       setConditionLogic(editingRule.condition_logic || 'AND');
       setEnforceBusinessHours(editingRule.enforce_business_hours || false);
@@ -207,6 +215,8 @@ export function RuleBuilder({ open, onOpenChange, editingRule }: RuleBuilderProp
     setInactivityDays(30);
     setRelativeDays(0);
     setAssignedToUserIds([]);
+    setEngagementType("either");
+    setWithinHours(undefined);
     setConditions([]);
     setConditionLogic('AND');
     setEnforceBusinessHours(false);
@@ -242,6 +252,11 @@ export function RuleBuilder({ open, onOpenChange, editingRule }: RuleBuilderProp
         };
       } else if (triggerType === "assignment_changed") {
         triggerConfig = { assigned_to_user_ids: assignedToUserIds };
+      } else if (triggerType === "email_engagement") {
+        triggerConfig = { 
+          engagement_type: engagementType === "either" ? undefined : engagementType,
+          within_hours: withinHours
+        };
       }
 
       const ruleData = {
@@ -325,6 +340,7 @@ export function RuleBuilder({ open, onOpenChange, editingRule }: RuleBuilderProp
       inactivity: "Contact Inactivity",
       time_based: "Time Based",
       assignment_changed: "Assignment Changed",
+      email_engagement: "Email Engagement",
     };
     return labels[type];
   };
@@ -380,7 +396,7 @@ export function RuleBuilder({ open, onOpenChange, editingRule }: RuleBuilderProp
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {(["stage_change", "disposition_set", "activity_logged", "field_updated", "inactivity", "time_based", "assignment_changed"] as TriggerType[]).map(type => (
+                {(["stage_change", "disposition_set", "activity_logged", "field_updated", "inactivity", "time_based", "assignment_changed", "email_engagement"] as TriggerType[]).map(type => (
                   <SelectItem key={type} value={type}>
                     {getTriggerLabel(type)}
                   </SelectItem>
@@ -600,6 +616,44 @@ export function RuleBuilder({ open, onOpenChange, editingRule }: RuleBuilderProp
             </div>
           )}
 
+          {/* Email Engagement Config */}
+          {triggerType === "email_engagement" && (
+            <div className="space-y-3 border rounded-lg p-4 bg-muted/50">
+              <Label>Email Engagement Configuration</Label>
+              <p className="text-sm text-muted-foreground">
+                Trigger when recipients interact with automated emails
+              </p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Engagement Type *</Label>
+                  <Select value={engagementType} onValueChange={setEngagementType}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="opened">Opened Email</SelectItem>
+                      <SelectItem value="clicked">Clicked Link</SelectItem>
+                      <SelectItem value="either">Either (Open or Click)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Within Timeframe (hours)</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    placeholder="Any time"
+                    value={withinHours || ""}
+                    onChange={(e) => setWithinHours(e.target.value ? parseInt(e.target.value) : undefined)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Leave blank for any time
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Conditions Section */}
           <div className="space-y-3 border rounded-lg p-4 bg-muted/50">
             <ConditionsBuilder
@@ -716,6 +770,18 @@ export function RuleBuilder({ open, onOpenChange, editingRule }: RuleBuilderProp
                 Enable A/B testing
               </Label>
             </div>
+
+            {abTestEnabled && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowAbTestManager(true)}
+                className="w-full"
+              >
+                Configure A/B Test
+              </Button>
+            )}
           </div>
         </div>
 
@@ -728,6 +794,15 @@ export function RuleBuilder({ open, onOpenChange, editingRule }: RuleBuilderProp
           </Button>
         </div>
       </DialogContent>
+
+      {editingRule && (
+        <ABTestManager
+          open={showAbTestManager}
+          onOpenChange={setShowAbTestManager}
+          ruleId={editingRule.id}
+          orgId={effectiveOrgId || ""}
+        />
+      )}
     </Dialog>
   );
 }

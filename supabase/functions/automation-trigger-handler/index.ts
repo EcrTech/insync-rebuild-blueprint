@@ -312,6 +312,28 @@ function checkTriggerMatch(config: any, triggerData: any, triggerType: string): 
     return true;
   }
 
+  if (triggerType === 'email_engagement') {
+    const engagementType = triggerData.engagement_type; // 'opened' or 'clicked'
+    
+    // Check trigger config for specific engagement type
+    if (config.engagement_type && config.engagement_type !== engagementType) {
+      return false;
+    }
+
+    // Optional: Check engagement timeframe (within X hours of send)
+    if (config.within_hours && triggerData.sent_at) {
+      const sentAt = new Date(triggerData.sent_at);
+      const engagedAt = new Date(triggerData[engagementType === 'opened' ? 'opened_at' : 'clicked_at']);
+      const hoursDiff = (engagedAt.getTime() - sentAt.getTime()) / (1000 * 60 * 60);
+      
+      if (hoursDiff > config.within_hours) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   return false;
 }
 
