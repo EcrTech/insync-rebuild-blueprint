@@ -12,7 +12,7 @@ interface QueueJob {
   operation_type: string;
   payload: any;
   priority: number;
-  scheduled_for: string;
+  scheduled_at: string;
 }
 
 async function executeOperation(
@@ -105,14 +105,14 @@ Deno.serve(async (req) => {
 
     console.log('Queue processor started');
 
-    // Fetch ready jobs (scheduled_for <= now, status = queued)
+    // Fetch ready jobs (scheduled_at <= now, status = queued)
     const { data: jobs, error: fetchError } = await supabaseClient
       .from('operation_queue')
       .select('*')
       .eq('status', 'queued')
-      .lte('scheduled_for', new Date().toISOString())
+      .lte('scheduled_at', new Date().toISOString())
       .order('priority', { ascending: false })
-      .order('scheduled_for', { ascending: true })
+      .order('scheduled_at', { ascending: true })
       .limit(50);
 
     if (fetchError) {

@@ -7,8 +7,10 @@ const corsHeaders = {
 
 interface TriggerPayload {
   orgId: string;
-  triggerType: 'stage_change' | 'disposition_set' | 'activity_logged' | 'field_updated' | 'inactivity' | 'time_based' | 'assignment_changed';
+  triggerType: 'stage_change' | 'disposition_set' | 'activity_logged' | 'field_updated' | 'inactivity' | 'time_based' | 'assignment_changed' | 'test';
   contactId: string;
+  ruleId?: string;  // For test mode
+  preview?: boolean;  // For preview mode
   triggerData: {
     from_stage_id?: string;
     to_stage_id?: string;
@@ -43,7 +45,66 @@ Deno.serve(async (req) => {
     const payload: TriggerPayload = await req.json();
     console.log('Automation trigger received:', payload);
 
-    const { orgId, triggerType, contactId, triggerData } = payload;
+    const { orgId, triggerType, contactId, triggerData, ruleId, preview } = payload;
+
+    // Handle test/preview mode
+    if (triggerType === 'test' && ruleId) {
+      console.log('Test mode triggered for rule:', ruleId);
+      
+      const { data: rule, error: ruleError } = await supabase
+        .from('email_automation_rules')
+        .select('*, email_templates(*)')
+        .eq('id', ruleId)
+        .single();
+      
+      if (ruleError) throw ruleError;
+      if (!rule) throw new Error('Rule not found');
+      
+      // Get contact details
+      const { data: contact, error: contactError } = await supabase
+        .from('contacts')
+        .select('*')
+        .eq('id', contactId)
+        .single();
+      
+      if (contactError) throw contactError;
+      
+      // Generate email preview
+      const emailData = await generateEmailPreview(supabase, rule, contact, triggerData);
+      
+      if (preview) {
+        // Just return preview
+        return new Response(
+          JSON.stringify(emailData),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      } else {
+        // Send actual test email by creating a temporary execution
+        const { data: execution, error: execError } = await supabase
+          .from('email_automation_executions')
+          .insert({
+            org_id: orgId,
+            rule_id: ruleId,
+            contact_id: contactId,
+            trigger_type: 'test',
+            trigger_data: triggerData,
+            status: 'pending',
+            email_template_id: rule.email_template_id,
+            email_subject: emailData.subject,
+          })
+          .select()
+          .single();
+        
+        if (execError) throw execError;
+        
+        await sendAutomationEmail(supabase, execution.id);
+        
+        return new Response(
+          JSON.stringify({ success: true, message: 'Test email sent' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+    }
 
     // 1. Find matching active rules for this trigger type and org
     const { data: rules, error: rulesError } = await supabase
@@ -435,6 +496,41 @@ function compareValues(actualValue: any, operator: string, expectedValue: any): 
     default:
       return false;
   }
+}
+
+async function generateEmailPreview(supabase: any, rule: any, contact: any, triggerData: any) {
+  // Get email settings
+  const { data: emailSettings } = await supabase
+    .from('email_settings')
+    .select('*')
+    .eq('org_id', contact.org_id)
+    .single();
+
+  if (!emailSettings) {
+    throw new Error('Email settings not configured');
+  }
+
+  // Get template
+  const { data: template } = await supabase
+    .from('email_templates')
+    .select('*')
+    .eq('id', rule.email_template_id)
+    .single();
+
+  if (!template) {
+    throw new Error('Email template not found');
+  }
+
+  // Replace variables in subject and body
+  const subject = await replaceVariables(template.subject, contact, triggerData, supabase);
+  const htmlContent = await replaceVariables(template.html_content, contact, triggerData, supabase);
+
+  return {
+    from_email: `${emailSettings.sender_name} <${emailSettings.sender_email}>`,
+    to_email: contact.email,
+    subject,
+    html_content: htmlContent,
+  };
 }
 
 async function sendAutomationEmail(supabase: any, executionId: string) {

@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgContext } from "@/hooks/useOrgContext";
 import { Button } from "@/components/ui/button";
-import { Plus, RefreshCw, Zap, TrendingUp, Mail, AlertCircle, BarChart3, History, Settings } from "lucide-react";
+import { Plus, RefreshCw, Zap, TrendingUp, Mail, AlertCircle, BarChart3, History, Settings, Play } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   Card,
@@ -28,6 +28,8 @@ import { RuleBuilder } from "@/components/EmailAutomation/RuleBuilder";
 import { AutomationAnalytics } from "@/components/EmailAutomation/AutomationAnalytics";
 import { ExecutionHistoryTable } from "@/components/EmailAutomation/ExecutionHistoryTable";
 import { RuleAnalyticsDialog } from "@/components/EmailAutomation/RuleAnalyticsDialog";
+import { RuleTestDialog } from "@/components/EmailAutomation/RuleTestDialog";
+import { AutomationDiagnostics } from "@/components/EmailAutomation/AutomationDiagnostics";
 
 export default function EmailAutomations() {
   const { effectiveOrgId } = useOrgContext();
@@ -37,6 +39,8 @@ export default function EmailAutomations() {
   const [editingRule, setEditingRule] = useState<any>(null);
   const [analyticsRuleId, setAnalyticsRuleId] = useState<string | null>(null);
   const [analyticsRuleName, setAnalyticsRuleName] = useState<string>("");
+  const [testDialogOpen, setTestDialogOpen] = useState(false);
+  const [testingRule, setTestingRule] = useState<any>(null);
 
   // Fetch automation rules
   const { data: rules, isLoading, refetch } = useQuery({
@@ -188,6 +192,10 @@ export default function EmailAutomations() {
       <Tabs defaultValue="rules" className="space-y-6">
         <TabsList>
           <TabsTrigger value="rules">Rules</TabsTrigger>
+          <TabsTrigger value="diagnostics">
+            <AlertCircle className="mr-2 h-4 w-4" />
+            Diagnostics
+          </TabsTrigger>
           <TabsTrigger value="analytics">
             <BarChart3 className="mr-2 h-4 w-4" />
             Analytics
@@ -345,6 +353,17 @@ export default function EmailAutomations() {
                             variant="outline"
                             size="sm"
                             onClick={() => {
+                              setTestingRule(rule);
+                              setTestDialogOpen(true);
+                            }}
+                          >
+                            <Play className="h-3 w-3 mr-1" />
+                            Test
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
                               setAnalyticsRuleId(rule.id);
                               setAnalyticsRuleName(rule.name);
                             }}
@@ -379,6 +398,10 @@ export default function EmailAutomations() {
             )}
           </CardContent>
         </Card>
+        </TabsContent>
+
+        <TabsContent value="diagnostics">
+          <AutomationDiagnostics />
         </TabsContent>
 
         <TabsContent value="analytics">
@@ -416,6 +439,12 @@ export default function EmailAutomations() {
         }}
         ruleId={analyticsRuleId || ""}
         ruleName={analyticsRuleName}
+      />
+
+      <RuleTestDialog
+        open={testDialogOpen}
+        onOpenChange={setTestDialogOpen}
+        rule={testingRule}
       />
     </div>
   );
