@@ -31,7 +31,7 @@ interface RuleBuilderProps {
   editingRule?: any;
 }
 
-type TriggerType = "stage_change" | "disposition_set" | "activity_logged" | "field_updated" | "inactivity" | "time_based" | "assignment_changed" | "email_engagement";
+type TriggerType = "stage_change" | "disposition_set" | "activity_logged" | "field_updated" | "inactivity" | "time_based" | "assignment_changed" | "email_engagement" | "lead_score_change" | "tag_assigned" | "form_submitted";
 
 export function RuleBuilder({ open, onOpenChange, editingRule }: RuleBuilderProps) {
   const { effectiveOrgId } = useOrgContext();
@@ -341,6 +341,9 @@ export function RuleBuilder({ open, onOpenChange, editingRule }: RuleBuilderProp
       time_based: "Time Based",
       assignment_changed: "Assignment Changed",
       email_engagement: "Email Engagement",
+      lead_score_change: "Lead Score Change",
+      tag_assigned: "Tag Assigned",
+      form_submitted: "Form Submitted",
     };
     return labels[type];
   };
@@ -396,7 +399,7 @@ export function RuleBuilder({ open, onOpenChange, editingRule }: RuleBuilderProp
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {(["stage_change", "disposition_set", "activity_logged", "field_updated", "inactivity", "time_based", "assignment_changed", "email_engagement"] as TriggerType[]).map(type => (
+                {(["stage_change", "disposition_set", "activity_logged", "field_updated", "inactivity", "time_based", "assignment_changed", "email_engagement", "lead_score_change", "tag_assigned", "form_submitted"] as TriggerType[]).map(type => (
                   <SelectItem key={type} value={type}>
                     {getTriggerLabel(type)}
                   </SelectItem>
@@ -650,6 +653,58 @@ export function RuleBuilder({ open, onOpenChange, editingRule }: RuleBuilderProp
                     Leave blank for any time
                   </p>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Lead Score Change Config */}
+          {triggerType === "lead_score_change" && (
+            <div className="space-y-3 border rounded-lg p-4 bg-muted/50">
+              <Label>Lead Score Configuration</Label>
+              <p className="text-sm text-muted-foreground">
+                Trigger when contact's lead score crosses thresholds
+              </p>
+              <div className="space-y-2">
+                <Label>Score Threshold</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  placeholder="e.g., 70 for 'hot' leads"
+                  value={conditions.find(c => c.field === 'score')?.value || ""}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setConditions([
+                      { field: 'new_score', operator: 'greater_than', value: val }
+                    ]);
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Tag Assigned Config */}
+          {triggerType === "tag_assigned" && (
+            <div className="space-y-3 border rounded-lg p-4 bg-muted/50">
+              <Label>Tag Configuration</Label>
+              <p className="text-sm text-muted-foreground">
+                Trigger when specific tags are assigned to contacts
+              </p>
+              <div className="text-sm text-muted-foreground">
+                Use the Conditions builder below to specify which tags trigger this rule
+              </div>
+            </div>
+          )}
+
+          {/* Form Submitted Config */}
+          {triggerType === "form_submitted" && (
+            <div className="space-y-3 border rounded-lg p-4 bg-muted/50">
+              <Label>Form Configuration</Label>
+              <p className="text-sm text-muted-foreground">
+                Trigger when specific forms are submitted
+              </p>
+              <div className="text-sm text-muted-foreground">
+                Use the Conditions builder below to specify which forms trigger this rule
               </div>
             </div>
           )}

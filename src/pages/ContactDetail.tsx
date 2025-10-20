@@ -22,6 +22,7 @@ import { SendEmailDialog } from "@/components/Contact/SendEmailDialog";
 import { WhatsAppHistory } from "@/components/Contact/WhatsAppHistory";
 import { ClickToCall } from "@/components/Contact/ClickToCall";
 import { EmailAutomationJourney } from "@/components/Contact/EmailAutomationJourney";
+import { LeadScoreCard } from "@/components/Contact/LeadScoreCard";
 
 interface Contact {
   id: string;
@@ -176,11 +177,12 @@ export default function ContactDetail() {
         </div>
 
         <div className="grid gap-6 md:grid-cols-3">
-          <Card className="md:col-span-1">
-            <CardHeader>
-              <CardTitle>Contact Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+          <div className="space-y-6">
+            <Card className="md:col-span-1">
+              <CardHeader>
+                <CardTitle>Contact Information</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
               <div>
                 <Badge className={getStatusColor(contact.status)}>
                   {contact.status}
@@ -255,7 +257,10 @@ export default function ContactDetail() {
             </CardContent>
           </Card>
 
-          <Card className="md:col-span-2">
+          <LeadScoreCard contactId={id!} orgId={contact.org_id} />
+        </div>
+
+        <Card className="md:col-span-2">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle>Activities & Notes</CardTitle>

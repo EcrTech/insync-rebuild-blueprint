@@ -32,6 +32,8 @@ import { RuleTestDialog } from "@/components/EmailAutomation/RuleTestDialog";
 import { AutomationDiagnostics } from "@/components/EmailAutomation/AutomationDiagnostics";
 import { RuleTemplatesGallery } from "@/components/EmailAutomation/RuleTemplatesGallery";
 import { RuleDependencyManager } from "@/components/EmailAutomation/RuleDependencyManager";
+import { ApprovalQueueManager } from "@/components/EmailAutomation/ApprovalQueueManager";
+import { AdvancedReporting } from "@/components/EmailAutomation/AdvancedReporting";
 
 export default function EmailAutomations() {
   const { effectiveOrgId } = useOrgContext();
@@ -151,8 +153,11 @@ export default function EmailAutomations() {
       inactivity: "Contact Inactivity",
       time_based: "Time Based",
       assignment_changed: "Assignment Changed",
-    };
-    return labels[type] || type;
+    lead_score_change: "Lead Score Change",
+    tag_assigned: "Tag Assigned",
+    form_submitted: "Form Submitted",
+  };
+  return labels[type] || type;
   };
 
   const handleCreateRule = () => {
@@ -200,6 +205,10 @@ export default function EmailAutomations() {
             <Zap className="mr-2 h-4 w-4" />
             Templates
           </TabsTrigger>
+          <TabsTrigger value="approvals">
+            <Clock className="mr-2 h-4 w-4" />
+            Approvals
+          </TabsTrigger>
           <TabsTrigger value="diagnostics">
             <AlertCircle className="mr-2 h-4 w-4" />
             Diagnostics
@@ -211,6 +220,10 @@ export default function EmailAutomations() {
           <TabsTrigger value="history">
             <History className="mr-2 h-4 w-4" />
             Execution History
+          </TabsTrigger>
+          <TabsTrigger value="reports">
+            <TrendingUp className="mr-2 h-4 w-4" />
+            Advanced Reports
           </TabsTrigger>
         </TabsList>
 
@@ -441,6 +454,10 @@ export default function EmailAutomations() {
           <AutomationDiagnostics />
         </TabsContent>
 
+        <TabsContent value="approvals">
+          <ApprovalQueueManager />
+        </TabsContent>
+
         <TabsContent value="analytics">
           <AutomationAnalytics dateRange={30} />
         </TabsContent>
@@ -457,6 +474,10 @@ export default function EmailAutomations() {
               <ExecutionHistoryTable limit={100} />
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="reports">
+          <AdvancedReporting />
         </TabsContent>
       </Tabs>
 

@@ -389,6 +389,148 @@ export type Database = {
           },
         ]
       }
+      automation_approvals: {
+        Row: {
+          approval_notes: string | null
+          execution_id: string
+          expires_at: string | null
+          id: string
+          org_id: string
+          rejection_reason: string | null
+          requested_at: string
+          requested_by: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          rule_id: string
+          status: string
+        }
+        Insert: {
+          approval_notes?: string | null
+          execution_id: string
+          expires_at?: string | null
+          id?: string
+          org_id: string
+          rejection_reason?: string | null
+          requested_at?: string
+          requested_by?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          rule_id: string
+          status?: string
+        }
+        Update: {
+          approval_notes?: string | null
+          execution_id?: string
+          expires_at?: string | null
+          id?: string
+          org_id?: string
+          rejection_reason?: string | null
+          requested_at?: string
+          requested_by?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          rule_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_approvals_execution_id_fkey"
+            columns: ["execution_id"]
+            isOneToOne: true
+            referencedRelation: "email_automation_executions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_approvals_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_approvals_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "email_automation_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      automation_performance_daily: {
+        Row: {
+          avg_time_to_click_minutes: number | null
+          avg_time_to_convert_minutes: number | null
+          avg_time_to_open_minutes: number | null
+          created_at: string
+          id: string
+          org_id: string
+          report_date: string
+          rule_id: string | null
+          total_clicked: number | null
+          total_conversion_value: number | null
+          total_converted: number | null
+          total_failed: number | null
+          total_opened: number | null
+          total_sent: number | null
+          total_triggered: number | null
+          unique_clicks: number | null
+          unique_opens: number | null
+        }
+        Insert: {
+          avg_time_to_click_minutes?: number | null
+          avg_time_to_convert_minutes?: number | null
+          avg_time_to_open_minutes?: number | null
+          created_at?: string
+          id?: string
+          org_id: string
+          report_date: string
+          rule_id?: string | null
+          total_clicked?: number | null
+          total_conversion_value?: number | null
+          total_converted?: number | null
+          total_failed?: number | null
+          total_opened?: number | null
+          total_sent?: number | null
+          total_triggered?: number | null
+          unique_clicks?: number | null
+          unique_opens?: number | null
+        }
+        Update: {
+          avg_time_to_click_minutes?: number | null
+          avg_time_to_convert_minutes?: number | null
+          avg_time_to_open_minutes?: number | null
+          created_at?: string
+          id?: string
+          org_id?: string
+          report_date?: string
+          rule_id?: string | null
+          total_clicked?: number | null
+          total_conversion_value?: number | null
+          total_converted?: number | null
+          total_failed?: number | null
+          total_opened?: number | null
+          total_sent?: number | null
+          total_triggered?: number | null
+          unique_clicks?: number | null
+          unique_opens?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_performance_daily_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_performance_daily_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "email_automation_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       call_dispositions: {
         Row: {
           category: string | null
@@ -1072,6 +1214,51 @@ export type Database = {
           },
         ]
       }
+      contact_lead_scores: {
+        Row: {
+          contact_id: string
+          id: string
+          last_calculated: string
+          org_id: string
+          score: number
+          score_breakdown: Json | null
+          score_category: string | null
+        }
+        Insert: {
+          contact_id: string
+          id?: string
+          last_calculated?: string
+          org_id: string
+          score?: number
+          score_breakdown?: Json | null
+          score_category?: string | null
+        }
+        Update: {
+          contact_id?: string
+          id?: string
+          last_calculated?: string
+          org_id?: string
+          score?: number
+          score_breakdown?: Json | null
+          score_category?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_lead_scores_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: true
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_lead_scores_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contact_phones: {
         Row: {
           contact_id: string
@@ -1109,6 +1296,90 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contact_tag_assignments: {
+        Row: {
+          assigned_at: string
+          assigned_by: string | null
+          contact_id: string
+          id: string
+          org_id: string
+          tag_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by?: string | null
+          contact_id: string
+          id?: string
+          org_id: string
+          tag_id: string
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by?: string | null
+          contact_id?: string
+          id?: string
+          org_id?: string
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_tag_assignments_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_tag_assignments_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_tag_assignments_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "contact_tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contact_tags: {
+        Row: {
+          color: string | null
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          org_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          org_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          org_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_tags_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -1701,6 +1972,7 @@ export type Database = {
       email_automation_rules: {
         Row: {
           ab_test_enabled: boolean
+          approval_timeout_hours: number | null
           condition_logic: string | null
           conditions: Json | null
           cooldown_period_days: number | null
@@ -1715,6 +1987,7 @@ export type Database = {
           name: string
           org_id: string
           priority: number | null
+          requires_approval: boolean | null
           send_at_specific_time: string | null
           send_delay_minutes: number | null
           send_on_business_days_only: boolean | null
@@ -1727,6 +2000,7 @@ export type Database = {
         }
         Insert: {
           ab_test_enabled?: boolean
+          approval_timeout_hours?: number | null
           condition_logic?: string | null
           conditions?: Json | null
           cooldown_period_days?: number | null
@@ -1741,6 +2015,7 @@ export type Database = {
           name: string
           org_id: string
           priority?: number | null
+          requires_approval?: boolean | null
           send_at_specific_time?: string | null
           send_delay_minutes?: number | null
           send_on_business_days_only?: boolean | null
@@ -1753,6 +2028,7 @@ export type Database = {
         }
         Update: {
           ab_test_enabled?: boolean
+          approval_timeout_hours?: number | null
           condition_logic?: string | null
           conditions?: Json | null
           cooldown_period_days?: number | null
@@ -1767,6 +2043,7 @@ export type Database = {
           name?: string
           org_id?: string
           priority?: number | null
+          requires_approval?: boolean | null
           send_at_specific_time?: string | null
           send_delay_minutes?: number | null
           send_on_business_days_only?: boolean | null
@@ -4464,6 +4741,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      aggregate_automation_performance_daily: {
+        Args: { _date: string }
+        Returns: undefined
+      }
       calculate_monthly_amount: {
         Args: { _org_id: string }
         Returns: number
@@ -4700,6 +4981,15 @@ export type Database = {
       }
       trigger_retry_failed_whatsapp: {
         Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      update_lead_score: {
+        Args: {
+          _contact_id: string
+          _org_id: string
+          _reason: string
+          _score_delta: number
+        }
         Returns: undefined
       }
     }
