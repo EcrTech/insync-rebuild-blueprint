@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { VariableGuide } from "./VariableGuide";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -185,14 +186,15 @@ export const StandardEmailTemplateDialog = ({
                 placeholder="Hi {{first_name}}, Welcome to our platform! Best regards, The Team"
               />
               <p className="text-xs text-muted-foreground">
-                Use the toolbar above for formatting. Use variables like {`{{first_name}}`} for personalization.
+                Use variables like {`{{first_name}}`}, {`{{company}}`}, {`{{trigger.old_stage}}`} for personalization.
               </p>
             </div>
 
             <Tabs defaultValue="buttons" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="buttons">CTA Buttons</TabsTrigger>
                 <TabsTrigger value="attachments">Attachments</TabsTrigger>
+                <TabsTrigger value="variables">Variables</TabsTrigger>
               </TabsList>
               <TabsContent value="buttons" className="mt-4">
                 <CTAButtonManager buttons={buttons} onChange={setButtons} />
@@ -203,6 +205,9 @@ export const StandardEmailTemplateDialog = ({
                   onChange={setAttachments}
                   orgId={orgId}
                 />
+              </TabsContent>
+              <TabsContent value="variables" className="mt-4">
+                <VariableGuide />
               </TabsContent>
             </Tabs>
           </div>

@@ -445,7 +445,7 @@ async function sendAutomationEmail(supabase: any, executionId: string) {
       .select(`
         *,
         email_automation_rules(*),
-        contacts(email, first_name, last_name, org_id)
+        contacts(*)
       `)
       .eq('id', executionId)
       .single();
@@ -470,9 +470,9 @@ async function sendAutomationEmail(supabase: any, executionId: string) {
       return;
     }
 
-    // Simple variable replacement (Phase 1)
-    const personalizedSubject = replaceVariables(template.subject, execution.contacts, execution.trigger_data);
-    const personalizedHtml = replaceVariables(template.html_content, execution.contacts, execution.trigger_data);
+    // Enhanced variable replacement
+    const personalizedSubject = await replaceVariables(template.subject, execution.contacts, execution.trigger_data, supabase);
+    const personalizedHtml = await replaceVariables(template.html_content, execution.contacts, execution.trigger_data, supabase);
 
     // Call send-email function
     const { error: sendError } = await supabase.functions.invoke('send-email', {
@@ -533,20 +533,56 @@ async function sendAutomationEmail(supabase: any, executionId: string) {
   }
 }
 
-function replaceVariables(template: string, contact: any, triggerData: any): string {
+async function replaceVariables(
+  template: string, 
+  contact: any, 
+  triggerData: any,
+  supabase: any
+): Promise<string> {
   let result = template;
   
-  // Contact variables
+  // Standard contact variables
   result = result.replace(/{{first_name}}/g, contact.first_name || '');
   result = result.replace(/{{last_name}}/g, contact.last_name || '');
+  result = result.replace(/{{full_name}}/g, `${contact.first_name || ''} ${contact.last_name || ''}`.trim() || 'there');
   result = result.replace(/{{email}}/g, contact.email || '');
+  result = result.replace(/{{phone}}/g, contact.phone || '');
+  result = result.replace(/{{company}}/g, contact.company || '');
+  result = result.replace(/{{job_title}}/g, contact.job_title || '');
   
-  // Trigger data variables (Phase 1: basic)
+  // Trigger data variables (basic)
   if (triggerData) {
     Object.keys(triggerData).forEach(key => {
       const regex = new RegExp(`{{trigger\\.${key}}}`, 'g');
-      result = result.replace(regex, triggerData[key] || '');
+      result = result.replace(regex, String(triggerData[key] || ''));
     });
+    
+    // Stage change specific
+    if (triggerData.from_stage_id || triggerData.to_stage_id) {
+      try {
+        if (triggerData.from_stage_id) {
+          const { data: fromStage } = await supabase
+            .from('pipeline_stages')
+            .select('name')
+            .eq('id', triggerData.from_stage_id)
+            .single();
+          result = result.replace(/{{trigger\.old_stage}}/g, fromStage?.name || '');
+          result = result.replace(/{{trigger\.from_stage}}/g, fromStage?.name || '');
+        }
+        
+        if (triggerData.to_stage_id) {
+          const { data: toStage } = await supabase
+            .from('pipeline_stages')
+            .select('name')
+            .eq('id', triggerData.to_stage_id)
+            .single();
+          result = result.replace(/{{trigger\.new_stage}}/g, toStage?.name || '');
+          result = result.replace(/{{trigger\.to_stage}}/g, toStage?.name || '');
+        }
+      } catch (e) {
+        console.error('Error fetching stages:', e);
+      }
+    }
   }
   
   return result;

@@ -72,16 +72,18 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // Replace variables
-        const personalizedSubject = replaceVariables(
+        // Replace variables with enhanced system
+        const personalizedSubject = await replaceVariables(
           template.subject, 
           execution.contacts, 
-          execution.trigger_data
+          execution.trigger_data,
+          supabase
         );
-        const personalizedHtml = replaceVariables(
+        const personalizedHtml = await replaceVariables(
           template.html_content, 
           execution.contacts, 
-          execution.trigger_data
+          execution.trigger_data,
+          supabase
         );
 
         // Send email via send-email function
@@ -183,21 +185,198 @@ Deno.serve(async (req) => {
   }
 });
 
-function replaceVariables(template: string, contact: any, triggerData: any): string {
+async function replaceVariables(
+  template: string, 
+  contact: any, 
+  triggerData: any,
+  supabase: any
+): Promise<string> {
   let result = template;
   
-  // Contact variables
+  // Standard contact variables
   result = result.replace(/{{first_name}}/g, contact.first_name || '');
   result = result.replace(/{{last_name}}/g, contact.last_name || '');
+  result = result.replace(/{{full_name}}/g, `${contact.first_name || ''} ${contact.last_name || ''}`.trim() || 'there');
   result = result.replace(/{{email}}/g, contact.email || '');
+  result = result.replace(/{{phone}}/g, contact.phone || '');
+  result = result.replace(/{{company}}/g, contact.company || '');
+  result = result.replace(/{{job_title}}/g, contact.job_title || '');
+  result = result.replace(/{{city}}/g, contact.city || '');
+  result = result.replace(/{{state}}/g, contact.state || '');
+  result = result.replace(/{{country}}/g, contact.country || '');
   
-  // Trigger data variables
+  // Contact status and metadata
+  result = result.replace(/{{status}}/g, contact.status || '');
+  result = result.replace(/{{source}}/g, contact.source || '');
+  
+  // Dates
+  if (contact.created_at) {
+    const createdDate = new Date(contact.created_at);
+    result = result.replace(/{{created_date}}/g, createdDate.toLocaleDateString());
+    result = result.replace(/{{created_date_long}}/g, createdDate.toLocaleDateString('en-US', { 
+      year: 'numeric', month: 'long', day: 'numeric' 
+    }));
+  }
+  
+  // Days since last contact
+  if (contact.updated_at) {
+    const daysSince = Math.floor((Date.now() - new Date(contact.updated_at).getTime()) / (1000 * 60 * 60 * 24));
+    result = result.replace(/{{days_since_last_contact}}/g, String(daysSince));
+  }
+  
+  // Fetch and replace pipeline stage name
+  if (contact.pipeline_stage_id) {
+    try {
+      const { data: stage } = await supabase
+        .from('pipeline_stages')
+        .select('name')
+        .eq('id', contact.pipeline_stage_id)
+        .single();
+      result = result.replace(/{{pipeline_stage}}/g, stage?.name || '');
+    } catch (e) {
+      console.error('Error fetching stage:', e);
+    }
+  }
+  
+  // Fetch and replace assigned user name
+  if (contact.assigned_to) {
+    try {
+      const { data: assignedUser } = await supabase
+        .from('profiles')
+        .select('first_name, last_name, email')
+        .eq('id', contact.assigned_to)
+        .single();
+      
+      if (assignedUser) {
+        result = result.replace(/{{assigned_to_name}}/g, `${assignedUser.first_name} ${assignedUser.last_name}`.trim());
+        result = result.replace(/{{assigned_to_email}}/g, assignedUser.email || '');
+      }
+    } catch (e) {
+      console.error('Error fetching assigned user:', e);
+    }
+  }
+  
+  // Fetch and replace custom fields
+  try {
+    const { data: customFields } = await supabase
+      .from('contact_custom_fields')
+      .select('custom_field_id, field_value, custom_fields(field_name)')
+      .eq('contact_id', contact.id);
+    
+    if (customFields) {
+      customFields.forEach((cf: any) => {
+        const fieldName = cf.custom_fields?.field_name;
+        if (fieldName) {
+          const regex = new RegExp(`{{custom_field\\.${fieldName}}}`, 'g');
+          result = result.replace(regex, cf.field_value || '');
+        }
+      });
+    }
+  } catch (e) {
+    console.error('Error fetching custom fields:', e);
+  }
+  
+  // Trigger-specific variables
   if (triggerData) {
+    // Basic trigger data
     Object.keys(triggerData).forEach(key => {
       const regex = new RegExp(`{{trigger\\.${key}}}`, 'g');
-      result = result.replace(regex, triggerData[key] || '');
+      result = result.replace(regex, String(triggerData[key] || ''));
     });
+    
+    // Stage change specific
+    if (triggerData.from_stage_id || triggerData.to_stage_id) {
+      try {
+        if (triggerData.from_stage_id) {
+          const { data: fromStage } = await supabase
+            .from('pipeline_stages')
+            .select('name')
+            .eq('id', triggerData.from_stage_id)
+            .single();
+          result = result.replace(/{{trigger\.old_stage}}/g, fromStage?.name || '');
+          result = result.replace(/{{trigger\.from_stage}}/g, fromStage?.name || '');
+        }
+        
+        if (triggerData.to_stage_id) {
+          const { data: toStage } = await supabase
+            .from('pipeline_stages')
+            .select('name')
+            .eq('id', triggerData.to_stage_id)
+            .single();
+          result = result.replace(/{{trigger\.new_stage}}/g, toStage?.name || '');
+          result = result.replace(/{{trigger\.to_stage}}/g, toStage?.name || '');
+        }
+      } catch (e) {
+        console.error('Error fetching stages:', e);
+      }
+    }
+    
+    // Disposition specific
+    if (triggerData.disposition_id) {
+      try {
+        const { data: disposition } = await supabase
+          .from('call_dispositions')
+          .select('name, description')
+          .eq('id', triggerData.disposition_id)
+          .single();
+        result = result.replace(/{{trigger\.disposition}}/g, disposition?.name || '');
+        result = result.replace(/{{trigger\.disposition_description}}/g, disposition?.description || '');
+      } catch (e) {
+        console.error('Error fetching disposition:', e);
+      }
+    }
+    
+    // Activity specific
+    if (triggerData.activity_type) {
+      result = result.replace(/{{trigger\.activity_type}}/g, triggerData.activity_type);
+    }
+    
+    if (triggerData.call_duration) {
+      const minutes = Math.floor(triggerData.call_duration / 60);
+      const seconds = triggerData.call_duration % 60;
+      result = result.replace(/{{trigger\.call_duration}}/g, `${minutes}m ${seconds}s`);
+      result = result.replace(/{{trigger\.call_duration_minutes}}/g, String(minutes));
+    }
   }
+  
+  // Conditional blocks - {{#if variable}}content{{/if}}
+  const ifRegex = /{{#if\s+([^}]+)}}([\s\S]*?){{\/if}}/g;
+  result = result.replace(ifRegex, (match, condition, content) => {
+    let conditionValue = false;
+    
+    // Check contact fields
+    if (condition === 'company' && contact.company) conditionValue = true;
+    else if (condition === 'job_title' && contact.job_title) conditionValue = true;
+    else if (condition === 'phone' && contact.phone) conditionValue = true;
+    else if (condition === 'city' && contact.city) conditionValue = true;
+    
+    // Check for equality conditions (e.g., status == "active")
+    const eqMatch = condition.match(/(\w+)\s*==\s*"([^"]+)"/);
+    if (eqMatch) {
+      const [, field, value] = eqMatch;
+      conditionValue = contact[field] === value;
+    }
+    
+    return conditionValue ? content : '';
+  });
+  
+  // Handle {{else}} blocks
+  const ifElseRegex = /{{#if\s+([^}]+)}}([\s\S]*?){{else}}([\s\S]*?){{\/if}}/g;
+  result = result.replace(ifElseRegex, (match, condition, trueContent, falseContent) => {
+    let conditionValue = false;
+    
+    if (condition === 'company' && contact.company) conditionValue = true;
+    else if (condition === 'job_title' && contact.job_title) conditionValue = true;
+    else if (condition === 'phone' && contact.phone) conditionValue = true;
+    
+    const eqMatch = condition.match(/(\w+)\s*==\s*"([^"]+)"/);
+    if (eqMatch) {
+      const [, field, value] = eqMatch;
+      conditionValue = contact[field] === value;
+    }
+    
+    return conditionValue ? trueContent : falseContent;
+  });
   
   return result;
 }
