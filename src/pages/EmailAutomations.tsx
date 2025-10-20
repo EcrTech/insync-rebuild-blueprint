@@ -30,6 +30,8 @@ import { ExecutionHistoryTable } from "@/components/EmailAutomation/ExecutionHis
 import { RuleAnalyticsDialog } from "@/components/EmailAutomation/RuleAnalyticsDialog";
 import { RuleTestDialog } from "@/components/EmailAutomation/RuleTestDialog";
 import { AutomationDiagnostics } from "@/components/EmailAutomation/AutomationDiagnostics";
+import { RuleTemplatesGallery } from "@/components/EmailAutomation/RuleTemplatesGallery";
+import { RuleDependencyManager } from "@/components/EmailAutomation/RuleDependencyManager";
 
 export default function EmailAutomations() {
   const { effectiveOrgId } = useOrgContext();
@@ -41,6 +43,8 @@ export default function EmailAutomations() {
   const [analyticsRuleName, setAnalyticsRuleName] = useState<string>("");
   const [testDialogOpen, setTestDialogOpen] = useState(false);
   const [testingRule, setTestingRule] = useState<any>(null);
+  const [dependencyManagerOpen, setDependencyManagerOpen] = useState(false);
+  const [dependencyRuleId, setDependencyRuleId] = useState<string | null>(null);
 
   // Fetch automation rules
   const { data: rules, isLoading, refetch } = useQuery({
@@ -192,6 +196,10 @@ export default function EmailAutomations() {
       <Tabs defaultValue="rules" className="space-y-6">
         <TabsList>
           <TabsTrigger value="rules">Rules</TabsTrigger>
+          <TabsTrigger value="templates">
+            <Zap className="mr-2 h-4 w-4" />
+            Templates
+          </TabsTrigger>
           <TabsTrigger value="diagnostics">
             <AlertCircle className="mr-2 h-4 w-4" />
             Diagnostics
@@ -400,6 +408,35 @@ export default function EmailAutomations() {
         </Card>
         </TabsContent>
 
+        <TabsContent value="templates">
+          <Card>
+            <CardHeader>
+              <CardTitle>Rule Templates</CardTitle>
+              <CardDescription>
+                Start with pre-built automation templates for common scenarios
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <RuleTemplatesGallery
+                onSelectTemplate={(template) => {
+                  setEditingRule({
+                    name: template.name,
+                    description: template.description,
+                    trigger_type: template.trigger_type,
+                    trigger_config: template.trigger_config,
+                    conditions: template.conditions,
+                    condition_logic: template.condition_logic,
+                    send_delay_minutes: template.send_delay_minutes,
+                    cooldown_period_days: template.cooldown_period_days,
+                    priority: template.priority,
+                  });
+                  setIsRuleBuilderOpen(true);
+                }}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="diagnostics">
           <AutomationDiagnostics />
         </TabsContent>
@@ -446,6 +483,15 @@ export default function EmailAutomations() {
         onOpenChange={setTestDialogOpen}
         rule={testingRule}
       />
+
+      {dependencyRuleId && effectiveOrgId && (
+        <RuleDependencyManager
+          open={dependencyManagerOpen}
+          onOpenChange={setDependencyManagerOpen}
+          ruleId={dependencyRuleId}
+          orgId={effectiveOrgId}
+        />
+      )}
     </div>
   );
 }

@@ -1589,6 +1589,115 @@ export type Database = {
           },
         ]
       }
+      email_automation_rule_dependencies: {
+        Row: {
+          created_at: string
+          delay_minutes: number | null
+          dependency_type: string
+          depends_on_rule_id: string
+          id: string
+          org_id: string
+          rule_id: string
+        }
+        Insert: {
+          created_at?: string
+          delay_minutes?: number | null
+          dependency_type: string
+          depends_on_rule_id: string
+          id?: string
+          org_id: string
+          rule_id: string
+        }
+        Update: {
+          created_at?: string
+          delay_minutes?: number | null
+          dependency_type?: string
+          depends_on_rule_id?: string
+          id?: string
+          org_id?: string
+          rule_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_automation_rule_dependencies_depends_on_rule_id_fkey"
+            columns: ["depends_on_rule_id"]
+            isOneToOne: false
+            referencedRelation: "email_automation_rules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_automation_rule_dependencies_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_automation_rule_dependencies_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "email_automation_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_automation_rule_templates: {
+        Row: {
+          category: string
+          condition_logic: string | null
+          conditions: Json | null
+          cooldown_period_days: number | null
+          created_at: string
+          description: string | null
+          icon: string | null
+          id: string
+          is_popular: boolean | null
+          name: string
+          priority: number | null
+          send_delay_minutes: number | null
+          trigger_config: Json
+          trigger_type: string
+          updated_at: string
+          use_count: number | null
+        }
+        Insert: {
+          category: string
+          condition_logic?: string | null
+          conditions?: Json | null
+          cooldown_period_days?: number | null
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_popular?: boolean | null
+          name: string
+          priority?: number | null
+          send_delay_minutes?: number | null
+          trigger_config?: Json
+          trigger_type: string
+          updated_at?: string
+          use_count?: number | null
+        }
+        Update: {
+          category?: string
+          condition_logic?: string | null
+          conditions?: Json | null
+          cooldown_period_days?: number | null
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_popular?: boolean | null
+          name?: string
+          priority?: number | null
+          send_delay_minutes?: number | null
+          trigger_config?: Json
+          trigger_type?: string
+          updated_at?: string
+          use_count?: number | null
+        }
+        Relationships: []
+      }
       email_automation_rules: {
         Row: {
           ab_test_enabled: boolean
@@ -1962,6 +2071,57 @@ export type Database = {
             columns: ["replied_to_message_id"]
             isOneToOne: false
             referencedRelation: "email_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_engagement_patterns: {
+        Row: {
+          click_count: number | null
+          contact_id: string | null
+          day_of_week: number
+          engagement_score: number | null
+          hour_of_day: number
+          id: string
+          last_updated: string
+          open_count: number | null
+          org_id: string
+        }
+        Insert: {
+          click_count?: number | null
+          contact_id?: string | null
+          day_of_week: number
+          engagement_score?: number | null
+          hour_of_day: number
+          id?: string
+          last_updated?: string
+          open_count?: number | null
+          org_id: string
+        }
+        Update: {
+          click_count?: number | null
+          contact_id?: string | null
+          day_of_week?: number
+          engagement_score?: number | null
+          hour_of_day?: number
+          id?: string
+          last_updated?: string
+          open_count?: number | null
+          org_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_engagement_patterns_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_engagement_patterns_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -4316,6 +4476,10 @@ export type Database = {
         Args: { _org_id: string }
         Returns: undefined
       }
+      check_circular_dependency: {
+        Args: { _depends_on_rule_id: string; _rule_id: string }
+        Returns: boolean
+      }
       check_connector_rate_limit: {
         Args: { _form_id: string; _limit: number }
         Returns: boolean
@@ -4390,6 +4554,10 @@ export type Database = {
           whatsapp_cost_per_unit: number
         }[]
       }
+      get_optimal_send_time: {
+        Args: { _contact_id: string; _default_hour?: number; _org_id: string }
+        Returns: Json
+      }
       get_orphaned_profiles: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -4415,6 +4583,13 @@ export type Database = {
         Returns: {
           designation_id: string
           level: number
+        }[]
+      }
+      get_rule_execution_order: {
+        Args: { _org_id: string }
+        Returns: {
+          execution_level: number
+          rule_id: string
         }[]
       }
       get_sales_performance_report: {

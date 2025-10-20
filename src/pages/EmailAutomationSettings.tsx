@@ -3,7 +3,8 @@ import { BusinessHoursConfig } from "@/components/EmailAutomation/BusinessHoursC
 import { SuppressionListManager } from "@/components/EmailAutomation/SuppressionListManager";
 import { UnsubscribeManager } from "@/components/EmailAutomation/UnsubscribeManager";
 import { SendLimitsConfig } from "@/components/EmailAutomation/SendLimitsConfig";
-import { Clock, Ban, Settings, UserX, Gauge } from "lucide-react";
+import { SmartSendTimeConfig } from "@/components/EmailAutomation/SmartSendTimeConfig";
+import { Clock, Ban, Settings, UserX, Gauge, Zap } from "lucide-react";
 
 export default function EmailAutomationSettings() {
   return (
@@ -36,6 +37,10 @@ export default function EmailAutomationSettings() {
             <Gauge className="mr-2 h-4 w-4" />
             Send Limits
           </TabsTrigger>
+          <TabsTrigger value="smart-send">
+            <Zap className="mr-2 h-4 w-4" />
+            Smart Send Time
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="business-hours">
@@ -52,6 +57,10 @@ export default function EmailAutomationSettings() {
 
         <TabsContent value="limits">
           <SendLimitsConfig />
+        </TabsContent>
+
+        <TabsContent value="smart-send">
+          <SmartSendTimeConfig />
         </TabsContent>
       </Tabs>
     </div>
