@@ -165,6 +165,13 @@ Deno.serve(async (req) => {
     } else if (path.match(/^\/designations\/[^/]+\/features$/) && method === 'PATCH') {
       const designationId = path.split('/')[2];
       response = await handleUpdateDesignationFeatures(supabaseAdmin, context, req, designationId);
+    } else if (path === '/blog-posts' && method === 'GET') {
+      response = await handleListBlogPosts(supabaseAdmin, context, url);
+    } else if (path === '/blog-posts' && method === 'POST') {
+      response = await handleCreateBlogPost(supabaseAdmin, context, req);
+    } else if (path.match(/^\/blog-posts\/[^/]+$/) && method === 'PUT') {
+      const blogId = path.split('/')[2];
+      response = await handleUpdateBlogPost(supabaseAdmin, context, req, blogId);
     } else {
       response = errorResponse('Endpoint not found', 404, requestId);
     }
@@ -1097,4 +1104,78 @@ async function handleUpdateDesignationFeatures(supabase: any, context: RequestCo
   }
 
   return successResponse(result, crypto.randomUUID());
+}
+
+// Blog Posts Handlers
+
+async function handleListBlogPosts(supabase: any, context: RequestContext, url: URL) {
+  const blog_url = url.searchParams.get('blog_url');
+  
+  let query = supabase
+    .from('blog_posts')
+    .select('*')
+    .eq('org_id', context.orgId)
+    .order('posted_timestamp', { ascending: false });
+  
+  if (blog_url) {
+    query = query.eq('blog_url', blog_url).limit(1);
+  }
+  
+  const { data, error } = await query;
+  
+  if (error) return errorResponse(error.message, 500, crypto.randomUUID());
+  return successResponse({ blog_posts: data }, crypto.randomUUID());
+}
+
+async function handleCreateBlogPost(supabase: any, context: RequestContext, req: Request) {
+  const body = await req.json();
+  
+  // Validate required fields
+  if (!body.blog_url || !body.blog_title || !body.publish_date) {
+    return errorResponse('Missing required fields: blog_url, blog_title, publish_date', 400, crypto.randomUUID());
+  }
+  
+  const { data, error } = await supabase
+    .from('blog_posts')
+    .insert({
+      org_id: context.orgId,
+      blog_url: body.blog_url,
+      blog_title: body.blog_title,
+      blog_excerpt: body.blog_excerpt,
+      publish_date: body.publish_date,
+      social_posted: body.social_posted || false,
+      email_campaign_sent: body.email_campaign_sent || false,
+      twitter_url: body.twitter_url,
+      linkedin_url: body.linkedin_url,
+      facebook_url: body.facebook_url,
+      featured_image_url: body.featured_image_url,
+      status: body.status || 'posted',
+      posted_timestamp: new Date().toISOString()
+    })
+    .select()
+    .single();
+  
+  if (error) {
+    if (error.code === '23505') { // Duplicate key
+      return errorResponse('Blog post with this URL already exists', 409, crypto.randomUUID());
+    }
+    return errorResponse(error.message, 400, crypto.randomUUID());
+  }
+  
+  return successResponse(data, crypto.randomUUID(), 201);
+}
+
+async function handleUpdateBlogPost(supabase: any, context: RequestContext, req: Request, blogId: string) {
+  const body = await req.json();
+  
+  const { data, error } = await supabase
+    .from('blog_posts')
+    .update(body)
+    .eq('org_id', context.orgId)
+    .eq('id', blogId)
+    .select()
+    .single();
+  
+  if (error) return errorResponse(error.message, 400, crypto.randomUUID());
+  return successResponse(data, crypto.randomUUID());
 }

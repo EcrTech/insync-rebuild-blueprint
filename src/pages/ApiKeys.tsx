@@ -527,6 +527,9 @@ export default function ApiKeys() {
                   { method: 'DELETE', path: '/designations/{id}', desc: 'Deactivate designation' },
                   { method: 'GET', path: '/designations/{id}/features', desc: 'Get designation feature access' },
                   { method: 'PATCH', path: '/designations/{id}/features', desc: 'Update designation feature access' },
+                  { method: 'GET', path: '/blog-posts', desc: 'List or check blog posts' },
+                  { method: 'POST', path: '/blog-posts', desc: 'Create new blog post entry' },
+                  { method: 'PUT', path: '/blog-posts/{id}', desc: 'Update blog post details' },
                 ].map((endpoint, idx) => (
                   <div key={idx} className="border rounded-lg p-3">
                     <div className="flex items-start gap-2 mb-1">
@@ -799,6 +802,84 @@ support_manager, support_agent, analyst
 
 # Remove role from user
 DELETE /users/{user_id}/roles/{role_id}`}
+              </pre>
+
+              <h3>Blog Posts Endpoints</h3>
+              
+              <h4>Check if Blog Exists</h4>
+              <pre className="bg-muted p-4 rounded-lg overflow-x-auto">
+{`GET /blog-posts?blog_url=https://yoursite.com/blog/post-title
+
+Response:
+{
+  "success": true,
+  "data": {
+    "blog_posts": [
+      {
+        "id": "uuid",
+        "org_id": "uuid",
+        "blog_url": "https://yoursite.com/blog/post-title",
+        "blog_title": "Post Title",
+        "blog_excerpt": "Post excerpt...",
+        "publish_date": "2025-10-20",
+        "social_posted": true,
+        "email_campaign_sent": true,
+        "twitter_url": "https://twitter.com/...",
+        "linkedin_url": "https://linkedin.com/...",
+        "facebook_url": "https://facebook.com/...",
+        "campaign_id": "uuid",
+        "status": "posted",
+        "created_at": "2025-10-20T10:00:00Z"
+      }
+    ]
+  }
+}`}
+              </pre>
+
+              <h4>Create Blog Post</h4>
+              <pre className="bg-muted p-4 rounded-lg overflow-x-auto">
+{`POST /blog-posts
+Content-Type: application/json
+
+{
+  "blog_url": "https://yoursite.com/blog/post-title",
+  "blog_title": "Your Blog Post Title",
+  "blog_excerpt": "Brief excerpt of the blog post...",
+  "publish_date": "2025-10-20",
+  "social_posted": true,
+  "email_campaign_sent": false,
+  "twitter_url": "https://twitter.com/status/...",
+  "linkedin_url": "https://linkedin.com/post/...",
+  "facebook_url": "https://facebook.com/post/...",
+  "featured_image_url": "https://yoursite.com/image.jpg",
+  "status": "posted"
+}
+
+Response (201 Created):
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "org_id": "uuid",
+    "blog_url": "https://yoursite.com/blog/post-title",
+    "blog_title": "Your Blog Post Title",
+    ... (blog post details)
+  }
+}
+
+Note: Database trigger will automatically create email campaign and send to all contacts`}
+              </pre>
+
+              <h4>Update Blog Post</h4>
+              <pre className="bg-muted p-4 rounded-lg overflow-x-auto">
+{`PUT /blog-posts/{blog_id}
+Content-Type: application/json
+
+{
+  "campaign_id": "uuid",
+  "email_campaign_sent": true,
+  "status": "completed"
+}`}
               </pre>
 
               <h3>Designations Endpoints</h3>
