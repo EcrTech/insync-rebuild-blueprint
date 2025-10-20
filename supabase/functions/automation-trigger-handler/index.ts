@@ -82,8 +82,8 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // Evaluate conditions (Phase 1: simple implementation)
-      const conditionsMet = await evaluateConditions(supabase, rule.conditions, contactId, orgId);
+      // Evaluate conditions
+      const conditionsMet = await evaluateConditions(supabase, rule.conditions, contactId, orgId, rule.condition_logic);
       if (!conditionsMet) {
         console.log(`Rule ${rule.name} conditions not met`);
         continue;
@@ -282,13 +282,159 @@ async function checkCooldown(supabase: any, ruleId: string, contactId: string, r
   return true;
 }
 
-async function evaluateConditions(supabase: any, conditions: any[], contactId: string, orgId: string): Promise<boolean> {
-  // Phase 1: Simple implementation - no conditions or all conditions pass
+async function evaluateConditions(supabase: any, conditions: any[], contactId: string, orgId: string, conditionLogic: string = 'AND'): Promise<boolean> {
   if (!conditions || conditions.length === 0) return true;
 
-  // For Phase 1, if conditions exist, we'll just return true
-  // Full condition evaluation will be added in Phase 3
-  return true;
+  // Fetch contact with all related data
+  const { data: contact, error } = await supabase
+    .from('contacts')
+    .select(`
+      *,
+      contact_custom_fields (
+        custom_field_id,
+        field_value,
+        custom_fields (field_name, field_type)
+      )
+    `)
+    .eq('id', contactId)
+    .single();
+
+  if (error || !contact) {
+    console.error('Error fetching contact for conditions:', error);
+    return false;
+  }
+
+  const results: boolean[] = [];
+
+  for (const condition of conditions) {
+    const result = await evaluateSingleCondition(supabase, condition, contact, orgId);
+    results.push(result);
+
+    // Early exit optimization
+    if (conditionLogic === 'AND' && !result) return false;
+    if (conditionLogic === 'OR' && result) return true;
+  }
+
+  return conditionLogic === 'AND' ? results.every(r => r) : results.some(r => r);
+}
+
+async function evaluateSingleCondition(supabase: any, condition: any, contact: any, orgId: string): Promise<boolean> {
+  try {
+    switch (condition.type) {
+      case 'contact_field': {
+        const fieldValue = contact[condition.field];
+        return compareValues(fieldValue, condition.operator, condition.value);
+      }
+
+      case 'custom_field': {
+        const customField = contact.contact_custom_fields?.find(
+          (cf: any) => cf.custom_fields.field_name === condition.field_name
+        );
+        const fieldValue = customField?.field_value;
+        return compareValues(fieldValue, condition.operator, condition.value);
+      }
+
+      case 'activity_history': {
+        const daysAgo = condition.days_ago || 30;
+        const sinceDate = new Date();
+        sinceDate.setDate(sinceDate.getDate() - daysAgo);
+
+        const { data: activities } = await supabase
+          .from('contact_activities')
+          .select('id')
+          .eq('contact_id', contact.id)
+          .eq('activity_type', condition.activity_type)
+          .gte('created_at', sinceDate.toISOString());
+
+        const count = activities?.length || 0;
+        return compareValues(count, condition.operator, parseInt(condition.value));
+      }
+
+      case 'time_condition': {
+        const now = new Date();
+        
+        if (condition.time_type === 'day_of_week') {
+          const dayOfWeek = now.toLocaleDateString('en-US', { weekday: 'short' });
+          return condition.values.includes(dayOfWeek);
+        }
+        
+        if (condition.time_type === 'time_of_day') {
+          const hour = now.getHours();
+          const startHour = parseInt(condition.start_time?.split(':')[0] || '0');
+          const endHour = parseInt(condition.end_time?.split(':')[0] || '23');
+          return hour >= startHour && hour <= endHour;
+        }
+        
+        if (condition.time_type === 'month') {
+          const month = now.toLocaleDateString('en-US', { month: 'short' });
+          return condition.values.includes(month);
+        }
+        
+        return true;
+      }
+
+      case 'user_team': {
+        if (condition.check_type === 'assigned_user') {
+          return condition.user_ids?.includes(contact.assigned_to);
+        }
+        if (condition.check_type === 'assigned_team') {
+          return condition.team_ids?.includes(contact.assigned_team_id);
+        }
+        return true;
+      }
+
+      default:
+        console.warn('Unknown condition type:', condition.type);
+        return true;
+    }
+  } catch (error) {
+    console.error('Error evaluating condition:', error, condition);
+    return false;
+  }
+}
+
+function compareValues(actualValue: any, operator: string, expectedValue: any): boolean {
+  // Handle null/undefined
+  if (actualValue === null || actualValue === undefined) {
+    return operator === 'is_empty' || operator === 'not_equals';
+  }
+
+  // Convert to string for comparison
+  const actual = String(actualValue).toLowerCase().trim();
+  const expected = String(expectedValue).toLowerCase().trim();
+
+  switch (operator) {
+    case 'equals':
+      return actual === expected;
+    case 'not_equals':
+      return actual !== expected;
+    case 'contains':
+      return actual.includes(expected);
+    case 'not_contains':
+      return !actual.includes(expected);
+    case 'starts_with':
+      return actual.startsWith(expected);
+    case 'ends_with':
+      return actual.endsWith(expected);
+    case 'is_empty':
+      return actual.length === 0;
+    case 'is_not_empty':
+      return actual.length > 0;
+    case 'greater_than':
+      return parseFloat(actualValue) > parseFloat(expectedValue);
+    case 'less_than':
+      return parseFloat(actualValue) < parseFloat(expectedValue);
+    case 'greater_than_or_equal':
+      return parseFloat(actualValue) >= parseFloat(expectedValue);
+    case 'less_than_or_equal':
+      return parseFloat(actualValue) <= parseFloat(expectedValue);
+    case 'in':
+      return expected.split(',').map((v: string) => v.trim()).includes(actual);
+    case 'not_in':
+      return !expected.split(',').map((v: string) => v.trim()).includes(actual);
+    default:
+      return false;
+  }
 }
 
 async function sendAutomationEmail(supabase: any, executionId: string) {

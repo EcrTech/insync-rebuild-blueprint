@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { ConditionsBuilder } from "./ConditionsBuilder";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgContext } from "@/hooks/useOrgContext";
@@ -44,6 +45,8 @@ export function RuleBuilder({ open, onOpenChange, editingRule }: RuleBuilderProp
   const [maxSends, setMaxSends] = useState<number | undefined>();
   const [cooldownDays, setCooldownDays] = useState<number | undefined>();
   const [priority, setPriority] = useState(50);
+  const [conditions, setConditions] = useState<any[]>([]);
+  const [conditionLogic, setConditionLogic] = useState<'AND' | 'OR'>('AND');
 
   // Stage change config
   const [fromStageId, setFromStageId] = useState<string | undefined>();
@@ -115,7 +118,7 @@ export function RuleBuilder({ open, onOpenChange, editingRule }: RuleBuilderProp
       if (error) throw error;
       return data;
     },
-    enabled: !!effectiveOrgId && triggerType === "field_updated",
+    enabled: !!effectiveOrgId,
   });
 
   // Fetch users
@@ -130,7 +133,7 @@ export function RuleBuilder({ open, onOpenChange, editingRule }: RuleBuilderProp
       if (error) throw error;
       return data;
     },
-    enabled: !!effectiveOrgId && triggerType === "assignment_changed",
+    enabled: !!effectiveOrgId,
   });
 
   // Fetch templates
@@ -172,6 +175,8 @@ export function RuleBuilder({ open, onOpenChange, editingRule }: RuleBuilderProp
       setInactivityDays(config.inactivity_days || 30);
       setRelativeDays(config.relative_days || 0);
       setAssignedToUserIds(config.assigned_to_user_ids || []);
+      setConditions(editingRule.conditions || []);
+      setConditionLogic(editingRule.condition_logic || 'AND');
     } else {
       resetForm();
     }
@@ -196,6 +201,8 @@ export function RuleBuilder({ open, onOpenChange, editingRule }: RuleBuilderProp
     setInactivityDays(30);
     setRelativeDays(0);
     setAssignedToUserIds([]);
+    setConditions([]);
+    setConditionLogic('AND');
   };
 
   // Save rule mutation
@@ -240,6 +247,8 @@ export function RuleBuilder({ open, onOpenChange, editingRule }: RuleBuilderProp
         max_sends_per_contact: maxSends,
         cooldown_period_days: cooldownDays,
         priority,
+        conditions,
+        condition_logic: conditionLogic,
         is_active: true,
       };
 
@@ -580,6 +589,19 @@ export function RuleBuilder({ open, onOpenChange, editingRule }: RuleBuilderProp
               </div>
             </div>
           )}
+
+          {/* Conditions Section */}
+          <div className="space-y-3 border rounded-lg p-4 bg-muted/50">
+            <ConditionsBuilder
+              conditions={conditions}
+              conditionLogic={conditionLogic}
+              onConditionsChange={setConditions}
+              onLogicChange={setConditionLogic}
+              customFields={customFields || []}
+              users={users || []}
+              teams={[]}
+            />
+          </div>
 
           {/* Email Template */}
           <div className="space-y-2">
