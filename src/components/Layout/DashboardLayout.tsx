@@ -155,7 +155,13 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
     canAccessFeature("forms")
   );
   
-  const showManagementSection = isManager && (canAccessFeature("users") || canAccessFeature("teams"));
+  const showManagementSection = isManager && (
+    canAccessFeature("users") || 
+    canAccessFeature("teams") || 
+    canAccessFeature("designations") || 
+    canAccessFeature("approval_matrix") ||
+    canAccessFeature("org_chart")
+  );
 
   return (
     <div className="min-h-screen bg-background">
@@ -382,17 +388,6 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                 </Link>
               )}
 
-              {canAccessFeature("org_chart") && (
-                <Link
-                  to="/org-chart"
-                  className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  <Network size={20} />
-                  <span>Org Chart</span>
-                </Link>
-              )}
-
               {showManagementSection && (
                 <>
                   <div className="pt-4 pb-2 section-accent-purple pl-4">
@@ -418,6 +413,36 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                     >
                       <UsersRound size={20} />
                       <span>Teams</span>
+                    </Link>
+                  )}
+                  {canAccessFeature("designations") && (
+                    <Link
+                      to="/admin/designations"
+                      className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
+                      onClick={() => setSidebarOpen(false)}
+                    >
+                      <Award size={20} />
+                      <span>Designations</span>
+                    </Link>
+                  )}
+                  {canAccessFeature("approval_matrix") && (
+                    <Link
+                      to="/admin/approval-matrix"
+                      className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
+                      onClick={() => setSidebarOpen(false)}
+                    >
+                      <CheckSquare size={20} />
+                      <span>Approval Matrix</span>
+                    </Link>
+                  )}
+                  {canAccessFeature("org_chart") && (
+                    <Link
+                      to="/org-chart"
+                      className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
+                      onClick={() => setSidebarOpen(false)}
+                    >
+                      <Network size={20} />
+                      <span>Org Chart</span>
                     </Link>
                   )}
                 </>
@@ -464,28 +489,6 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                     >
                       <PhoneCall size={20} />
                       <span>Call Dispositions</span>
-                    </Link>
-                  )}
-                  
-                  {canAccessFeature("approval_matrix") && (
-                    <Link
-                      to="/admin/approval-matrix"
-                      className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-                      onClick={() => setSidebarOpen(false)}
-                    >
-                      <CheckSquare size={20} />
-                      <span>Approval Matrix</span>
-                    </Link>
-                  )}
-                  
-                  {canAccessFeature("designations") && (
-                    <Link
-                      to="/admin/designations"
-                      className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-                      onClick={() => setSidebarOpen(false)}
-                    >
-                      <Award size={20} />
-                      <span>Designations</span>
                     </Link>
                   )}
                   
