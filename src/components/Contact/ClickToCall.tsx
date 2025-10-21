@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Phone, PhoneOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
@@ -34,7 +34,7 @@ interface SubDisposition {
 }
 
 export const ClickToCall = ({ contactId, phoneNumber, contactName }: ClickToCallProps) => {
-  const { toast } = useToast();
+  const notify = useNotification();
   const [isLoading, setIsLoading] = useState(false);
   const [activeSession, setActiveSession] = useState<CallSession | null>(null);
   const [duration, setDuration] = useState(0);
@@ -163,11 +163,7 @@ export const ClickToCall = ({ contactId, phoneNumber, contactName }: ClickToCall
         .single();
 
       if (!profile?.phone) {
-        toast({
-          title: "Phone number required",
-          description: "Please add your phone number in your profile settings",
-          variant: "destructive",
-        });
+        notify.error("Phone number required", "Please add your phone number in your profile settings");
         return;
       }
 
@@ -180,10 +176,7 @@ export const ClickToCall = ({ contactId, phoneNumber, contactName }: ClickToCall
 
       if (error) throw error;
 
-      toast({
-        title: "Call initiated",
-        description: `Calling ${contactName}...`,
-      });
+      notify.success("Call initiated", `Calling ${contactName}...`);
 
       setActiveSession({
         id: data.callLog.id,
@@ -191,13 +184,9 @@ export const ClickToCall = ({ contactId, phoneNumber, contactName }: ClickToCall
         exotel_call_sid: data.exotelCallSid,
         started_at: new Date().toISOString(),
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error making call:', error);
-      toast({
-        title: "Call failed",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("Call failed", error);
     } finally {
       setIsLoading(false);
     }
@@ -234,10 +223,7 @@ export const ClickToCall = ({ contactId, phoneNumber, contactName }: ClickToCall
           .eq('id', callLog.activity_id);
       }
 
-      toast({
-        title: "Disposition saved",
-        description: "Call disposition has been recorded",
-      });
+      notify.success("Disposition saved", "Call disposition has been recorded");
 
       setShowDisposition(false);
       setActiveSession(null);
@@ -245,13 +231,9 @@ export const ClickToCall = ({ contactId, phoneNumber, contactName }: ClickToCall
       setSelectedSubDisposition("");
       setNotes("");
       setDuration(0);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving disposition:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save disposition",
-        variant: "destructive",
-      });
+      notify.error("Error", error);
     }
   };
 

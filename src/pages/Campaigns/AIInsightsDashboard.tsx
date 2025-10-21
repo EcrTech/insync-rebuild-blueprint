@@ -5,14 +5,14 @@ import DashboardLayout from "@/components/Layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 import InsightCard from "@/components/Campaigns/Insights/InsightCard";
 import AIChatInterface from "@/components/Campaigns/Insights/AIChatInterface";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function AIInsightsDashboard() {
-  const { toast } = useToast();
+  const notify = useNotification();
   const [priorityFilter, setPriorityFilter] = useState<string | null>(null);
 
   const { data: insights, isLoading, refetch } = useQuery({
@@ -41,10 +41,7 @@ export default function AIInsightsDashboard() {
 
   const handleRefresh = () => {
     manualRefresh();
-    toast({
-      title: "Refreshing insights",
-      description: "AI insights are being updated",
-    });
+    notify.info("Refreshing insights", "AI insights are being updated");
   };
 
   const highPriorityCount = insights?.filter((i) => i.priority === "high").length || 0;

@@ -5,7 +5,7 @@ import DashboardLayout from "@/components/Layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Download, RefreshCw } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 import { exportToCSV, formatCurrencyForExport, formatNumberForExport } from "@/utils/exportUtils";
 import MetricCard from "@/components/Campaigns/Analytics/MetricCard";
@@ -14,7 +14,7 @@ import PerformanceTrendChart from "@/components/Campaigns/Analytics/PerformanceT
 import ChannelPerformanceTable from "@/components/Campaigns/Analytics/ChannelPerformanceTable";
 
 export default function CampaignOverview() {
-  const { toast } = useToast();
+  const notify = useNotification();
   const [dateRange, setDateRange] = useState(30);
 
   const { data: analytics, isLoading, refetch } = useQuery({
@@ -41,18 +41,12 @@ export default function CampaignOverview() {
 
   const handleRefresh = () => {
     manualRefresh();
-    toast({
-      title: "Refreshing data",
-      description: "Campaign analytics are being updated",
-    });
+    notify.info("Refreshing data", "Campaign analytics are being updated");
   };
 
   const handleExport = () => {
     if (!analytics || analytics.length === 0) {
-      toast({
-        title: "No data to export",
-        variant: "destructive",
-      });
+      notify.error("No data to export");
       return;
     }
 
@@ -70,10 +64,7 @@ export default function CampaignOverview() {
       `campaign-analytics-${dateRange}days`
     );
 
-    toast({
-      title: "Export successful",
-      description: "Analytics data has been downloaded",
-    });
+    notify.success("Export successful", "Analytics data has been downloaded");
   };
 
   // Calculate totals

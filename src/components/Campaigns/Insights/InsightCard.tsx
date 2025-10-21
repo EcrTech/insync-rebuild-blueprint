@@ -2,7 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 import { Lightbulb, TrendingUp, AlertTriangle } from "lucide-react";
 
 interface InsightCardProps {
@@ -19,7 +19,7 @@ interface InsightCardProps {
 }
 
 export default function InsightCard({ insight, onUpdate }: InsightCardProps) {
-  const { toast } = useToast();
+  const notify = useNotification();
 
   const handleDismiss = async () => {
     const { error } = await supabase
@@ -28,17 +28,11 @@ export default function InsightCard({ insight, onUpdate }: InsightCardProps) {
       .eq("id", insight.id);
 
     if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to dismiss insight",
-        variant: "destructive",
-      });
+      notify.error("Error", "Failed to dismiss insight");
       return;
     }
 
-    toast({
-      title: "Insight dismissed",
-    });
+    notify.success("Insight dismissed");
     onUpdate();
   };
 

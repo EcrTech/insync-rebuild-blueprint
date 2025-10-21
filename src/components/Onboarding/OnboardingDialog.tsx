@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { CheckCircle2, Circle, ArrowRight, ArrowLeft, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 
 interface OnboardingStep {
   title: string;
@@ -181,7 +181,7 @@ interface OnboardingDialogProps {
 }
 
 export function OnboardingDialog({ open, userRole, onComplete }: OnboardingDialogProps) {
-  const { toast } = useToast();
+  const notify = useNotification();
   const [currentStep, setCurrentStep] = useState(0);
   const [completing, setCompleting] = useState(false);
   
@@ -212,20 +212,13 @@ export function OnboardingDialog({ open, userRole, onComplete }: OnboardingDialo
 
         if (error) throw error;
 
-        toast({
-          title: "Welcome aboard! 🎉",
-          description: "You're all set to start using the platform.",
-        });
+        notify.success("Welcome aboard! 🎉", "You're all set to start using the platform.");
         
         onComplete();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error completing onboarding:", error);
-      toast({
-        title: "Error",
-        description: "Failed to complete onboarding. Please try again.",
-        variant: "destructive",
-      });
+      notify.error("Error", error);
     } finally {
       setCompleting(false);
     }

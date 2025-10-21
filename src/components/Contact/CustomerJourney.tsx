@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 import { Phone, Mail, Calendar, FileText, CheckCircle2, Clock, Video } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -45,7 +45,7 @@ interface CustomerJourneyProps {
 export const CustomerJourney = ({ contactId }: CustomerJourneyProps) => {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
+  const notify = useNotification();
 
   useEffect(() => {
     fetchActivities();
@@ -109,13 +109,9 @@ export const CustomerJourney = ({ contactId }: CustomerJourneyProps) => {
 
       if (error) throw error;
       setActivities(data || []);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching activities:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load customer journey",
-        variant: "destructive",
-      });
+      notify.error("Error", error);
     } finally {
       setLoading(false);
     }

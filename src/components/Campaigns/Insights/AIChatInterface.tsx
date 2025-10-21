@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Send, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface Message {
@@ -13,7 +13,7 @@ interface Message {
 }
 
 export default function AIChatInterface() {
-  const { toast } = useToast();
+  const notify = useNotification();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -46,11 +46,7 @@ export default function AIChatInterface() {
 
       setMessages((prev) => [...prev, { role: "assistant", content: data.response || "No response" }]);
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to get AI response",
-        variant: "destructive",
-      });
+      notify.error("Error", error.message || "Failed to get AI response");
       setMessages((prev) => prev.slice(0, -1)); // Remove user message on error
     } finally {
       setIsLoading(false);
