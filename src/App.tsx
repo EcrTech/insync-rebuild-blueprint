@@ -50,6 +50,7 @@ import AIInsightsDashboard from "./pages/Campaigns/AIInsightsDashboard";
 import Documentation from "./pages/Documentation";
 import RedefineDataRepository from "./pages/RedefineDataRepository";
 import Subscriptions from "./pages/Subscriptions";
+import CommunicationSettings from "./pages/CommunicationSettings";
 import Inventory from "./pages/Inventory";
 import ApiKeys from "./pages/ApiKeys";
 import GoogleCalendarCallback from "./pages/GoogleCalendarCallback";
@@ -194,21 +195,9 @@ const App = () => (
             </ProtectedRoute>
           } />
           
-          <Route path="/admin/whatsapp-settings" element={
+          <Route path="/admin/communication-settings" element={
             <ProtectedRoute requiredRole="admin">
-              <WhatsAppSettings />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/admin/email-settings" element={
-            <ProtectedRoute requiredRole="admin">
-              <EmailSettings />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/admin/exotel-settings" element={
-            <ProtectedRoute requiredRole="admin">
-              <ExotelSettings />
+              <CommunicationSettings />
             </ProtectedRoute>
           } />
           

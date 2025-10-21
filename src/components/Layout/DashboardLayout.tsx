@@ -519,36 +519,14 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                     </div>
                   )}
                   
-                  {canAccessFeature("campaigns_whatsapp") && (
+                  {(canAccessFeature("campaigns_whatsapp") || canAccessFeature("email_settings") || canAccessFeature("calling")) && (
                     <Link
-                      to="/admin/whatsapp-settings"
+                      to="/admin/communication-settings"
                       className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
                       onClick={() => setSidebarOpen(false)}
                     >
-                      <MessageSquare size={20} />
-                      <span>WhatsApp Settings</span>
-                    </Link>
-                  )}
-                  
-                  {canAccessFeature("email_settings") && (
-                    <Link
-                      to="/admin/email-settings"
-                      className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-                      onClick={() => setSidebarOpen(false)}
-                    >
-                      <Mail size={20} />
-                      <span>Email Settings</span>
-                    </Link>
-                  )}
-                  
-                  {canAccessFeature("calling") && (
-                    <Link
-                      to="/admin/exotel-settings"
-                      className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-                      onClick={() => setSidebarOpen(false)}
-                    >
-                      <PhoneCall size={20} />
-                      <span>Exotel Settings</span>
+                      <Settings size={20} />
+                      <span>Communication Settings</span>
                     </Link>
                   )}
                   
