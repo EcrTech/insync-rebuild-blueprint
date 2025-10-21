@@ -360,17 +360,6 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                 </Link>
               )}
 
-              {canAccessFeature("calling") && (
-                <Link
-                  to="/calling-dashboard"
-                  className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  <PhoneCall size={20} />
-                  <span>Calling Dashboard</span>
-                </Link>
-              )}
-
               {canAccessFeature("redefine_data_repository") && orgName.includes("Redefine") && (
                 <Link
                   to="/redefine-repository"
