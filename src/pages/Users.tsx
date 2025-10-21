@@ -419,6 +419,14 @@ export default function Users() {
     return colors[role] || "bg-gray-500";
   };
 
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <LoadingState message="Loading users..." />
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout>
       <div className="space-y-6">

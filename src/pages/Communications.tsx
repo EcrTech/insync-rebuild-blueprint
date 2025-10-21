@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { LoadingState } from "@/components/common/LoadingState";
 import { useNotification } from "@/hooks/useNotification";
 import { MessageSquare, Mail, Search, Send, Phone, User } from "lucide-react";
 import { format } from "date-fns";
@@ -231,6 +232,14 @@ export default function Communications() {
       (!channel || c.channel === channel)
     ).length;
   };
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <LoadingState message="Loading communications..." />
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>

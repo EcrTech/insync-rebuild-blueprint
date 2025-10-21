@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { LoadingState } from "@/components/common/LoadingState";
 import { useNotification } from "@/hooks/useNotification";
 import { useBulkUpload } from "@/hooks/useBulkUpload";
 import { Plus, Pencil, Trash2, Mail, Phone as PhoneIcon, Building, Upload, Download, Loader2 } from "lucide-react";
@@ -331,6 +332,14 @@ Jane,Smith,jane.smith@example.com,+0987654321,Tech Inc,CEO,contacted,Referral`;
     };
     return colors[status] || "bg-gray-500";
   };
+
+  if (loading && contacts.length === 0) {
+    return (
+      <DashboardLayout>
+        <LoadingState message="Loading contacts..." />
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>

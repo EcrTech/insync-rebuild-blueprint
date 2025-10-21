@@ -4,6 +4,7 @@ import DashboardLayout from "@/components/Layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { LoadingState } from "@/components/common/LoadingState";
 import { useNotification } from "@/hooks/useNotification";
 import { Mail, Phone as PhoneIcon, Building, LayoutGrid, Table as TableIcon, Sparkles, Loader2, Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -220,9 +221,7 @@ export default function PipelineBoard() {
   if (loading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
-        </div>
+        <LoadingState message="Loading pipeline..." />
       </DashboardLayout>
     );
   }
