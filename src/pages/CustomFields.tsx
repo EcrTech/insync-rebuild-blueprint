@@ -170,7 +170,6 @@ export default function CustomFields() {
   const uploadDialog = useDialogState({});
 
   const { data: fields = [], isLoading, refetch } = useOrgData<CustomField>("custom_fields", {
-    select: "*",
     orderBy: { column: "field_order", ascending: true }
   });
 

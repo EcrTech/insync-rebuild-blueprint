@@ -1,13 +1,15 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgContext } from "@/hooks/useOrgContext";
+import { useNotification } from "@/hooks/useNotification";
 import { DashboardLayout } from "@/components/Layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useToast } from "@/hooks/use-toast";
-import { Loader2, MessageSquare, RefreshCw, Plus, Mail } from "lucide-react";
+import { LoadingState } from "@/components/common/LoadingState";
+import { EmptyState } from "@/components/common/EmptyState";
+import { MessageSquare, RefreshCw, Plus, Mail } from "lucide-react";
 import { format } from "date-fns";
 import { StandardEmailTemplateDialog } from "@/components/Templates/StandardEmailTemplateDialog";
 
@@ -36,7 +38,7 @@ interface EmailTemplate {
 
 const Templates = () => {
   const { effectiveOrgId } = useOrgContext();
-  const { toast } = useToast();
+  const notify = useNotification();
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [whatsappTemplates, setWhatsappTemplates] = useState<WhatsAppTemplate[]>([]);
@@ -72,20 +74,13 @@ const Templates = () => {
           setQueueStatus(newStatus);
 
           if (newStatus === 'completed') {
-            toast({
-              title: "Sync Complete",
-              description: "Templates have been synced successfully",
-            });
+            notify.success("Sync Complete", "Templates have been synced successfully");
             setQueuedJobId(null);
             setQueueStatus(null);
             setSyncing(false);
             fetchWhatsAppTemplates();
           } else if (newStatus === 'failed') {
-            toast({
-              title: "Sync Failed",
-              description: payload.new.error_message || "Failed to sync templates",
-              variant: "destructive",
-            });
+            notify.error("Sync Failed", payload.new.error_message || "Failed to sync templates");
             setQueuedJobId(null);
             setQueueStatus(null);
             setSyncing(false);
@@ -97,7 +92,7 @@ const Templates = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [queuedJobId, toast]);
+  }, [queuedJobId, notify]);
 
   const fetchTemplates = async () => {
     setLoading(true);
@@ -117,11 +112,7 @@ const Templates = () => {
       setWhatsappTemplates((data || []) as unknown as WhatsAppTemplate[]);
     } catch (error: any) {
       console.error("Error fetching WhatsApp templates:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load WhatsApp templates",
-        variant: "destructive",
-      });
+      notify.error("Error", "Failed to load WhatsApp templates");
     }
   };
 
@@ -138,11 +129,7 @@ const Templates = () => {
       setEmailTemplates(data || []);
     } catch (error: any) {
       console.error("Error fetching email templates:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load email templates",
-        variant: "destructive",
-      });
+      notify.error("Error", "Failed to load email templates");
     }
   };
 
@@ -158,26 +145,16 @@ const Templates = () => {
         setQueuedJobId(response.data.job_id);
         setQueueStatus('queued');
         
-        toast({
-          title: "Sync Queued",
-          description: `Your template sync has been queued. Estimated wait: ${response.data.estimated_wait_minutes} minutes. Position: ${response.data.position_in_queue}`,
-        });
+        notify.info("Sync Queued", `Your template sync has been queued. Estimated wait: ${response.data.estimated_wait_minutes} minutes. Position: ${response.data.position_in_queue}`);
       } else {
         // Immediate sync
-        toast({
-          title: "Success",
-          description: `Synced ${response.data.synced} templates from Gupshup`,
-        });
+        notify.success("Success", `Synced ${response.data.synced} templates from Gupshup`);
         setSyncing(false);
         fetchWhatsAppTemplates();
       }
     } catch (error: any) {
       console.error("Error syncing templates:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to sync templates",
-        variant: "destructive",
-      });
+      notify.error("Error", error.message || "Failed to sync templates");
       setSyncing(false);
     }
   };
@@ -193,7 +170,7 @@ const Templates = () => {
   };
 
   const handleDeleteEmail = async (templateId: string) => {
-    if (!confirm("Are you sure you want to delete this template?")) return;
+    if (!notify.confirm("Are you sure you want to delete this template?")) return;
 
     try {
       const { error } = await supabase
@@ -203,18 +180,11 @@ const Templates = () => {
 
       if (error) throw error;
 
-      toast({
-        title: "Success",
-        description: "Template deleted successfully",
-      });
+      notify.success("Success", "Template deleted successfully");
       fetchEmailTemplates();
     } catch (error: any) {
       console.error("Error deleting template:", error);
-      toast({
-        title: "Error",
-        description: "Failed to delete template",
-        variant: "destructive",
-      });
+      notify.error("Error", "Failed to delete template");
     }
   };
 
@@ -235,9 +205,7 @@ const Templates = () => {
   if (loading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin" />
-        </div>
+        <LoadingState message="Loading templates..." />
       </DashboardLayout>
     );
   }
@@ -249,7 +217,7 @@ const Templates = () => {
           <Card className="border-primary">
             <CardContent className="pt-6">
               <div className="flex items-center gap-3">
-                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                <RefreshCw className="h-5 w-5 animate-spin text-primary" />
                 <div>
                   <p className="font-medium">Template Sync Queued</p>
                   <p className="text-sm text-muted-foreground">
@@ -278,7 +246,7 @@ const Templates = () => {
                 <Button onClick={handleSync} disabled={syncing} variant="outline">
                   {syncing ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
                       Syncing...
                     </>
                   ) : (
@@ -312,25 +280,17 @@ const Templates = () => {
 
           <TabsContent value="whatsapp" className="mt-6">
             {whatsappTemplates.length === 0 ? (
-              <Card>
-                <CardContent className="flex flex-col items-center justify-center py-12">
-                  <MessageSquare className="h-12 w-12 text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No templates found</h3>
-                  <p className="text-muted-foreground text-center mb-4">
-                    Configure your WhatsApp settings and sync templates from Gupshup
-                  </p>
+              <EmptyState
+                icon={<MessageSquare className="h-12 w-12" />}
+                title="No templates found"
+                message="Configure your WhatsApp settings and sync templates from Gupshup"
+                action={
                   <Button onClick={handleSync} disabled={syncing}>
-                    {syncing ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Syncing...
-                      </>
-                    ) : (
-                      "Sync Templates"
-                    )}
+                    <RefreshCw className={`mr-2 h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
+                    {syncing ? 'Syncing...' : 'Sync Templates'}
                   </Button>
-                </CardContent>
-              </Card>
+                }
+              />
             ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {whatsappTemplates.map((template) => (
@@ -374,19 +334,17 @@ const Templates = () => {
 
           <TabsContent value="email" className="mt-6">
             {emailTemplates.length === 0 ? (
-              <Card>
-                <CardContent className="flex flex-col items-center justify-center py-12">
-                  <Mail className="h-12 w-12 text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No email templates found</h3>
-                  <p className="text-muted-foreground text-center mb-4">
-                    Create your first email template with our drag-and-drop editor
-                  </p>
+              <EmptyState
+                icon={<Mail className="h-12 w-12" />}
+                title="No email templates found"
+                message="Create your first email template with our drag-and-drop editor"
+                action={
                   <Button onClick={handleCreateEmail}>
                     <Plus className="mr-2 h-4 w-4" />
                     Create Email Template
                   </Button>
-                </CardContent>
-              </Card>
+                }
+              />
             ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {emailTemplates.map((template) => (

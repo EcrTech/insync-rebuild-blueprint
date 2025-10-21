@@ -1,12 +1,14 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useOrgContext } from "@/hooks/useOrgContext";
+import { useNotification } from "@/hooks/useNotification";
+import { useOrgData } from "@/hooks/useOrgData";
+import { useCRUD } from "@/hooks/useCRUD";
 import DashboardLayout from "@/components/Layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { LoadingState } from "@/components/common/LoadingState";
 import { Plus, Trash2, Edit, Check, X } from "lucide-react";
 
 interface PipelineStage {
@@ -21,10 +23,9 @@ interface PipelineStage {
 
 export default function PipelineStages() {
   const { effectiveOrgId } = useOrgContext();
-  const { toast } = useToast();
-  const [stages, setStages] = useState<PipelineStage[]>([]);
-  const [loading, setLoading] = useState(true);
+  const notify = useNotification();
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editedStages, setEditedStages] = useState<Record<string, PipelineStage>>({});
   const [newStage, setNewStage] = useState({
     name: "",
     description: "",
@@ -32,147 +33,67 @@ export default function PipelineStages() {
     color: "#01B8AA",
   });
 
-  useEffect(() => {
-    if (effectiveOrgId) {
-      fetchStages();
-    }
-  }, [effectiveOrgId]);
+  const { data: stages = [], isLoading, refetch } = useOrgData<PipelineStage>("pipeline_stages", {
+    orderBy: { column: "stage_order", ascending: true }
+  });
 
-  const fetchStages = async () => {
-    if (!effectiveOrgId) return;
-    
-    try {
-      const { data, error } = await supabase
-        .from("pipeline_stages")
-        .select("*")
-        .eq("org_id", effectiveOrgId)
-        .order("stage_order", { ascending: true });
-
-      if (error) throw error;
-      setStages(data || []);
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Failed to load stages",
-        description: error.message,
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { create, update, delete: deleteMutation } = useCRUD("pipeline_stages", {
+    onSuccess: () => refetch(),
+  });
 
   const handleAddStage = async () => {
     if (!newStage.name) {
-      toast({
-        variant: "destructive",
-        title: "Name required",
-        description: "Please enter a stage name",
-      });
+      notify.error("Name required", "Please enter a stage name");
       return;
     }
 
     if (!effectiveOrgId) return;
 
-    try {
-      const maxOrder = Math.max(...stages.map(s => s.stage_order), 0);
+    const maxOrder = Math.max(...stages.map(s => s.stage_order), 0);
 
-      const { error } = await supabase
-        .from("pipeline_stages")
-        .insert({
-          org_id: effectiveOrgId,
-          name: newStage.name,
-          description: newStage.description,
-          stage_order: maxOrder + 1,
-          probability: newStage.probability,
-          color: newStage.color,
-        });
+    await create({
+      org_id: effectiveOrgId,
+      name: newStage.name,
+      description: newStage.description,
+      stage_order: maxOrder + 1,
+      probability: newStage.probability,
+      color: newStage.color,
+    });
 
-      if (error) throw error;
-
-      toast({
-        title: "Stage added",
-        description: "Pipeline stage has been created",
-      });
-
-      setNewStage({
-        name: "",
-        description: "",
-        probability: 50,
-        color: "#01B8AA",
-      });
-
-      fetchStages();
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Failed to add stage",
-        description: error.message,
-      });
-    }
+    setNewStage({
+      name: "",
+      description: "",
+      probability: 50,
+      color: "#01B8AA",
+    });
   };
 
   const handleDeleteStage = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this stage?")) return;
-
-    try {
-      const { error } = await supabase
-        .from("pipeline_stages")
-        .delete()
-        .eq("id", id);
-
-      if (error) throw error;
-
-      toast({
-        title: "Stage deleted",
-        description: "Pipeline stage has been removed",
-      });
-
-      fetchStages();
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Failed to delete stage",
-        description: error.message,
-      });
-    }
+    if (!notify.confirm("Are you sure you want to delete this stage?")) return;
+    deleteMutation(id);
   };
 
-  const handleUpdateStage = async (stage: PipelineStage) => {
-    try {
-      const { error } = await supabase
-        .from("pipeline_stages")
-        .update({
-          name: stage.name,
-          description: stage.description,
-          probability: stage.probability,
-          color: stage.color,
-        })
-        .eq("id", stage.id);
-
-      if (error) throw error;
-
-      toast({
-        title: "Stage updated",
-        description: "Pipeline stage has been updated",
-      });
-
-      setEditingId(null);
-      fetchStages();
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Failed to update stage",
-        description: error.message,
-      });
-    }
+  const handleUpdateStage = async (id: string, updates: Partial<PipelineStage>) => {
+    update({ id, data: updates });
+    setEditingId(null);
+    setEditedStages({});
   };
 
-  if (loading) {
+  const updateEditedStage = (id: string, updates: Partial<PipelineStage>) => {
+    setEditedStages(prev => ({
+      ...prev,
+      [id]: { ...(prev[id] || stages.find(s => s.id === id)!), ...updates }
+    }));
+  };
+
+  const getStageData = (stage: PipelineStage) => {
+    return editedStages[stage.id] || stage;
+  };
+
+  if (isLoading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
-        </div>
+        <LoadingState message="Loading pipeline stages..." />
       </DashboardLayout>
     );
   }
@@ -269,29 +190,34 @@ export default function PipelineStages() {
                     <>
                       <div className="flex-1 grid gap-2 md:grid-cols-3">
                         <Input
-                          value={stage.name}
-                          onChange={(e) => setStages(stages.map(s => s.id === stage.id ? { ...s, name: e.target.value } : s))}
+                          value={getStageData(stage).name}
+                          onChange={(e) => updateEditedStage(stage.id, { name: e.target.value })}
                         />
                         <Input
                           type="number"
                           min="0"
                           max="100"
-                          value={stage.probability}
-                          onChange={(e) => setStages(stages.map(s => s.id === stage.id ? { ...s, probability: parseInt(e.target.value) } : s))}
+                          value={getStageData(stage).probability}
+                          onChange={(e) => updateEditedStage(stage.id, { probability: parseInt(e.target.value) })}
                           placeholder="Probability %"
                         />
                         <Input
                           type="color"
-                          value={stage.color}
-                          onChange={(e) => setStages(stages.map(s => s.id === stage.id ? { ...s, color: e.target.value } : s))}
+                          value={getStageData(stage).color}
+                          onChange={(e) => updateEditedStage(stage.id, { color: e.target.value })}
                         />
                       </div>
-                      <Button size="sm" variant="ghost" onClick={() => handleUpdateStage(stage)}>
+                      <Button size="sm" variant="ghost" onClick={() => handleUpdateStage(stage.id, {
+                        name: getStageData(stage).name,
+                        description: getStageData(stage).description,
+                        probability: getStageData(stage).probability,
+                        color: getStageData(stage).color,
+                      })}>
                         <Check className="h-4 w-4" />
                       </Button>
                       <Button size="sm" variant="ghost" onClick={() => {
                         setEditingId(null);
-                        fetchStages();
+                        setEditedStages({});
                       }}>
                         <X className="h-4 w-4" />
                       </Button>
@@ -305,7 +231,10 @@ export default function PipelineStages() {
                           {stage.description && ` • ${stage.description}`}
                         </div>
                       </div>
-                      <Button size="sm" variant="ghost" onClick={() => setEditingId(stage.id)}>
+                      <Button size="sm" variant="ghost" onClick={() => {
+                        setEditingId(stage.id);
+                        updateEditedStage(stage.id, stage);
+                      }}>
                         <Edit className="h-4 w-4" />
                       </Button>
                       <Button size="sm" variant="ghost" onClick={() => handleDeleteStage(stage.id)}>
