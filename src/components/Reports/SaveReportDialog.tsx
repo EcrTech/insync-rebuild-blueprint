@@ -63,11 +63,7 @@ export default function SaveReportDialog({
       onSaved?.();
       navigate('/reports');
     } catch (error: any) {
-      toast({
-        title: "Error saving report",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("Error saving report", error);
     } finally {
       setIsSaving(false);
     }

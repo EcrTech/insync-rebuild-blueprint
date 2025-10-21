@@ -280,6 +280,7 @@ const BulkEmailSender = () => {
         notify.success("Success", "Campaign started! Emails are being sent.");
       } else {
         notify.success("Campaign Scheduled", `Campaign will be sent on ${scheduledAt?.toLocaleDateString()} at ${scheduledAt?.toLocaleTimeString()}`);
+      }
 
       navigate(`/email-campaigns/${campaign.id}`);
     } catch (error: any) {

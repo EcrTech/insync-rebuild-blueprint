@@ -103,11 +103,7 @@ export default function Contacts() {
       // Check if there are more contacts to load
       setHasMore((data?.length || 0) === limit && (offset + limit) < (count || 0));
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error loading contacts",
-        description: error.message,
-      });
+      notify.error("Error loading contacts", error);
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -193,10 +189,7 @@ export default function Contacts() {
 
         if (error) throw error;
 
-        toast({
-          title: "Contact updated",
-          description: "Contact has been updated successfully",
-        });
+        notify.success("Contact updated", "Contact has been updated successfully");
       } else {
         const { error } = await supabase
           .from("contacts")
@@ -204,21 +197,14 @@ export default function Contacts() {
 
         if (error) throw error;
 
-        toast({
-          title: "Contact created",
-          description: "New contact has been added successfully",
-        });
+        notify.success("Contact created", "New contact has been added successfully");
       }
 
       setIsDialogOpen(false);
       resetForm();
       fetchContacts(true);
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message,
-      });
+      notify.error("Error", error);
     } finally {
       setLoading(false);
     }
@@ -235,17 +221,10 @@ export default function Contacts() {
 
       if (error) throw error;
 
-      toast({
-        title: "Contact deleted",
-        description: "Contact has been removed successfully",
-      });
+      notify.success("Contact deleted", "Contact has been removed successfully");
       fetchContacts(true);
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error deleting contact",
-        description: error.message,
-      });
+      notify.error("Error deleting contact", error);
     }
   };
 
@@ -299,10 +278,7 @@ Jane,Smith,jane.smith@example.com,+0987654321,Tech Inc,CEO,contacted,Referral`;
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
 
-    toast({
-      title: "Template Downloaded",
-      description: "Use this template to format your contacts CSV file.",
-    });
+    notify.info("Template Downloaded", "Use this template to format your contacts CSV file.");
   };
 
   const handleCSVUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -319,11 +295,7 @@ Jane,Smith,jane.smith@example.com,+0987654321,Tech Inc,CEO,contacted,Referral`;
       // LIMIT: Check total row count before processing
       const dataRows = lines.slice(1).filter(line => line.trim());
       if (dataRows.length > 10000) {
-        toast({
-          variant: "destructive",
-          title: "File Too Large",
-          description: `Maximum 10,000 contacts allowed per import. Your file contains ${dataRows.length} rows. Please split into smaller files.`,
-        });
+        notify.error("File Too Large", new Error(`Maximum 10,000 contacts allowed per import. Your file contains ${dataRows.length} rows. Please split into smaller files.`));
         setUploading(false);
         e.target.value = '';
         return;
@@ -360,11 +332,7 @@ Jane,Smith,jane.smith@example.com,+0987654321,Tech Inc,CEO,contacted,Referral`;
       }
 
       if (contactsToInsert.length === 0) {
-        toast({
-          variant: "destructive",
-          title: "No Valid Contacts",
-          description: "No valid contacts found in the CSV file.",
-        });
+        notify.error("No Valid Contacts", new Error("No valid contacts found in the CSV file."));
         return;
       }
 
@@ -380,17 +348,9 @@ Jane,Smith,jane.smith@example.com,+0987654321,Tech Inc,CEO,contacted,Referral`;
       if (error) {
         // Check if it's a rate limit error
         if (error.message?.includes('Rate limit')) {
-          toast({
-            variant: "destructive",
-            title: "Rate Limit Exceeded",
-            description: "Please wait a minute before importing more contacts.",
-          });
+          notify.error("Rate Limit Exceeded", new Error("Please wait a minute before importing more contacts."));
         } else if (error.message?.includes('Item limit exceeded')) {
-          toast({
-            variant: "destructive",
-            title: "Import Limit Exceeded",
-            description: error.message,
-          });
+          notify.error("Import Limit Exceeded", error);
         } else {
           throw error;
         }
@@ -399,19 +359,12 @@ Jane,Smith,jane.smith@example.com,+0987654321,Tech Inc,CEO,contacted,Referral`;
 
       const result = data as { processed: number; errors: number; total: number };
 
-      toast({
-        title: "CSV Import Complete",
-        description: `Successfully imported ${result.processed} contacts. ${result.errors > 0 ? `${result.errors} rows failed.` : ''}`,
-      });
+      notify.success("CSV Import Complete", `Successfully imported ${result.processed} contacts. ${result.errors > 0 ? `${result.errors} rows failed.` : ''}`);
 
       setIsUploadDialogOpen(false);
       fetchContacts(true);
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Import Failed",
-        description: error.message || "An error occurred during import.",
-      });
+      notify.error("Import Failed", error);
     } finally {
       setUploading(false);
       e.target.value = '';

@@ -249,6 +249,7 @@ export default function BulkWhatsAppSender() {
         notify.success("Campaign Started", `Sending to ${finalRecipients.length} recipients`);
       } else {
         notify.success("Campaign Scheduled", `Campaign will be sent on ${scheduledAt?.toLocaleDateString()} at ${scheduledAt?.toLocaleTimeString()}`);
+      }
 
       navigate(`/whatsapp/campaigns/${campaign.id}`);
     } catch (error: any) {
