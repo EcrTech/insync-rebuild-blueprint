@@ -258,14 +258,14 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                 </Link>
               )}
 
-              {canAccessFeature("analytics") && (
+              {(canAccessFeature("analytics") || canAccessFeature("campaigns_email") || canAccessFeature("campaigns_whatsapp") || canAccessFeature("ai_insights")) && (
                 <Link
                   to="/reports"
                   className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
                   onClick={() => setSidebarOpen(false)}
                 >
-                  <BarChart3 size={20} />
-                  <span>Reports</span>
+                  <TrendingUp size={20} />
+                  <span>Analytics & Insights</span>
                 </Link>
               )}
 
@@ -277,28 +277,6 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                 >
                   <PhoneCall size={20} />
                   <span>Calling Dashboard</span>
-                </Link>
-              )}
-
-              {(canAccessFeature("campaigns_email") || canAccessFeature("campaigns_whatsapp")) && (
-                <Link
-                  to="/campaigns/overview"
-                  className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  <TrendingUp size={20} />
-                  <span>Campaign Overview</span>
-                </Link>
-              )}
-
-              {canAccessFeature("ai_insights") && (
-                <Link
-                  to="/campaigns/insights"
-                  className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  <Lightbulb size={20} />
-                  <span>AI Insights</span>
                 </Link>
               )}
 
