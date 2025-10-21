@@ -1,20 +1,25 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { toast } from "@/hooks/use-toast";
 import { AlertCircle, Copy, Key, Plus, Trash2, Eye, EyeOff, BookOpen } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { format } from "date-fns";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import DashboardLayout from "@/components/Layout/DashboardLayout";
+import { useOrgData } from "@/hooks/useOrgData";
+import { useNotification } from "@/hooks/useNotification";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { LoadingState } from "@/components/common/LoadingState";
+import { EmptyState } from "@/components/common/EmptyState";
+import { StatusBadge } from "@/components/common/StatusBadge";
+import { DataTable, Column } from "@/components/common/DataTable";
 
 export default function ApiKeys() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -23,59 +28,19 @@ export default function ApiKeys() {
   const [generatedKey, setGeneratedKey] = useState<string | null>(null);
   const [showGeneratedKey, setShowGeneratedKey] = useState(false);
   const [selectedKeyForDocs, setSelectedKeyForDocs] = useState<any>(null);
+  const [deleteKeyId, setDeleteKeyId] = useState<string | null>(null);
   const queryClient = useQueryClient();
+  const notification = useNotification();
 
   // Fetch API keys
-  const { data: apiKeys, isLoading } = useQuery({
-    queryKey: ['api-keys'],
-    queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('org_id')
-        .eq('id', user.id)
-        .single();
-
-      if (!profile?.org_id) throw new Error('No organization found');
-
-      const { data, error } = await supabase
-        .from('api_keys')
-        .select('*')
-        .eq('org_id', profile.org_id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      return data;
-    },
+  const { data: apiKeys, isLoading } = useOrgData<any>('api_keys', {
+    orderBy: { column: 'created_at', ascending: false },
   });
 
   // Fetch usage logs
-  const { data: usageLogs } = useQuery({
-    queryKey: ['api-usage-logs'],
-    queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('org_id')
-        .eq('id', user.id)
-        .single();
-
-      if (!profile?.org_id) throw new Error('No organization found');
-
-      const { data, error } = await supabase
-        .from('api_key_usage_logs')
-        .select('*, api_keys(key_name)')
-        .eq('org_id', profile.org_id)
-        .order('created_at', { ascending: false })
-        .limit(100);
-
-      if (error) throw error;
-      return data;
-    },
+  const { data: usageLogs } = useOrgData<any>('api_key_usage_logs', {
+    select: '*, api_keys(key_name)',
+    orderBy: { column: 'created_at', ascending: false },
   });
 
   // Create API key mutation
@@ -124,19 +89,12 @@ export default function ApiKeys() {
       setGeneratedKey(data.full_api_key);
       setShowGeneratedKey(true);
       queryClient.invalidateQueries({ queryKey: ['api-keys'] });
-      toast({
-        title: "API Key Created",
-        description: "Your API key has been generated. Make sure to copy it now!",
-      });
+      notification.success("API Key Created", "Your API key has been generated. Make sure to copy it now!");
       setNewKeyName("");
       setNewKeyDescription("");
     },
     onError: (error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      notification.error("Error creating API key", error);
     },
   });
 
@@ -152,17 +110,11 @@ export default function ApiKeys() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['api-keys'] });
-      toast({
-        title: "Success",
-        description: "API key deleted successfully",
-      });
+      notification.success("API key deleted successfully");
+      setDeleteKeyId(null);
     },
     onError: (error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      notification.error("Error deleting API key", error);
     },
   });
 
@@ -178,28 +130,21 @@ export default function ApiKeys() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['api-keys'] });
-      toast({
-        title: "Success",
-        description: "API key status updated",
-      });
+      notification.success("API key status updated");
+    },
+    onError: (error) => {
+      notification.error("Error updating API key", error);
     },
   });
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    toast({
-      title: "Copied!",
-      description: "API key copied to clipboard",
-    });
+    notification.success("Copied!", "API key copied to clipboard");
   };
 
   const handleCreateKey = () => {
     if (!newKeyName.trim()) {
-      toast({
-        title: "Error",
-        description: "Please enter a key name",
-        variant: "destructive",
-      });
+      notification.error("Please enter a key name");
       return;
     }
     createKeyMutation.mutate();
@@ -334,81 +279,77 @@ export default function ApiKeys() {
             </CardHeader>
             <CardContent>
               {isLoading ? (
-                <p>Loading...</p>
+                <LoadingState message="Loading API keys..." />
               ) : !apiKeys || apiKeys.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Key className="mx-auto h-12 w-12 mb-4 opacity-50" />
-                  <p>No API keys created yet</p>
-                  <p className="text-sm mt-1">Create your first API key to get started</p>
-                </div>
+                <EmptyState
+                  icon={<Key className="h-12 w-12 opacity-50" />}
+                  title="No API keys created yet"
+                  message="Create your first API key to get started"
+                />
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Key Prefix</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Last Used</TableHead>
-                      <TableHead>Created</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {apiKeys.map((key) => (
-                      <TableRow key={key.id}>
-                        <TableCell className="font-medium">{key.key_name}</TableCell>
-                        <TableCell className="font-mono text-sm">{key.key_prefix}</TableCell>
-                        <TableCell>
-                          <Badge variant={key.is_active ? "default" : "secondary"}>
-                            {key.is_active ? "Active" : "Inactive"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-sm">
+                <DataTable
+                  data={apiKeys}
+                  columns={[
+                    { header: 'Name', accessor: 'key_name' },
+                    { header: 'Key Prefix', accessor: 'key_prefix', className: 'font-mono text-sm' },
+                    {
+                      header: 'Status',
+                      accessor: (key) => (
+                        <StatusBadge 
+                          status={key.is_active ? 'active' : 'inactive'} 
+                        />
+                      ),
+                    },
+                    {
+                      header: 'Last Used',
+                      accessor: (key) => (
+                        <span className="text-sm">
                           {key.last_used_at
                             ? format(new Date(key.last_used_at), 'MMM dd, yyyy HH:mm')
                             : 'Never'}
-                        </TableCell>
-                        <TableCell className="text-sm">
+                        </span>
+                      ),
+                    },
+                    {
+                      header: 'Created',
+                      accessor: (key) => (
+                        <span className="text-sm">
                           {format(new Date(key.created_at), 'MMM dd, yyyy')}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setSelectedKeyForDocs(key)}
-                            >
-                              <BookOpen className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() =>
-                                toggleKeyMutation.mutate({
-                                  keyId: key.id,
-                                  isActive: key.is_active,
-                                })
-                              }
-                            >
-                              {key.is_active ? 'Disable' : 'Enable'}
-                            </Button>
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => {
-                                if (confirm('Are you sure you want to delete this API key?')) {
-                                  deleteKeyMutation.mutate(key.id);
-                                }
-                              }}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                        </span>
+                      ),
+                    },
+                  ]}
+                  renderActions={(key) => (
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setSelectedKeyForDocs(key)}
+                      >
+                        <BookOpen className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          toggleKeyMutation.mutate({
+                            keyId: key.id,
+                            isActive: key.is_active,
+                          })
+                        }
+                      >
+                        {key.is_active ? 'Disable' : 'Enable'}
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => setDeleteKeyId(key.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                />
               )}
             </CardContent>
           </Card>
@@ -424,52 +365,59 @@ export default function ApiKeys() {
             </CardHeader>
             <CardContent>
               {!usageLogs || usageLogs.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <p>No API usage yet</p>
-                </div>
+                <EmptyState
+                  title="No API usage yet"
+                  message="API usage logs will appear here once you start making requests"
+                />
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Timestamp</TableHead>
-                      <TableHead>API Key</TableHead>
-                      <TableHead>Endpoint</TableHead>
-                      <TableHead>Method</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Response Time</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {usageLogs.map((log: any) => (
-                      <TableRow key={log.id}>
-                        <TableCell className="text-sm">
+                <DataTable
+                  data={usageLogs}
+                  columns={[
+                    {
+                      header: 'Timestamp',
+                      accessor: (log) => (
+                        <span className="text-sm">
                           {format(new Date(log.created_at), 'MMM dd HH:mm:ss')}
-                        </TableCell>
-                        <TableCell className="text-sm">
+                        </span>
+                      ),
+                    },
+                    {
+                      header: 'API Key',
+                      accessor: (log) => (
+                        <span className="text-sm">
                           {log.api_keys?.key_name || 'Unknown'}
-                        </TableCell>
-                        <TableCell className="font-mono text-sm">{log.endpoint}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{log.method}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={
-                              log.status_code >= 200 && log.status_code < 300
-                                ? 'default'
-                                : 'destructive'
-                            }
-                          >
-                            {log.status_code}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-sm">
+                        </span>
+                      ),
+                    },
+                    { header: 'Endpoint', accessor: 'endpoint', className: 'font-mono text-sm' },
+                    {
+                      header: 'Method',
+                      accessor: (log) => <Badge variant="outline">{log.method}</Badge>,
+                    },
+                    {
+                      header: 'Status',
+                      accessor: (log) => (
+                        <Badge
+                          variant={
+                            log.status_code >= 200 && log.status_code < 300
+                              ? 'default'
+                              : 'destructive'
+                          }
+                        >
+                          {log.status_code}
+                        </Badge>
+                      ),
+                    },
+                    {
+                      header: 'Response Time',
+                      accessor: (log) => (
+                        <span className="text-sm">
                           {log.response_time_ms ? `${log.response_time_ms}ms` : '-'}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                        </span>
+                      ),
+                    },
+                  ]}
+                />
               )}
             </CardContent>
           </Card>
@@ -1023,14 +971,13 @@ Content-Type: application/json
               <Alert>
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
-                  This endpoint automatically triggers email campaigns to all platform subscribers when a blog post is published.
+                  This is a webhook endpoint for automatically creating blog posts and triggering email campaigns
                 </AlertDescription>
               </Alert>
 
               <div>
-                <h3 className="text-lg font-semibold mb-2">Endpoint</h3>
+                <h3 className="text-lg font-semibold mb-2">Endpoint URL</h3>
                 <div className="flex items-center gap-2 bg-muted p-3 rounded-lg">
-                  <Badge>POST</Badge>
                   <code className="flex-1 text-sm">
                     https://aizgpxaqvtvvqarzjmze.supabase.co/functions/v1/blog-webhook
                   </code>
@@ -1045,22 +992,17 @@ Content-Type: application/json
               </div>
 
               <div>
-                <h3 className="text-lg font-semibold mb-2">Headers</h3>
+                <h3 className="text-lg font-semibold mb-2">Request Format</h3>
                 <pre className="bg-muted p-4 rounded-lg text-sm overflow-x-auto">
-{`Content-Type: application/json`}
-                </pre>
-              </div>
+{`POST /functions/v1/blog-webhook
+Content-Type: application/json
 
-              <div>
-                <h3 className="text-lg font-semibold mb-2">Request Body</h3>
-                <pre className="bg-muted p-4 rounded-lg text-sm overflow-x-auto">
-{`{
-  "org_id": "65e22e43-f23d-4c0a-9d84-2eba65ad0e12",
-  "blog_url": "https://example.com/blog/post",
-  "blog_title": "My Blog Post Title",
-  "blog_excerpt": "Short summary...",
-  "featured_image_url": "https://example.com/image.jpg",
+{
+  "blog_url": "https://yoursite.com/blog/post-title",
+  "blog_title": "Your Blog Post Title",
+  "blog_excerpt": "Brief summary...",
   "publish_date": "2025-10-20",
+  "featured_image_url": "https://yoursite.com/image.jpg",
   "status": "posted",
   "social_posted": true
 }`}
@@ -1213,6 +1155,17 @@ Content-Type: application/json
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={!!deleteKeyId}
+        onOpenChange={(open) => !open && setDeleteKeyId(null)}
+        title="Delete API Key"
+        description="Are you sure you want to delete this API key? This action cannot be undone and any applications using this key will stop working."
+        onConfirm={() => deleteKeyId && deleteKeyMutation.mutate(deleteKeyId)}
+        confirmText="Delete"
+        variant="destructive"
+      />
       </div>
     </DashboardLayout>
   );
