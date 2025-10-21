@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/Layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,8 @@ import { useCRUD } from "@/hooks/useCRUD";
 import { useOrgData } from "@/hooks/useOrgData";
 import { FormDialog } from "@/components/common/FormDialog";
 import { EmptyState } from "@/components/common/EmptyState";
+import { LoadingState } from "@/components/common/LoadingState";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 
 interface Team {
   id: string;
@@ -36,6 +38,7 @@ export default function Teams() {
   const navigate = useNavigate();
   const notify = useNotification();
   const { effectiveOrgId, isLoading: isOrgLoading } = useOrgContext();
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   
   const dialog = useDialogState({
     name: "",
@@ -94,11 +97,11 @@ export default function Teams() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!notify.confirm("Are you sure you want to delete this team?")) {
-      return;
+  const handleDelete = () => {
+    if (deleteConfirm) {
+      crud.delete(deleteConfirm);
+      setDeleteConfirm(null);
     }
-    crud.delete(id);
   };
 
   return (
@@ -167,7 +170,7 @@ export default function Teams() {
         </FormDialog>
 
         {isLoading ? (
-          <div className="col-span-full text-center py-8">Loading...</div>
+          <LoadingState message="Loading teams..." />
         ) : teams.length === 0 ? (
           <EmptyState
             icon={<UsersIcon className="h-12 w-12 text-muted-foreground" />}
@@ -201,7 +204,7 @@ export default function Teams() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleDelete(team.id)}
+                      onClick={() => setDeleteConfirm(team.id)}
                       disabled={crud.isLoading}
                     >
                       <Trash2 className="mr-2 h-4 w-4" />
@@ -214,6 +217,16 @@ export default function Teams() {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={!!deleteConfirm}
+        onOpenChange={(open) => !open && setDeleteConfirm(null)}
+        title="Delete Team"
+        description="Are you sure you want to delete this team? This action cannot be undone."
+        onConfirm={handleDelete}
+        confirmText="Delete"
+        variant="destructive"
+      />
     </DashboardLayout>
   );
 }

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgContext } from "@/hooks/useOrgContext";
 import { useDialogState } from "@/hooks/useDialogState";
@@ -16,6 +16,7 @@ import { Plus, Trash2, Edit, Users } from "lucide-react";
 import { FormDialog } from "@/components/common/FormDialog";
 import { LoadingState } from "@/components/common/LoadingState";
 import { EmptyState } from "@/components/common/EmptyState";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 
 interface Designation {
   id: string;
@@ -44,6 +45,8 @@ const ROLES = [
 export default function Designations() {
   const { effectiveOrgId } = useOrgContext();
   const notify = useNotification();
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const dialog = useDialogState({
     name: "",
@@ -77,6 +80,7 @@ export default function Designations() {
     e.preventDefault();
     if (!effectiveOrgId) return;
     
+    setIsSubmitting(true);
     try {
       const designationPayload = {
         org_id: effectiveOrgId,
@@ -130,23 +134,27 @@ export default function Designations() {
       refetch();
     } catch (error) {
       notify.error("Failed to save designation", error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!notify.confirm("Are you sure you want to delete this designation?")) return;
+  const handleDelete = async () => {
+    if (!deleteConfirm) return;
 
     try {
       const { error } = await supabase
         .from("designations" as any)
         .delete()
-        .eq("id", id);
+        .eq("id", deleteConfirm);
 
       if (error) throw error;
       notify.success("Designation deleted successfully");
       refetch();
     } catch (error) {
       notify.error("Failed to delete designation", error);
+    } finally {
+      setDeleteConfirm(null);
     }
   };
 
@@ -184,6 +192,7 @@ export default function Designations() {
           onOpenChange={(open) => !open && dialog.closeDialog()}
           title={dialog.isEditing ? "Edit Designation" : "Create Designation"}
           onSubmit={handleSubmit}
+          isLoading={isSubmitting}
           submitLabel={dialog.isEditing ? "Update" : "Create"}
         >
           <div>
@@ -285,7 +294,7 @@ export default function Designations() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleDelete(designation.id)}
+                          onClick={() => setDeleteConfirm(designation.id)}
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
@@ -307,6 +316,16 @@ export default function Designations() {
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        open={!!deleteConfirm}
+        onOpenChange={(open) => !open && setDeleteConfirm(null)}
+        title="Delete Designation"
+        description="Are you sure you want to delete this designation? This action cannot be undone."
+        onConfirm={handleDelete}
+        confirmText="Delete"
+        variant="destructive"
+      />
     </DashboardLayout>
   );
 }
