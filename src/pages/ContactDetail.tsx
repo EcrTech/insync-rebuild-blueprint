@@ -45,7 +45,7 @@ interface Contact {
   notes: string | null;
   pipeline_stage_id: string | null;
   created_at: string;
-  pipeline_stages: { name: string } | null;
+  pipeline_stages: { name: string; color: string } | null;
   profiles: { first_name: string; last_name: string } | null;
 }
 
@@ -74,7 +74,7 @@ export default function ContactDetail() {
         .from("contacts")
         .select(`
           *,
-          pipeline_stages (name),
+          pipeline_stages (name, color),
           assigned_profile:profiles!assigned_to (first_name, last_name)
         `)
         .eq("id", id)
@@ -181,11 +181,14 @@ export default function ContactDetail() {
               </CardHeader>
               <CardContent className="space-y-4">
               <div>
-                <Badge className={getStatusColor(contact.status)}>
-                  {contact.status}
-                </Badge>
                 {contact.pipeline_stages && (
-                  <Badge variant="outline" className="ml-2">
+                  <Badge 
+                    style={{ 
+                      backgroundColor: contact.pipeline_stages.color,
+                      color: '#ffffff',
+                      borderColor: contact.pipeline_stages.color
+                    }}
+                  >
                     {contact.pipeline_stages.name}
                   </Badge>
                 )}
