@@ -297,33 +297,6 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                 </Link>
               )}
 
-
-              {isPlatformAdmin && canAccessFeature("platform_admin") && (
-                <>
-                  <div className="pt-4 pb-2 section-accent-purple pl-4">
-                    <p className="px-4 text-xs font-semibold uppercase tracking-wider gradient-text-accent">
-                      Platform Admin
-                    </p>
-                  </div>
-                  <Link
-                    to="/platform-admin"
-                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-                    onClick={() => setSidebarOpen(false)}
-                  >
-                    <ShieldCheck size={20} />
-                    <span>Platform Dashboard</span>
-                  </Link>
-                  <Link
-                    to="/platform-admin/subscriptions"
-                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-                    onClick={() => setSidebarOpen(false)}
-                  >
-                    <CreditCard size={20} />
-                    <span>Subscriptions</span>
-                  </Link>
-                </>
-              )}
-
               {/* Operations Section */}
               {showOperationsSection && (
                 <div className="pt-4 pb-2 section-accent-coral pl-4">
@@ -543,7 +516,37 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                       <span>Templates</span>
                     </Link>
                   )}
-                  
+                </>
+              )}
+
+              {isPlatformAdmin && canAccessFeature("platform_admin") && (
+                <>
+                  <div className="pt-4 pb-2 section-accent-purple pl-4">
+                    <p className="px-4 text-xs font-semibold uppercase tracking-wider gradient-text-accent">
+                      Platform Admin
+                    </p>
+                  </div>
+                  <Link
+                    to="/platform-admin"
+                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    <ShieldCheck size={20} />
+                    <span>Platform Dashboard</span>
+                  </Link>
+                  <Link
+                    to="/platform-admin/subscriptions"
+                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    <CreditCard size={20} />
+                    <span>Subscriptions</span>
+                  </Link>
+                </>
+              )}
+              
+              {isAdmin && (
+                <>
                   {(canAccessFeature("connectors") || canAccessFeature("api_keys")) && (
                     <div className="pt-4 pb-2 section-accent-purple pl-4">
                       <p className="px-4 text-xs font-semibold uppercase tracking-wider gradient-text-accent">
