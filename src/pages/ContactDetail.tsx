@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 import { 
   ArrowLeft, Mail, Phone as PhoneIcon, Building, MapPin, Calendar,
   Edit, Plus, MessageSquare, PhoneCall, Video, FileText, Linkedin, MessageCircle
@@ -51,7 +51,7 @@ interface Contact {
 export default function ContactDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const notify = useNotification();
   const [contact, setContact] = useState<Contact | null>(null);
   const [loading, setLoading] = useState(true);
   const [isLogActivityOpen, setIsLogActivityOpen] = useState(false);
@@ -90,11 +90,7 @@ export default function ContactDetail() {
       
       setContact(transformedData as Contact);
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error loading contact",
-        description: error.message,
-      });
+      notify.error("Error loading contact", error);
       navigate("/contacts");
     } finally {
       setLoading(false);

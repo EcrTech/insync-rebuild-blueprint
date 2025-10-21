@@ -5,11 +5,11 @@ import { AuthLayout } from "@/components/Auth/AuthLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 
 export default function ResetPassword() {
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const notify = useNotification();
   const [loading, setLoading] = useState(false);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -18,34 +18,22 @@ export default function ResetPassword() {
     // Check if user has a valid session from the reset link
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) {
-        toast({
-          variant: "destructive",
-          title: "Invalid or expired link",
-          description: "Please request a new password reset link",
-        });
+        notify.error("Invalid or expired link", new Error("Please request a new password reset link"));
         navigate("/login");
       }
     });
-  }, [navigate, toast]);
+  }, [navigate, notify]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (password !== confirmPassword) {
-      toast({
-        variant: "destructive",
-        title: "Passwords don't match",
-        description: "Please make sure both passwords are the same",
-      });
+      notify.error("Passwords don't match", new Error("Please make sure both passwords are the same"));
       return;
     }
 
     if (password.length < 6) {
-      toast({
-        variant: "destructive",
-        title: "Password too short",
-        description: "Password must be at least 6 characters long",
-      });
+      notify.error("Password too short", new Error("Password must be at least 6 characters long"));
       return;
     }
 
@@ -58,18 +46,11 @@ export default function ResetPassword() {
 
       if (error) throw error;
 
-      toast({
-        title: "Password updated",
-        description: "Your password has been successfully reset",
-      });
+      notify.success("Password updated", "Your password has been successfully reset");
 
       navigate("/login");
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message,
-      });
+      notify.error("Error", error);
     } finally {
       setLoading(false);
     }

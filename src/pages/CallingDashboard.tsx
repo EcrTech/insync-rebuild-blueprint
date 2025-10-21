@@ -4,7 +4,7 @@ import DashboardLayout from "@/components/Layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Phone, Clock, TrendingUp, Users, PhoneCall, CheckCircle, XCircle, Activity } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
@@ -55,7 +55,7 @@ export default function CallingDashboard() {
   const [users, setUsers] = useState<User[]>([]);
   const [teamMemberIds, setTeamMemberIds] = useState<string[]>([]);
   const [activeCallsCount, setActiveCallsCount] = useState(0);
-  const { toast } = useToast();
+  const notify = useNotification();
 
   useEffect(() => {
     fetchUsers();
@@ -116,11 +116,7 @@ export default function CallingDashboard() {
       if (error) throw error;
       setUsers(data || []);
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error loading users",
-        description: error.message,
-      });
+      notify.error("Error loading users", error);
     }
   };
 
@@ -150,11 +146,7 @@ export default function CallingDashboard() {
       // If not a manager or no team members, just set the single user
       setTeamMemberIds([userId]);
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error loading team",
-        description: error.message,
-      });
+      notify.error("Error loading team", error);
       setTeamMemberIds([userId]);
     }
   };
@@ -297,11 +289,7 @@ export default function CallingDashboard() {
       setDispositionStats(dispositionStatsArray);
 
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error loading dashboard",
-        description: error.message,
-      });
+      notify.error("Error loading dashboard", error);
     } finally {
       setLoading(false);
     }

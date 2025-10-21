@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 import { Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -33,15 +33,11 @@ export default function SaveReportDialog({
   const [description, setDescription] = useState("");
   const [isPublic, setIsPublic] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const { toast } = useToast();
+  const notify = useNotification();
 
   const handleSave = async () => {
     if (!name.trim()) {
-      toast({
-        title: "Name required",
-        description: "Please enter a name for your report",
-        variant: "destructive",
-      });
+      notify.error("Name required", new Error("Please enter a name for your report"));
       return;
     }
 
@@ -58,10 +54,7 @@ export default function SaveReportDialog({
 
       if (error) throw error;
 
-      toast({
-        title: "Report saved",
-        description: "Your report has been saved successfully",
-      });
+      notify.success("Report saved", "Your report has been saved successfully");
 
       setName("");
       setDescription("");

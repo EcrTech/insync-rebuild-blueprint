@@ -7,28 +7,24 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useOrgContext } from "@/hooks/useOrgContext";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 import { CreditCard, Wallet, FileText, TrendingUp } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import DashboardLayout from "@/components/Layout/DashboardLayout";
 
 export default function Billing() {
   const { effectiveOrgId, isPlatformAdmin, isLoading: orgLoading } = useOrgContext();
-  const { toast } = useToast();
+  const notify = useNotification();
   const navigate = useNavigate();
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   // Redirect non-platform admins
   useEffect(() => {
     if (!orgLoading && isPlatformAdmin === false) {
-      toast({
-        title: "Access Denied",
-        description: "Only platform admins can access billing.",
-        variant: "destructive",
-      });
+      notify.error("Access Denied", new Error("Only platform admins can access billing."));
       navigate("/dashboard");
     }
-  }, [isPlatformAdmin, orgLoading, navigate, toast]);
+  }, [isPlatformAdmin, orgLoading, navigate]);
 
   // Fetch organization details
   const { data: org } = useQuery({
@@ -128,16 +124,9 @@ export default function Billing() {
           });
 
           if (verifyError) {
-            toast({
-              title: "Payment verification failed",
-              description: verifyError.message,
-              variant: "destructive",
-            });
+        notify.error("Payment verification failed", verifyError);
           } else {
-            toast({
-              title: "Payment successful",
-              description: "Your invoice has been paid",
-            });
+      notify.success("Payment successful", "Your invoice has been paid");
           }
         },
       };
@@ -145,11 +134,7 @@ export default function Billing() {
       const rzp = new (window as any).Razorpay(options);
       rzp.open();
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("Error", error);
     } finally {
       setIsProcessingPayment(false);
     }
@@ -186,16 +171,9 @@ export default function Billing() {
           });
 
           if (verifyError) {
-            toast({
-              title: "Payment verification failed",
-              description: verifyError.message,
-              variant: "destructive",
-            });
+            notify.error("Payment verification failed", verifyError);
           } else {
-            toast({
-              title: "Top-up successful",
-              description: "Your wallet has been credited",
-            });
+            notify.success("Top-up successful", "Your wallet has been credited");
           }
         },
       };
@@ -203,11 +181,7 @@ export default function Billing() {
       const rzp = new (window as any).Razorpay(options);
       rzp.open();
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("Error", error);
     } finally {
       setIsProcessingPayment(false);
     }

@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 import { Loader2, Send, ArrowRight, ArrowLeft } from "lucide-react";
 import { useOrgContext } from "@/hooks/useOrgContext";
 import { VariableMappingStep } from "@/components/Campaigns/VariableMappingStep";
@@ -37,7 +37,7 @@ interface Template {
 
 const BulkEmailSender = () => {
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const notify = useNotification();
   const { effectiveOrgId } = useOrgContext();
 
   const [step, setStep] = useState(1);
@@ -86,11 +86,7 @@ const BulkEmailSender = () => {
       setTemplates(data || []);
     } catch (error: any) {
       console.error("Error fetching templates:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load templates",
-        variant: "destructive",
-      });
+      notify.error("Error", new Error("Failed to load templates"));
     }
   };
 
@@ -112,11 +108,7 @@ const BulkEmailSender = () => {
       setContacts(data || []);
     } catch (error: any) {
       console.error("Error fetching contacts:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load contacts",
-        variant: "destructive",
-      });
+      notify.error("Error", new Error("Failed to load contacts"));
     }
   };
 
@@ -168,19 +160,11 @@ const BulkEmailSender = () => {
   const handleNext = () => {
     if (step === 1) {
       if (!campaignName.trim()) {
-        toast({
-          title: "Validation Error",
-          description: "Please enter a campaign name",
-          variant: "destructive",
-        });
+        notify.error("Validation Error", new Error("Please enter a campaign name"));
         return;
       }
       if (!selectedTemplateId) {
-        toast({
-          title: "Validation Error",
-          description: "Please select a template",
-          variant: "destructive",
-        });
+        notify.error("Validation Error", new Error("Please select a template"));
         return;
       }
       setStep(2);
@@ -190,11 +174,7 @@ const BulkEmailSender = () => {
         : contacts.filter(c => selectedContacts.has(c.id));
       
       if (finalRecipients.length === 0) {
-        toast({
-          title: "Validation Error",
-          description: "Please select at least one recipient",
-          variant: "destructive",
-        });
+        notify.error("Validation Error", new Error("Please select at least one recipient"));
         return;
       }
       setStep(4);
@@ -297,25 +277,14 @@ const BulkEmailSender = () => {
 
         if (functionError) throw functionError;
 
-        toast({
-          title: "Success",
-          description: "Campaign started! Emails are being sent.",
-        });
+        notify.success("Success", "Campaign started! Emails are being sent.");
       } else {
-        toast({
-          title: "Campaign Scheduled",
-          description: `Campaign will be sent on ${scheduledAt?.toLocaleDateString()} at ${scheduledAt?.toLocaleTimeString()}`,
-        });
-      }
+        notify.success("Campaign Scheduled", `Campaign will be sent on ${scheduledAt?.toLocaleDateString()} at ${scheduledAt?.toLocaleTimeString()}`);
 
       navigate(`/email-campaigns/${campaign.id}`);
     } catch (error: any) {
       console.error("Error sending campaign:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to send campaign",
-        variant: "destructive",
-      });
+      notify.error("Error", error);
     } finally {
       setLoading(false);
     }

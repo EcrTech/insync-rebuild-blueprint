@@ -5,12 +5,12 @@ import { AuthLayout } from "@/components/Auth/AuthLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 import { ForgotPasswordDialog } from "@/components/Auth/ForgotPasswordDialog";
 
 export default function Login() {
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const notify = useNotification();
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -57,18 +57,11 @@ export default function Login() {
 
       if (error) throw error;
 
-      toast({
-        title: "Welcome back!",
-        description: "You've successfully signed in",
-      });
+      notify.success("Welcome back!", "You've successfully signed in");
 
       // Navigation will be handled by the auth state change listener
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Login failed",
-        description: error.message,
-      });
+      notify.error("Login failed", error);
       setLoading(false);
     }
   };

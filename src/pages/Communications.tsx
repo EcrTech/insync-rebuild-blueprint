@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 import { MessageSquare, Mail, Search, Send, Phone, User } from "lucide-react";
 import { format } from "date-fns";
 import { useOrgContext } from "@/hooks/useOrgContext";
@@ -42,7 +42,7 @@ interface Message {
 
 export default function Communications() {
   const { effectiveOrgId } = useOrgContext();
-  const { toast } = useToast();
+  const notify = useNotification();
   const [conversations, setConversations] = useState<ConversationItem[]>([]);
   const [filteredConversations, setFilteredConversations] = useState<ConversationItem[]>([]);
   const [activeConversation, setActiveConversation] = useState<ConversationItem | null>(null);
@@ -76,11 +76,7 @@ export default function Communications() {
       if (error) throw error;
       setConversations(data || []);
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error loading conversations",
-        description: error.message,
-      });
+      notify.error("Error loading conversations", error);
     } finally {
       setLoading(false);
     }
@@ -170,11 +166,7 @@ export default function Communications() {
         setMessages(data || []);
       }
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error loading messages",
-        description: error.message,
-      });
+      notify.error("Error loading messages", error);
     }
   };
 
@@ -217,26 +209,16 @@ export default function Communications() {
         if (error) throw error;
       } else if (activeConversation.channel === 'email') {
         // Send via email (would need implementation)
-        toast({
-          title: "Coming soon",
-          description: "Email replies will be available soon",
-        });
+        notify.info("Coming soon", "Email replies will be available soon");
         return;
       }
 
       setReplyText("");
-      toast({
-        title: "Message sent",
-        description: "Your message has been sent successfully",
-      });
+      notify.success("Message sent", "Your message has been sent successfully");
       
       fetchMessages(activeConversation.conversation_id, activeConversation.channel);
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error sending message",
-        description: error.message,
-      });
+      notify.error("Error sending message", error);
     } finally {
       setSending(false);
     }

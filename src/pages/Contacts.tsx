@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 import { Plus, Pencil, Trash2, Mail, Phone as PhoneIcon, Building, Upload, Download, Loader2 } from "lucide-react";
 import { useOrgContext } from "@/hooks/useOrgContext";
 
@@ -52,7 +52,7 @@ export default function Contacts() {
   const [uploading, setUploading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const { toast} = useToast();
+  const notify = useNotification();
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({

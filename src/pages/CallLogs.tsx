@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 import { Search, Download, Phone, Clock, User, Calendar } from "lucide-react";
 import { format } from "date-fns";
 
@@ -42,7 +42,7 @@ export default function CallLogs() {
   const [searchQuery, setSearchQuery] = useState("");
   const [callTypeFilter, setCallTypeFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("7");
-  const { toast } = useToast();
+  const notify = useNotification();
 
   useEffect(() => {
     fetchCallLogs();
@@ -87,11 +87,7 @@ export default function CallLogs() {
       if (error) throw error;
       setCallLogs((data || []) as CallLog[]);
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error loading call logs",
-        description: error.message,
-      });
+        notify.error("Error loading call logs", error);
     } finally {
       setLoading(false);
     }
@@ -104,10 +100,7 @@ export default function CallLogs() {
   };
 
   const exportCallLogs = () => {
-    toast({
-      title: "Export initiated",
-      description: "Call logs export will be available once API is integrated",
-    });
+    notify.info("Export initiated", "Call logs export will be available once API is integrated");
   };
 
   const filteredLogs = callLogs.filter((log) => {
@@ -292,11 +285,7 @@ export default function CallLogs() {
                                   if (error) throw error;
                                   // Handle recording playback
                                 } catch (error: any) {
-                                  toast({
-                                    title: "Error",
-                                    description: "Failed to load recording",
-                                    variant: "destructive"
-                                  });
+                                  notify.error("Error", new Error("Failed to load recording"));
                                 }
                               }}
                             >

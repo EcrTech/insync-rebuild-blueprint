@@ -5,11 +5,11 @@ import { AuthLayout } from "@/components/Auth/AuthLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 
 export default function SignUp() {
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const notify = useNotification();
   const [searchParams] = useSearchParams();
   const inviteCode = searchParams.get("invite");
   const [loading, setLoading] = useState(false);
@@ -48,18 +48,10 @@ export default function SignUp() {
           setFormData(prev => ({ ...prev, email: data.email }));
         }
       } else {
-        toast({
-          variant: "destructive",
-          title: "Invalid invite",
-          description: "This invite link is invalid or has expired",
-        });
+        notify.error("Invalid invite", new Error("This invite link is invalid or has expired"));
       }
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to load invite details",
-      });
+      notify.error("Error", new Error("Failed to load invite details"));
     }
   };
 
@@ -78,20 +70,12 @@ export default function SignUp() {
     e.preventDefault();
     
     if (formData.password !== formData.confirmPassword) {
-      toast({
-        variant: "destructive",
-        title: "Passwords don't match",
-        description: "Please make sure your passwords match",
-      });
+      notify.error("Passwords don't match", new Error("Please make sure your passwords match"));
       return;
     }
 
     if (formData.password.length < 6) {
-      toast({
-        variant: "destructive",
-        title: "Password too short",
-        description: "Password must be at least 6 characters",
-      });
+      notify.error("Password too short", new Error("Password must be at least 6 characters"));
       return;
     }
 
@@ -126,10 +110,7 @@ export default function SignUp() {
           })
           .eq("id", inviteData.id);
 
-        toast({
-          title: "Account created!",
-          description: `Welcome to ${inviteData.organizations.name}`,
-        });
+        notify.success("Account created!", `Welcome to ${inviteData.organizations.name}`);
       } else {
         // Create new organization using secure database function
         
@@ -181,21 +162,14 @@ export default function SignUp() {
         }
 
         console.log("Organization and setup completed successfully! Org ID:", orgId);
-        toast({
-          title: "Account created!",
-          description: "Welcome to In-Sync",
-        });
+        notify.success("Account created!", "Welcome to In-Sync");
       }
 
       navigate("/dashboard");
     } catch (error: any) {
       console.error("Signup error:", error);
       
-      toast({
-        variant: "destructive",
-        title: "Sign up failed",
-        description: error.message || "An unexpected error occurred. Please try again.",
-      });
+      notify.error("Sign up failed", error);
     } finally {
       setLoading(false);
     }

@@ -3,7 +3,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 import { Copy, Eye, EyeOff, RefreshCw, ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -42,14 +42,11 @@ export function WebhookConfig({
 }: WebhookConfigProps) {
   const [showToken, setShowToken] = useState(false);
   const [newMapping, setNewMapping] = useState({ incoming: "", target: "" });
-  const { toast } = useToast();
+  const notify = useNotification();
 
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
-    toast({
-      title: "Copied!",
-      description: `${label} copied to clipboard`,
-    });
+    notify.success("Copied!", `${label} copied to clipboard`);
   };
 
   const addMapping = () => {

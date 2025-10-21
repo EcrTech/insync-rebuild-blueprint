@@ -39,7 +39,7 @@ import {
   MessageCircle,
   Phone,
 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 import { PlatformAdminBanner } from "@/components/PlatformAdminBanner";
 import { OnboardingDialog } from "@/components/Onboarding/OnboardingDialog";
 import { useFeatureAccess } from "@/hooks/useFeatureAccess";
@@ -53,7 +53,7 @@ interface DashboardLayoutProps {
 
 function DashboardLayout({ children }: DashboardLayoutProps) {
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const notify = useNotification();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [userName, setUserName] = useState<string>("");
@@ -124,10 +124,7 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    toast({
-      title: "Signed out",
-      description: "You've been successfully signed out",
-    });
+    notify.success("Signed out", "You've been successfully signed out");
     navigate("/login");
   };
 

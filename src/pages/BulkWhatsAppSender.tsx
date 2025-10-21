@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 import { Loader2, Upload, Users, Send } from "lucide-react";
 import { VariableMappingStep } from "@/components/Campaigns/VariableMappingStep";
 import { TemplateVariable, VariableMapping, detectTemplateVariables } from "@/utils/templateVariables";
@@ -23,7 +23,7 @@ import { format } from "date-fns";
 export default function BulkWhatsAppSender() {
   const navigate = useNavigate();
   const { effectiveOrgId } = useOrgContext();
-  const { toast } = useToast();
+  const notify = useNotification();
   
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -124,10 +124,7 @@ export default function BulkWhatsAppSender() {
       .map(p => p.trim())
       .filter(p => p.length > 0);
     
-    toast({
-      title: "CSV Parsed",
-      description: `Found ${phoneNumbers.length} phone numbers`,
-    });
+    notify.info("CSV Parsed", `Found ${phoneNumbers.length} phone numbers`);
   };
 
   const handleVariableMappingComplete = (
@@ -142,21 +139,13 @@ export default function BulkWhatsAppSender() {
   const handleCreateCampaign = async () => {
     // Validate campaign name
     if (!campaignName || campaignName.length > MAX_CAMPAIGN_NAME_LENGTH) {
-      toast({
-        title: "Error",
-        description: `Campaign name is required and must be less than ${MAX_CAMPAIGN_NAME_LENGTH} characters`,
-        variant: "destructive",
-      });
+      notify.error("Error", new Error(`Campaign name is required and must be less than ${MAX_CAMPAIGN_NAME_LENGTH} characters`));
       return;
     }
 
     // Validate message content
     if (!messageContent || messageContent.length > MAX_MESSAGE_LENGTH) {
-      toast({
-        title: "Error",
-        description: `Message content is required and must be less than ${MAX_MESSAGE_LENGTH} characters`,
-        variant: "destructive",
-      });
+      notify.error("Error", new Error(`Message content is required and must be less than ${MAX_MESSAGE_LENGTH} characters`));
       return;
     }
 
@@ -166,21 +155,13 @@ export default function BulkWhatsAppSender() {
       : contacts.filter(c => selectedContacts.has(c.id));
     
     if (finalRecipients.length === 0) {
-      toast({
-        title: "Error",
-        description: "Please select at least one recipient",
-        variant: "destructive",
-      });
+      notify.error("Error", new Error("Please select at least one recipient"));
       return;
     }
 
     // Check max recipients
     if (finalRecipients.length > MAX_RECIPIENTS) {
-      toast({
-        title: "Error",
-        description: `Maximum ${MAX_RECIPIENTS.toLocaleString()} recipients allowed per campaign`,
-        variant: "destructive",
-      });
+      notify.error("Error", new Error(`Maximum ${MAX_RECIPIENTS.toLocaleString()} recipients allowed per campaign`));
       return;
     }
 
@@ -265,16 +246,9 @@ export default function BulkWhatsAppSender() {
 
         if (sendError) throw sendError;
 
-        toast({
-          title: "Campaign Started",
-          description: `Sending to ${finalRecipients.length} recipients`,
-        });
+        notify.success("Campaign Started", `Sending to ${finalRecipients.length} recipients`);
       } else {
-        toast({
-          title: "Campaign Scheduled",
-          description: `Campaign will be sent on ${scheduledAt?.toLocaleDateString()} at ${scheduledAt?.toLocaleTimeString()}`,
-        });
-      }
+        notify.success("Campaign Scheduled", `Campaign will be sent on ${scheduledAt?.toLocaleDateString()} at ${scheduledAt?.toLocaleTimeString()}`);
 
       navigate(`/whatsapp/campaigns/${campaign.id}`);
     } catch (error: any) {
@@ -287,11 +261,7 @@ export default function BulkWhatsAppSender() {
         errorMessage = `Maximum ${MAX_RECIPIENTS.toLocaleString()} recipients allowed`;
       }
       
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive",
-      });
+      notify.error("Error", new Error(errorMessage));
     } finally {
       setLoading(false);
     }
@@ -400,23 +370,15 @@ export default function BulkWhatsAppSender() {
             <Button 
               onClick={() => {
                 if (!campaignName.trim() || !messageContent.trim()) {
-                  toast({
-                    title: "Error",
-                    description: "Please fill in campaign name and message content",
-                    variant: "destructive",
-                  });
+                  notify.error("Error", new Error("Please fill in campaign name and message content"));
                   return;
                 }
                 if (!sendImmediately && !scheduledAt) {
-                  toast({
-                    title: "Error",
-                    description: "Please select a scheduled date and time",
-                    variant: "destructive",
-                  });
+                  notify.error("Error", new Error("Please select a scheduled date and time"));
                   return;
                 }
                 setStep(2);
-              }} 
+              }}
               className="w-full"
             >
               Next: Variable Mapping
