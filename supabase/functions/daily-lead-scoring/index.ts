@@ -27,12 +27,10 @@ Deno.serve(async (req) => {
         last_name,
         email,
         phone,
-        company_name,
+        company,
         job_title,
-        industry,
-        company_size,
-        annual_revenue,
-        lead_source,
+        status,
+        source,
         city,
         state,
         country,
@@ -64,14 +62,8 @@ Deno.serve(async (req) => {
       throw scoresError;
     }
 
-    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const scoreMap = new Map(existingScores?.map(s => [s.contact_id, new Date(s.last_calculated)]) || []);
-
-    // Filter contacts that need scoring
-    const contacts = allContacts?.filter(contact => {
-      const lastScored = scoreMap.get(contact.id);
-      return !lastScored || lastScored < twentyFourHoursAgo;
-    }) || [];
+    // Filter contacts that need scoring - TEMPORARILY PROCESS ALL
+    const contacts = allContacts || [];
 
     console.log(`Found ${contacts.length} contacts to score`);
 
@@ -121,12 +113,10 @@ Deno.serve(async (req) => {
               last_name: contact.last_name,
               email: contact.email,
               phone: contact.phone,
-              company_name: contact.company_name,
+              company: contact.company,
               job_title: contact.job_title,
-              industry: contact.industry,
-              company_size: contact.company_size,
-              annual_revenue: contact.annual_revenue,
-              lead_source: contact.lead_source,
+              status: contact.status,
+              source: contact.source,
               city: contact.city,
               state: contact.state,
               country: contact.country,

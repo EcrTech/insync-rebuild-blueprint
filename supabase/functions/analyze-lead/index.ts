@@ -144,26 +144,29 @@ SCORING FRAMEWORK (Total: 100 points)
    - No activities: 0 points
 
 3. BUSINESS PROFILE (0-20 points)
-   Company Size & Revenue (0-10 points):
-   - Large enterprise (500+ employees, 100Cr+ revenue): 10 points
-   - Mid-sized (100-500 employees, 10-100Cr revenue): 7 points
-   - Small business (10-100 employees, 1-10Cr revenue): 4 points
-   - Startup/Very small (<10 employees, <1Cr revenue): 2 points
+   Company & Role Assessment (0-10 points):
+   - Large known company: 10 points
+   - Medium business: 7 points
+   - Small business: 4 points
+   - Unknown/individual: 2 points
    
    Decision-Making Level (0-10 points):
-   - C-Suite (CEO, CFO, CTO, etc.): 10 points
+   - C-Suite (CEO, CFO, CTO, Owner, Partner): 10 points
    - VP/Director level: 7 points
    - Manager level: 4 points
    - Other roles: 2 points
 
-4. FINANCIAL CAPABILITY (0-10 points)
-   - 100Cr+ annual revenue: 10 points
-   - 10-100Cr: 7 points
-   - 1-10Cr: 4 points
-   - <1Cr or unknown: 2 points
-
-5. DATA QUALITY (0-5 points)
-   - Lead Source + Information Completeness: 0-5 points
+4. DATA QUALITY (0-15 points)
+   - Lead Source Quality (0-8 points):
+     * Direct referral/partnership: 8 points
+     * Website inquiry/demo request: 6 points
+     * Event/webinar: 4 points
+     * Cold outreach/unknown: 2 points
+   
+   - Information Completeness (0-7 points):
+     * Complete profile with company, role, location: 7 points
+     * Basic information: 4 points
+     * Minimal data: 2 points
 
 CATEGORY ASSIGNMENT:
 - 85-100: hot (In negotiation/won stages, highly engaged)
@@ -187,7 +190,6 @@ Return ONLY valid JSON:
     "Pipeline Stage": <points>,
     "Activity Engagement": <points>,
     "Business Profile": <points>,
-    "Financial Capability": <points>,
     "Data Quality": <points>
   },
   "reasoning": "<brief explanation>"
@@ -195,14 +197,12 @@ Return ONLY valid JSON:
 
     const contactData = {
       name: `${contact.first_name || ''} ${contact.last_name || ''}`.trim(),
-      company_name: contact.company_name,
+      company: contact.company,
       job_title: contact.job_title,
       email: contact.email,
       phone: contact.phone,
-      industry: contact.industry,
-      company_size: contact.company_size,
-      annual_revenue: contact.annual_revenue,
-      lead_source: contact.lead_source,
+      status: contact.status,
+      source: contact.source,
       city: contact.city,
       state: contact.state,
       country: contact.country,
