@@ -17,10 +17,8 @@ Deno.serve(async (req) => {
 
     console.log('Starting daily lead scoring job...');
 
-    // Get all contacts that need scoring (no score or score older than 24 hours)
-    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    
-    const { data: contacts, error: contactsError } = await supabase
+    // Get all contacts (we'll filter in code for simplicity)
+    const { data: allContacts, error: contactsError } = await supabase
       .from('contacts')
       .select(`
         id,
@@ -38,10 +36,8 @@ Deno.serve(async (req) => {
         country,
         website,
         notes,
-        created_at,
-        contact_lead_scores!left(id, last_calculated)
+        created_at
       `)
-      .or(`contact_lead_scores.id.is.null,contact_lead_scores.last_calculated.lt.${twentyFourHoursAgo}`)
       .limit(100); // Process 100 contacts per run to avoid timeouts
 
     if (contactsError) {
@@ -49,9 +45,28 @@ Deno.serve(async (req) => {
       throw contactsError;
     }
 
-    console.log(`Found ${contacts?.length || 0} contacts to score`);
+    // Get existing scores
+    const { data: existingScores, error: scoresError } = await supabase
+      .from('contact_lead_scores')
+      .select('contact_id, last_calculated');
 
-    if (!contacts || contacts.length === 0) {
+    if (scoresError) {
+      console.error('Error fetching scores:', scoresError);
+      throw scoresError;
+    }
+
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const scoreMap = new Map(existingScores?.map(s => [s.contact_id, new Date(s.last_calculated)]) || []);
+
+    // Filter contacts that need scoring
+    const contacts = allContacts?.filter(contact => {
+      const lastScored = scoreMap.get(contact.id);
+      return !lastScored || lastScored < twentyFourHoursAgo;
+    }) || [];
+
+    console.log(`Found ${contacts.length} contacts to score`);
+
+    if (contacts.length === 0) {
       return new Response(
         JSON.stringify({ message: 'No contacts need scoring', processed: 0 }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
