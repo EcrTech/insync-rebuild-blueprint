@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import DashboardLayout from "@/components/Layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Download, Calendar, Plus, Phone, Target } from "lucide-react";
+import { Download, Calendar, Plus, Phone, Target, TrendingUp, Brain, Users } from "lucide-react";
 import { useNotification } from "@/hooks/useNotification";
 import { useNavigate } from "react-router-dom";
 import { CustomReportsList } from "@/components/Reports/CustomReportsList";
@@ -14,6 +14,9 @@ import { ReportViewer } from "@/components/Reports/ReportViewer";
 import { useOrgContext } from "@/hooks/useOrgContext";
 import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
+import CampaignAnalyticsTab from "@/components/Reports/Analytics/CampaignAnalyticsTab";
+import AIInsightsTab from "@/components/Reports/Insights/AIInsightsTab";
+import AgentPerformanceTab from "@/components/Reports/AgentPerformance/AgentPerformanceTab";
 
 interface SalesReport {
   user_name: string;
@@ -35,8 +38,26 @@ export default function Reports() {
   const navigate = useNavigate();
   const [dateRange, setDateRange] = useState<"week" | "month" | "quarter">("month");
   const [viewingReportId, setViewingReportId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<string>("campaigns");
   const notify = useNotification();
   const { effectiveOrgId } = useOrgContext();
+
+  // Load and persist tab from localStorage and URL hash
+  useEffect(() => {
+    const hash = window.location.hash.slice(1);
+    const savedTab = localStorage.getItem('reports-active-tab');
+    
+    if (hash) {
+      setActiveTab(hash);
+    } else if (savedTab) {
+      setActiveTab(savedTab);
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('reports-active-tab', activeTab);
+    window.location.hash = activeTab;
+  }, [activeTab]);
 
   // Calculate date range
   const getStartDate = () => {
@@ -115,9 +136,9 @@ export default function Reports() {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold">Reports & Analytics</h1>
+            <h1 className="text-3xl font-bold">Analytics & Insights Hub</h1>
             <p className="text-muted-foreground mt-1">
-              Comprehensive insights into your sales performance
+              Unified view of campaigns, AI insights, agent performance, and sales analytics
             </p>
           </div>
           <div className="flex gap-2">
@@ -133,26 +154,62 @@ export default function Reports() {
             </Select>
             <Button onClick={() => navigate('/reports/builder')}>
               <Plus className="h-4 w-4 mr-2" />
-              Create Report
+              Custom Report
             </Button>
           </div>
         </div>
 
-        <Tabs defaultValue="overview" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="custom">Custom Reports</TabsTrigger>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="campaigns">
+              <TrendingUp className="h-4 w-4 mr-2" />
+              Campaign Analytics
+            </TabsTrigger>
+            <TabsTrigger value="insights">
+              <Brain className="h-4 w-4 mr-2" />
+              AI Insights
+            </TabsTrigger>
+            <TabsTrigger value="agents">
+              <Users className="h-4 w-4 mr-2" />
+              Agent Performance
+            </TabsTrigger>
+            <TabsTrigger value="sales">
+              <Target className="h-4 w-4 mr-2" />
+              Sales Performance
+            </TabsTrigger>
+            <TabsTrigger value="custom">
+              <Plus className="h-4 w-4 mr-2" />
+              Custom Reports
+            </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview" className="space-y-4">
-            <Tabs defaultValue="sales" className="space-y-4">
-              <TabsList>
-                <TabsTrigger value="sales">Sales Performance</TabsTrigger>
-                <TabsTrigger value="pipeline">Pipeline Analysis</TabsTrigger>
-                <TabsTrigger value="activity">Activity Reports</TabsTrigger>
-              </TabsList>
+          <TabsContent value="campaigns" className="space-y-4">
+            <CampaignAnalyticsTab />
+          </TabsContent>
+
+          <TabsContent value="insights" className="space-y-4">
+            <AIInsightsTab />
+          </TabsContent>
+
+          <TabsContent value="agents" className="space-y-4">
+            <AgentPerformanceTab />
+          </TabsContent>
 
           <TabsContent value="sales" className="space-y-4">
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-2xl font-bold">Sales Performance</h2>
+                <p className="text-muted-foreground">Individual sales metrics and pipeline analysis</p>
+              </div>
+              
+              <Tabs defaultValue="performance" className="space-y-4">
+                <TabsList>
+                  <TabsTrigger value="performance">Team Performance</TabsTrigger>
+                  <TabsTrigger value="pipeline">Pipeline Analysis</TabsTrigger>
+                  <TabsTrigger value="activity">Activity Metrics</TabsTrigger>
+                </TabsList>
+
+          <TabsContent value="performance" className="space-y-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
@@ -342,8 +399,9 @@ export default function Reports() {
               </Card>
             </div>
           </TabsContent>
-            </Tabs>
-          </TabsContent>
+        </Tabs>
+      </div>
+    </TabsContent>
 
           <TabsContent value="custom" className="space-y-4">
             <CustomReportsList onViewReport={setViewingReportId} />
