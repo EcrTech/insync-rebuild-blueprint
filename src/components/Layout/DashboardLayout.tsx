@@ -563,17 +563,6 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                     </Link>
                   )}
                   
-                  {canAccessFeature("campaigns_whatsapp") && (
-                    <Link
-                      to="/whatsapp-messages"
-                      className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-                      onClick={() => setSidebarOpen(false)}
-                    >
-                      <MessageSquare size={20} />
-                      <span>Message History</span>
-                    </Link>
-                  )}
-                  
                   {(canAccessFeature("connectors") || canAccessFeature("api_keys")) && (
                     <div className="pt-4 pb-2 section-accent-purple pl-4">
                       <p className="px-4 text-xs font-semibold uppercase tracking-wider gradient-text-accent">
