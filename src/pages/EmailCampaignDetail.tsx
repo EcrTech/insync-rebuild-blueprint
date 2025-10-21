@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import { Loader2, ArrowLeft, Mail, AlertCircle, CheckCircle2, Clock } from "lucide-react";
 import { format } from "date-fns";
 
@@ -41,49 +42,11 @@ interface Recipient {
 const EmailCampaignDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const notify = useNotification();
 
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [recipients, setRecipients] = useState<Recipient[]>([]);
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchCampaignDetails();
-    fetchRecipients();
-
-    // Subscribe to real-time updates
-    const channel = supabase
-      .channel(`campaign-${id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "email_bulk_campaigns",
-          filter: `id=eq.${id}`,
-        },
-        () => {
-          fetchCampaignDetails();
-        }
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "email_campaign_recipients",
-          filter: `campaign_id=eq.${id}`,
-        },
-        () => {
-          fetchRecipients();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [id]);
 
   const fetchCampaignDetails = async () => {
     try {
@@ -97,11 +60,7 @@ const EmailCampaignDetail = () => {
       setCampaign(data);
     } catch (error: any) {
       console.error("Error fetching campaign:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load campaign details",
-        variant: "destructive",
-      });
+      notify.error("Error", "Failed to load campaign details");
     } finally {
       setLoading(false);
     }
@@ -127,6 +86,25 @@ const EmailCampaignDetail = () => {
       console.error("Error fetching recipients:", error);
     }
   };
+
+  useEffect(() => {
+    fetchCampaignDetails();
+    fetchRecipients();
+  }, [id]);
+
+  useRealtimeSync({
+    table: 'email_bulk_campaigns',
+    filter: `id=eq.${id}`,
+    onUpdate: fetchCampaignDetails,
+    enabled: !!id,
+  });
+
+  useRealtimeSync({
+    table: 'email_campaign_recipients',
+    filter: `campaign_id=eq.${id}`,
+    onUpdate: fetchRecipients,
+    enabled: !!id,
+  });
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, { variant: any; icon: any }> = {

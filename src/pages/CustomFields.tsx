@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgContext } from "@/hooks/useOrgContext";
 import { useDialogState } from "@/hooks/useDialogState";
 import { useNotification } from "@/hooks/useNotification";
 import { useOrgData } from "@/hooks/useOrgData";
+import { useDragDropOrder } from "@/hooks/useDragDropOrder";
 import DashboardLayout from "@/components/Layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -173,6 +174,13 @@ export default function CustomFields() {
     orderBy: { column: "field_order", ascending: true }
   });
 
+  const dragDrop = useDragDropOrder<CustomField>();
+
+  // Sync fields with drag-drop state
+  useEffect(() => {
+    dragDrop.setItems(fields);
+  }, [fields]);
+
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
@@ -180,35 +188,17 @@ export default function CustomFields() {
     })
   );
 
-
-  const handleDragEnd = async (event: DragEndEvent) => {
-    const { active, over } = event;
-
-    if (!over || active.id === over.id) return;
-
-    const oldIndex = fields.findIndex((f) => f.id === active.id);
-    const newIndex = fields.findIndex((f) => f.id === over.id);
-    const newFields = arrayMove(fields, oldIndex, newIndex);
-
-    try {
-      const updates = newFields.map((field, index) => ({
-        id: field.id,
-        field_order: index,
-      }));
-
-      for (const update of updates) {
+  const handleDragEnd = (event: DragEndEvent) => {
+    dragDrop.handleDragEnd(event, async (reorderedItems) => {
+      for (let i = 0; i < reorderedItems.length; i++) {
         await supabase
           .from('custom_fields')
-          .update({ field_order: update.field_order })
-          .eq('id', update.id);
+          .update({ field_order: i })
+          .eq('id', reorderedItems[i].id);
       }
-
       notify.success("Order updated", "Custom fields have been reordered successfully");
       refetch();
-    } catch (error) {
-      notify.error("Error updating order", error);
-      refetch();
-    }
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -384,7 +374,7 @@ export default function CustomFields() {
               Bulk Upload
             </Button>
 
-            <Button onClick={() => dialog.openDialog({ field_order: fields.length })}>
+            <Button onClick={() => dialog.openDialog({ field_order: dragDrop.items.length })}>
               <Plus className="mr-2 h-4 w-4" />
               Add Field
             </Button>
@@ -551,7 +541,7 @@ export default function CustomFields() {
         <div className="grid gap-4">
           {isLoading ? (
             <LoadingState message="Loading fields..." />
-          ) : fields.length === 0 ? (
+          ) : dragDrop.items.length === 0 ? (
             <EmptyState message="No custom fields configured. Click 'Add Field' to create one." />
           ) : (
             <DndContext
@@ -560,10 +550,10 @@ export default function CustomFields() {
               onDragEnd={handleDragEnd}
             >
               <SortableContext
-                items={fields.map(f => f.id)}
+                items={dragDrop.items.map(f => f.id)}
                 strategy={verticalListSortingStrategy}
               >
-                {fields.map((field) => (
+                {dragDrop.items.map((field) => (
                   <SortableFieldCard
                     key={field.id}
                     field={field}

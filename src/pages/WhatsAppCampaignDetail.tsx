@@ -6,58 +6,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import { ArrowLeft, RefreshCw, Download, XCircle } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 export default function WhatsAppCampaignDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const notify = useNotification();
   
   const [campaign, setCampaign] = useState<any>(null);
   const [recipients, setRecipients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>("all");
-
-  useEffect(() => {
-    if (id) {
-      fetchCampaignDetails();
-      
-      // Subscribe to realtime updates
-      const channel = supabase
-        .channel('campaign-detail-changes')
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'whatsapp_bulk_campaigns',
-            filter: `id=eq.${id}`,
-          },
-          () => {
-            fetchCampaignDetails();
-          }
-        )
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'whatsapp_campaign_recipients',
-            filter: `campaign_id=eq.${id}`,
-          },
-          () => {
-            fetchRecipients();
-          }
-        )
-        .subscribe();
-
-      return () => {
-        supabase.removeChannel(channel);
-      };
-    }
-  }, [id]);
 
   const fetchCampaignDetails = async () => {
     setLoading(true);
@@ -89,6 +51,26 @@ export default function WhatsAppCampaignDetail() {
 
   useEffect(() => {
     if (id) {
+      fetchCampaignDetails();
+    }
+  }, [id]);
+
+  useRealtimeSync({
+    table: 'whatsapp_bulk_campaigns',
+    filter: `id=eq.${id}`,
+    onUpdate: fetchCampaignDetails,
+    enabled: !!id,
+  });
+
+  useRealtimeSync({
+    table: 'whatsapp_campaign_recipients',
+    filter: `campaign_id=eq.${id}`,
+    onUpdate: fetchRecipients,
+    enabled: !!id,
+  });
+
+  useEffect(() => {
+    if (id) {
       fetchRecipients();
     }
   }, [filter]);
@@ -113,16 +95,9 @@ export default function WhatsAppCampaignDetail() {
     });
 
     if (error) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("Error", error.message);
     } else {
-      toast({
-        title: "Retry Initiated",
-        description: "Failed messages will be retried",
-      });
+      notify.success("Retry Initiated", "Failed messages will be retried");
     }
   };
 
@@ -173,18 +148,11 @@ export default function WhatsAppCampaignDetail() {
 
       if (campaignError) throw campaignError;
 
-      toast({
-        title: "Campaign Cancelled",
-        description: "The campaign has been cancelled successfully",
-      });
+      notify.success("Campaign Cancelled", "The campaign has been cancelled successfully");
 
       fetchCampaignDetails();
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("Error", error.message);
     }
   };
 

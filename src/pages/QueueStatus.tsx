@@ -2,11 +2,12 @@ import { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgContext } from "@/hooks/useOrgContext";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import { DashboardLayout } from "@/components/Layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 import { Loader2, Clock, CheckCircle, XCircle, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -29,7 +30,7 @@ interface QueueJob {
 
 const QueueStatus = () => {
   const { effectiveOrgId } = useOrgContext();
-  const { toast } = useToast();
+  const notify = useNotification();
   const [loading, setLoading] = useState(true);
   const [jobs, setJobs] = useState<QueueJob[]>([]);
 
@@ -37,28 +38,6 @@ const QueueStatus = () => {
     if (effectiveOrgId) {
       fetchJobs();
     }
-  }, [effectiveOrgId]);
-
-  useEffect(() => {
-    // Subscribe to real-time updates
-    const channel = supabase
-      .channel('queue-status-updates')
-      .on(
-        'postgres_changes' as any,
-        {
-          event: '*',
-          schema: 'public',
-          table: 'operation_queue',
-        } as any,
-        () => {
-          fetchJobs();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
   }, [effectiveOrgId]);
 
   const fetchJobs = async () => {
@@ -77,15 +56,19 @@ const QueueStatus = () => {
       setJobs((data as unknown as QueueJob[]) || []);
     } catch (error: any) {
       console.error("Error fetching queue jobs:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load queue status",
-        variant: "destructive",
-      });
+      notify.error("Error", "Failed to load queue status");
     } finally {
       setLoading(false);
     }
   };
+
+  useRealtimeSync({
+    table: 'operation_queue',
+    onUpdate: fetchJobs,
+    onInsert: fetchJobs,
+    onDelete: fetchJobs,
+    enabled: !!effectiveOrgId,
+  });
 
   const handleCancel = async (jobId: string) => {
     try {
@@ -105,19 +88,12 @@ const QueueStatus = () => {
 
       if (error) throw error;
 
-      toast({
-        title: "Success",
-        description: "Operation cancelled",
-      });
+      notify.success("Success", "Operation cancelled");
 
       fetchJobs();
     } catch (error: any) {
       console.error("Error cancelling job:", error);
-      toast({
-        title: "Error",
-        description: "Failed to cancel operation",
-        variant: "destructive",
-      });
+      notify.error("Error", "Failed to cancel operation");
     }
   };
 

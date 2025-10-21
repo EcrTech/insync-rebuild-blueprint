@@ -14,13 +14,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Download, Package, Plus, Search, Upload } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 import { useOrgContext } from "@/hooks/useOrgContext";
 import { AddEditInventoryDialog } from "@/components/Inventory/AddEditInventoryDialog";
 import { BulkImportInventoryDialog } from "@/components/Inventory/BulkImportInventoryDialog";
 
 export default function Inventory() {
-  const { toast } = useToast();
+  const notify = useNotification();
   const { effectiveOrgId } = useOrgContext();
   const [search, setSearch] = useState("");
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -71,10 +71,7 @@ export default function Inventory() {
 
   const handleExport = () => {
     if (!inventory || inventory.length === 0) {
-      toast({
-        title: "No data to export",
-        variant: "destructive",
-      });
+      notify.error("No data to export");
       return;
     }
 

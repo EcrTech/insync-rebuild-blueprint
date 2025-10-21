@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Upload, Download, Loader2 } from "lucide-react";
@@ -48,7 +48,7 @@ export function BulkImportUploader({
   const [isUploading, setIsUploading] = useState(false);
   const [importJobs, setImportJobs] = useState<ImportJob[]>([]);
   const [activeJob, setActiveJob] = useState<ImportJob | null>(null);
-  const { toast } = useToast();
+  const notify = useNotification();
   const { effectiveOrgId } = useOrgContext();
 
   useEffect(() => {
@@ -126,22 +126,14 @@ export function BulkImportUploader({
     if (!file) return;
 
     if (!file.name.endsWith('.csv')) {
-      toast({
-        title: "Invalid file type",
-        description: "Please upload a CSV file",
-        variant: "destructive"
-      });
+      notify.error("Invalid file type", "Please upload a CSV file");
       return;
     }
 
     // Validate file size (10 MB limit)
     const maxFileSize = 10 * 1024 * 1024; // 10 MB in bytes
     if (file.size > maxFileSize) {
-      toast({
-        title: "File too large",
-        description: "Maximum file size is 10 MB",
-        variant: "destructive"
-      });
+      notify.error("File too large", "Maximum file size is 10 MB");
       return;
     }
 
@@ -151,11 +143,7 @@ export function BulkImportUploader({
       // Validate CSV structure
       const validation = await validateCSVStructure(file);
       if (!validation.valid) {
-        toast({
-          title: "Invalid CSV structure",
-          description: validation.error,
-          variant: "destructive"
-        });
+        notify.error("Invalid CSV structure", validation.error);
         return;
       }
 
@@ -212,11 +200,7 @@ export function BulkImportUploader({
         if (directError) throw directError;
       }
 
-      toast({
-        title: "Import started",
-        description: "Your file is being processed in the background. You can continue working.",
-        duration: 300000 // 5 minutes - will stay visible until job completes or user dismisses
-      });
+      notify.success("Import started", "Your file is being processed in the background. You can continue working.");
 
       if (onUploadComplete) {
         onUploadComplete(job.id);
@@ -226,11 +210,7 @@ export function BulkImportUploader({
 
     } catch (error) {
       console.error('Upload error:', error);
-      toast({
-        title: "Upload failed",
-        description: error.message || "Failed to upload file",
-        variant: "destructive"
-      });
+      notify.error("Upload failed", error);
     } finally {
       setIsUploading(false);
       event.target.value = '';
@@ -250,20 +230,13 @@ export function BulkImportUploader({
 
       if (error) throw error;
 
-      toast({
-        title: "Import cancelled",
-        description: "The import process has been stopped."
-      });
+      notify.success("Import cancelled", "The import process has been stopped.");
 
       setActiveJob(null);
       loadImportJobs();
     } catch (error) {
       console.error('Cancel error:', error);
-      toast({
-        title: "Failed to cancel",
-        description: error.message || "Could not cancel the import",
-        variant: "destructive"
-      });
+      notify.error("Failed to cancel", error);
     }
   };
 
@@ -273,10 +246,7 @@ export function BulkImportUploader({
         return;
       }
 
-      toast({
-        title: "Rollback started",
-        description: "Deleting imported records...",
-      });
+      notify.info("Rollback started", "Deleting imported records...");
 
       const { data, error } = await supabase.functions.invoke('rollback-bulk-import', {
         body: { importJobId: jobId }
@@ -284,10 +254,7 @@ export function BulkImportUploader({
 
       if (error) throw error;
 
-      toast({
-        title: "Rollback completed",
-        description: `Successfully deleted ${data?.deletedCount || 0} records.`,
-      });
+      notify.success("Rollback completed", `Successfully deleted ${data?.deletedCount || 0} records.`);
 
       loadImportJobs();
       if (onDataLoaded) {
@@ -295,11 +262,7 @@ export function BulkImportUploader({
       }
     } catch (error) {
       console.error('Rollback error:', error);
-      toast({
-        title: "Rollback failed",
-        description: error.message || "Could not rollback the import",
-        variant: "destructive"
-      });
+      notify.error("Rollback failed", error);
     }
   };
 
