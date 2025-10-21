@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4';
+import { getSupabaseClient } from '../_shared/supabaseClient.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -58,9 +58,7 @@ Deno.serve(async (req) => {
     }
 
     // Create Supabase admin client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    const supabase = createClient(supabaseUrl!, supabaseKey!);
+    const supabase = getSupabaseClient();
 
     const requestId = `req_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
     const forwardedFor = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';

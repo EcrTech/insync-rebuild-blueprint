@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { getSupabaseClient } from '../_shared/supabaseClient.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -86,10 +86,7 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { campaignId, batchSize = 500, delayMs = 1000, skip_rate_limit = false } = body as SendMessageRequest & { skip_rate_limit?: boolean };
 
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    const supabaseClient = getSupabaseClient();
 
     // Validate input
     if (!campaignId || typeof campaignId !== 'string') {
@@ -386,10 +383,7 @@ Deno.serve(async (req) => {
     try {
       const body = await req.clone().json();
       if (body.campaignId) {
-        const supabaseClient = createClient(
-          Deno.env.get('SUPABASE_URL') ?? '',
-          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-        );
+        const supabaseClient = getSupabaseClient();
         await supabaseClient
           .from('whatsapp_bulk_campaigns')
           .update({ status: 'failed', completed_at: new Date().toISOString() })

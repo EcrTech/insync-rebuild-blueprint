@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getSupabaseClient } from '../_shared/supabaseClient.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -193,11 +194,8 @@ serve(async (req) => {
 
     console.log("Email sent successfully:", emailData);
 
-    // Create service role client for wallet deduction
-    const supabaseServiceClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
+    // Use shared service role client for wallet deduction
+    const supabaseServiceClient = getSupabaseClient();
 
     // Deduct email cost from wallet
     const { data: deductResult, error: deductError } = await supabaseServiceClient.rpc('deduct_from_wallet', {

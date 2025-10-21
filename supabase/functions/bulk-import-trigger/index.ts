@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
+import { getSupabaseClient } from '../_shared/supabaseClient.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -33,7 +34,7 @@ serve(async (req) => {
     const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey);
     
     // Create admin client for database operations
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+    const supabaseAdmin = getSupabaseClient();
 
     // Authenticate user by passing JWT directly to getUser
     const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(jwt);

@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
+import { getSupabaseClient } from '../_shared/supabaseClient.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -71,10 +72,7 @@ Deno.serve(async (req) => {
         console.log('Rate limit exceeded, queuing template sync');
         
         // Calculate next available slot
-        const serviceClient = createClient(
-          Deno.env.get('SUPABASE_URL') ?? '',
-          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-        );
+    const serviceClient = getSupabaseClient();
 
         const { data: nextSlot } = await serviceClient
           .rpc('calculate_next_slot', {

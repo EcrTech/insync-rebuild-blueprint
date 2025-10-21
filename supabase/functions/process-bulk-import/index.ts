@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
+import { getSupabaseClient } from '../_shared/supabaseClient.ts';
 
 const OPERATION_TIMEOUT = 20 * 60 * 1000; // 20 minutes
 const MAX_RETRIES = 3;
@@ -132,10 +132,7 @@ serve(async (req) => {
   try {
     console.log('[INIT] Starting bulk import processor');
     
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    
-    supabase = createClient(supabaseUrl, supabaseKey);
+    supabase = getSupabaseClient();
 
     const { importJobId } = await req.json();
     

@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
+import { getSupabaseClient } from '../_shared/supabaseClient.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -237,11 +238,8 @@ Deno.serve(async (req) => {
       .select()
       .single();
 
-    // Create service role client for wallet deduction
-    const supabaseServiceClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    // Use shared service role client for wallet deduction
+    const supabaseServiceClient = getSupabaseClient();
 
     // Deduct WhatsApp cost from wallet
     const { data: deductResult, error: deductError } = await supabaseServiceClient.rpc('deduct_from_wallet', {
