@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useOrgContext } from "@/hooks/useOrgContext";
 import DashboardLayout from "@/components/Layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,7 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
+import { useOrgData } from "@/hooks/useOrgData";
+import { useCRUD } from "@/hooks/useCRUD";
+import { LoadingState } from "@/components/common/LoadingState";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { Plus, Trash2, ChevronDown, ChevronRight } from "lucide-react";
 
 interface CallDisposition {
@@ -29,10 +33,11 @@ interface CallSubDisposition {
 
 export default function CallDispositions() {
   const { effectiveOrgId } = useOrgContext();
-  const { toast } = useToast();
-  const [dispositions, setDispositions] = useState<CallDisposition[]>([]);
+  const notify = useNotification();
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
-  const [loading, setLoading] = useState(true);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; type: "disposition" | "sub" } | null>(null);
+  
   const [newDisposition, setNewDisposition] = useState({
     name: "",
     description: "",
@@ -44,189 +49,94 @@ export default function CallDispositions() {
     description: "",
   });
 
-  useEffect(() => {
-    if (effectiveOrgId) {
-      fetchDispositions();
-    }
-  }, [effectiveOrgId]);
+  // Fetch dispositions and sub-dispositions
+  const { data: dispositionsData = [], isLoading, refetch } = useOrgData<CallDisposition>(
+    "call_dispositions",
+    { orderBy: { column: "name", ascending: true } }
+  );
 
-  const fetchDispositions = async () => {
-    if (!effectiveOrgId) return;
-    
-    try {
-      const { data: dispositionsData, error: dispError } = await supabase
-        .from("call_dispositions")
-        .select("*")
-        .eq("org_id", effectiveOrgId)
-        .order("name");
+  const { data: subDispositionsData = [] } = useOrgData<CallSubDisposition>(
+    "call_sub_dispositions",
+    { orderBy: { column: "name", ascending: true } }
+  );
 
-      if (dispError) throw dispError;
+  // Merge sub-dispositions with dispositions
+  const dispositions = dispositionsData.map(disp => ({
+    ...disp,
+    sub_dispositions: subDispositionsData.filter(sub => sub.disposition_id === disp.id),
+  }));
 
-      const { data: subDispositionsData, error: subError } = await supabase
-        .from("call_sub_dispositions")
-        .select("*")
-        .eq("org_id", effectiveOrgId)
-        .order("name");
+  const dispositionCrud = useCRUD("call_dispositions", {
+    onSuccess: () => refetch(),
+    successMessage: {
+      create: "Disposition added",
+      delete: "Disposition deleted",
+    },
+  });
 
-      if (subError) throw subError;
+  const subDispositionCrud = useCRUD("call_sub_dispositions", {
+    onSuccess: () => refetch(),
+    successMessage: {
+      create: "Sub-disposition added",
+      delete: "Sub-disposition deleted",
+    },
+  });
 
-      const dispositionsWithSubs = (dispositionsData || []).map(disp => ({
-        ...disp,
-        sub_dispositions: (subDispositionsData || []).filter(sub => sub.disposition_id === disp.id),
-      }));
-
-      setDispositions(dispositionsWithSubs);
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Failed to load dispositions",
-        description: error.message,
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleAddDisposition = async () => {
+  const handleAddDisposition = () => {
     if (!newDisposition.name) {
-      toast({
-        variant: "destructive",
-        title: "Name required",
-        description: "Please enter a disposition name",
-      });
+      notify.error("Name required", "Please enter a disposition name");
       return;
     }
 
-    if (!effectiveOrgId) return;
+    dispositionCrud.create({
+      org_id: effectiveOrgId,
+      name: newDisposition.name,
+      description: newDisposition.description,
+      category: newDisposition.category,
+    });
 
-    try {
-      const { error } = await supabase
-        .from("call_dispositions")
-        .insert({
-          org_id: effectiveOrgId,
-          name: newDisposition.name,
-          description: newDisposition.description,
-          category: newDisposition.category,
-        });
-
-      if (error) throw error;
-
-      toast({
-        title: "Disposition added",
-        description: "Call disposition has been created",
-      });
-
-      setNewDisposition({
-        name: "",
-        description: "",
-        category: "neutral",
-      });
-
-      fetchDispositions();
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Failed to add disposition",
-        description: error.message,
-      });
-    }
+    setNewDisposition({
+      name: "",
+      description: "",
+      category: "neutral",
+    });
   };
 
-  const handleAddSubDisposition = async () => {
+  const handleAddSubDisposition = () => {
     if (!newSubDisposition.name || !newSubDisposition.dispositionId) {
-      toast({
-        variant: "destructive",
-        title: "Information required",
-        description: "Please select a disposition and enter a name",
-      });
+      notify.error("Information required", "Please select a disposition and enter a name");
       return;
     }
 
-    if (!effectiveOrgId) return;
+    subDispositionCrud.create({
+      org_id: effectiveOrgId,
+      disposition_id: newSubDisposition.dispositionId,
+      name: newSubDisposition.name,
+      description: newSubDisposition.description,
+    });
 
-    try {
-      const { error } = await supabase
-        .from("call_sub_dispositions")
-        .insert({
-          org_id: effectiveOrgId,
-          disposition_id: newSubDisposition.dispositionId,
-          name: newSubDisposition.name,
-          description: newSubDisposition.description,
-        });
-
-      if (error) throw error;
-
-      toast({
-        title: "Sub-disposition added",
-        description: "Call sub-disposition has been created",
-      });
-
-      setNewSubDisposition({
-        dispositionId: "",
-        name: "",
-        description: "",
-      });
-
-      fetchDispositions();
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Failed to add sub-disposition",
-        description: error.message,
-      });
-    }
+    setNewSubDisposition({
+      dispositionId: "",
+      name: "",
+      description: "",
+    });
   };
 
-  const handleDeleteDisposition = async (id: string) => {
-    if (!confirm("Are you sure? This will also delete all related sub-dispositions.")) return;
-
-    try {
-      const { error } = await supabase
-        .from("call_dispositions")
-        .delete()
-        .eq("id", id);
-
-      if (error) throw error;
-
-      toast({
-        title: "Disposition deleted",
-        description: "Call disposition has been removed",
-      });
-
-      fetchDispositions();
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Failed to delete disposition",
-        description: error.message,
-      });
-    }
+  const confirmDelete = (id: string, type: "disposition" | "sub") => {
+    setDeleteTarget({ id, type });
+    setDeleteDialogOpen(true);
   };
 
-  const handleDeleteSubDisposition = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this sub-disposition?")) return;
+  const handleConfirmDelete = () => {
+    if (!deleteTarget) return;
 
-    try {
-      const { error } = await supabase
-        .from("call_sub_dispositions")
-        .delete()
-        .eq("id", id);
-
-      if (error) throw error;
-
-      toast({
-        title: "Sub-disposition deleted",
-        description: "Call sub-disposition has been removed",
-      });
-
-      fetchDispositions();
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Failed to delete sub-disposition",
-        description: error.message,
-      });
+    if (deleteTarget.type === "disposition") {
+      dispositionCrud.delete(deleteTarget.id);
+    } else {
+      subDispositionCrud.delete(deleteTarget.id);
     }
+    setDeleteDialogOpen(false);
+    setDeleteTarget(null);
   };
 
   const toggleExpanded = (id: string) => {
@@ -248,12 +158,10 @@ export default function CallDispositions() {
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
-        </div>
+        <LoadingState message="Loading dispositions..." />
       </DashboardLayout>
     );
   }
@@ -412,7 +320,7 @@ export default function CallDispositions() {
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => handleDeleteDisposition(disposition.id)}
+                      onClick={() => confirmDelete(disposition.id, "disposition")}
                     >
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
@@ -434,7 +342,7 @@ export default function CallDispositions() {
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => handleDeleteSubDisposition(sub.id)}
+                            onClick={() => confirmDelete(sub.id, "sub")}
                           >
                             <Trash2 className="h-3 w-3 text-destructive" />
                           </Button>
@@ -448,6 +356,19 @@ export default function CallDispositions() {
           </CardContent>
         </Card>
       </div>
+
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title={deleteTarget?.type === "disposition" ? "Delete Disposition" : "Delete Sub-Disposition"}
+        description={
+          deleteTarget?.type === "disposition"
+            ? "This will also delete all related sub-dispositions. This action cannot be undone."
+            : "This action cannot be undone."
+        }
+        onConfirm={handleConfirmDelete}
+        confirmText="Delete"
+      />
     </DashboardLayout>
   );
 }

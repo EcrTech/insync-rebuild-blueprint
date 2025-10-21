@@ -7,13 +7,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, Webhook, Activity, ExternalLink } from "lucide-react";
+import { useNotification } from "@/hooks/useNotification";
+import { useDialogState } from "@/hooks/useDialogState";
+import { LoadingState } from "@/components/common/LoadingState";
+import { EmptyState } from "@/components/common/EmptyState";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { Plus, Pencil, Trash2, Webhook, Activity } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { WebhookConfig } from "@/components/Forms/WebhookConfig";
 import { ConnectorLogs } from "@/components/Forms/ConnectorLogs";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface CustomField {
   id: string;
@@ -45,16 +48,15 @@ interface Connector {
 
 export default function Connectors() {
   const { effectiveOrgId } = useOrgContext();
+  const notify = useNotification();
   const [connectors, setConnectors] = useState<Connector[]>([]);
   const [customFields, setCustomFields] = useState<CustomField[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingConnector, setEditingConnector] = useState<Connector | null>(null);
   const [selectedConnectorLogs, setSelectedConnectorLogs] = useState<Connector | null>(null);
-  const [activeView, setActiveView] = useState<"list" | "logs">("list");
-  const { toast } = useToast();
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const [formData, setFormData] = useState({
+  const dialog = useDialogState({
     name: "",
     description: "",
     is_active: true,
@@ -117,11 +119,7 @@ export default function Connectors() {
 
       setConnectors(connectorsWithStats as any);
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error loading connectors",
-        description: error.message,
-      });
+      notify.error("Error loading connectors", error);
     } finally {
       setLoading(false);
     }
@@ -141,11 +139,7 @@ export default function Connectors() {
       if (error) throw error;
       setCustomFields(data || []);
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error loading fields",
-        description: error.message,
-      });
+      notify.error("Error loading fields", error);
     }
   };
 
@@ -157,17 +151,17 @@ export default function Connectors() {
     setLoading(true);
 
     try {
-      if (editingConnector) {
+      if (dialog.isEditing) {
         const { error: updateError } = await supabase
           .from("forms")
           .update({
-            name: formData.name,
-            description: formData.description,
-            is_active: formData.is_active,
-            webhook_config: formData.webhook_config,
-            rate_limit_per_minute: formData.rate_limit_per_minute,
+            name: dialog.formData.name,
+            description: dialog.formData.description,
+            is_active: dialog.formData.is_active,
+            webhook_config: dialog.formData.webhook_config,
+            rate_limit_per_minute: dialog.formData.rate_limit_per_minute,
           })
-          .eq("id", editingConnector.id);
+          .eq("id", dialog.editingItem.id);
 
         if (updateError) throw updateError;
       } else {
@@ -175,12 +169,12 @@ export default function Connectors() {
           .from("forms")
           .insert([{
             org_id: effectiveOrgId,
-            name: formData.name,
-            description: formData.description,
-            is_active: formData.is_active,
+            name: dialog.formData.name,
+            description: dialog.formData.description,
+            is_active: dialog.formData.is_active,
             connector_type: "webhook",
-            webhook_config: formData.webhook_config,
-            rate_limit_per_minute: formData.rate_limit_per_minute,
+            webhook_config: dialog.formData.webhook_config,
+            rate_limit_per_minute: dialog.formData.rate_limit_per_minute,
           }])
           .select()
           .single();
@@ -190,81 +184,44 @@ export default function Connectors() {
         console.log("Created webhook connector:", data);
       }
 
-      toast({
-        title: editingConnector ? "Connector updated" : "Connector created",
-        description: `Webhook connector has been ${editingConnector ? "updated" : "created"} successfully`,
-      });
+      notify.success(
+        dialog.isEditing ? "Connector updated" : "Connector created",
+        `Webhook connector has been ${dialog.isEditing ? "updated" : "created"} successfully`
+      );
 
-      setIsDialogOpen(false);
-      resetForm();
+      dialog.closeDialog();
       fetchConnectors();
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message,
-      });
+      notify.error("Error", error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure? This will delete the connector and all its logs.")) return;
+  const confirmDelete = (id: string) => {
+    setDeleteId(id);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!deleteId) return;
 
     try {
       const { error } = await supabase
         .from("forms")
         .delete()
-        .eq("id", id);
+        .eq("id", deleteId);
 
       if (error) throw error;
 
-      toast({
-        title: "Connector deleted",
-        description: "Webhook connector has been removed successfully",
-      });
+      notify.success("Connector deleted", "Webhook connector has been removed successfully");
       fetchConnectors();
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error deleting connector",
-        description: error.message,
-      });
+      notify.error("Error deleting connector", error);
+    } finally {
+      setDeleteDialogOpen(false);
+      setDeleteId(null);
     }
-  };
-
-  const resetForm = () => {
-    setFormData({
-      name: "",
-      description: "",
-      is_active: true,
-      webhook_config: {
-        http_method: 'POST',
-        target_table: 'contacts',
-        source_name: "",
-        field_mappings: {},
-      },
-      rate_limit_per_minute: 60,
-    });
-    setEditingConnector(null);
-  };
-
-  const openEditDialog = (connector: Connector) => {
-    setEditingConnector(connector);
-    setFormData({
-      name: connector.name,
-      description: connector.description || "",
-      is_active: connector.is_active,
-      webhook_config: {
-        http_method: connector.webhook_config?.http_method || 'POST',
-        target_table: connector.webhook_config?.target_table || 'contacts',
-        source_name: connector.webhook_config?.source_name || "",
-        field_mappings: connector.webhook_config?.field_mappings || {},
-      },
-      rate_limit_per_minute: connector.rate_limit_per_minute || 60,
-    });
-    setIsDialogOpen(true);
   };
 
   const getWebhookUrl = (token?: string) => {
@@ -283,32 +240,29 @@ export default function Connectors() {
           <div className="flex gap-2">
             <Button
               variant="outline"
-              onClick={() => {
-                setActiveView("list");
-                setSelectedConnectorLogs(null);
-              }}
+              onClick={() => setSelectedConnectorLogs(null)}
             >
               <Webhook className="mr-2 h-4 w-4" />
               View Connectors
             </Button>
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <Dialog open={dialog.isOpen} onOpenChange={dialog.closeDialog}>
               <DialogTrigger asChild>
-                <Button onClick={resetForm}>
+                <Button onClick={() => dialog.openDialog()}>
                   <Plus className="mr-2 h-4 w-4" />
                   Create Connector
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
                 <DialogHeader>
-                  <DialogTitle>{editingConnector ? "Edit Connector" : "Create New Webhook Connector"}</DialogTitle>
+                  <DialogTitle>{dialog.isEditing ? "Edit Connector" : "Create New Webhook Connector"}</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="name">Connector Name *</Label>
                     <Input
                       id="name"
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      value={dialog.formData.name}
+                      onChange={(e) => dialog.updateFormData({ name: e.target.value })}
                       placeholder="e.g., IndiaMART Webhook"
                       required
                     />
@@ -318,50 +272,45 @@ export default function Connectors() {
                     <Label htmlFor="description">Description</Label>
                     <Textarea
                       id="description"
-                      value={formData.description}
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      value={dialog.formData.description}
+                      onChange={(e) => dialog.updateFormData({ description: e.target.value })}
                       placeholder="Brief description of this connector"
                       rows={3}
                     />
                   </div>
 
                   <WebhookConfig
-                    webhookToken={editingConnector?.webhook_token}
-                    webhookUrl={getWebhookUrl(editingConnector?.webhook_token)}
-                    sourceName={formData.webhook_config.source_name || ""}
-                    rateLimit={formData.rate_limit_per_minute}
-                    httpMethod={formData.webhook_config.http_method || 'POST'}
-                    targetTable={formData.webhook_config.target_table || 'contacts'}
-                    fieldMappings={formData.webhook_config.field_mappings || {}}
-                    onSourceNameChange={(value) => setFormData({
-                      ...formData,
-                      webhook_config: { ...formData.webhook_config, source_name: value }
+                    webhookToken={dialog.editingItem?.webhook_token}
+                    webhookUrl={getWebhookUrl(dialog.editingItem?.webhook_token)}
+                    sourceName={dialog.formData.webhook_config.source_name || ""}
+                    rateLimit={dialog.formData.rate_limit_per_minute}
+                    httpMethod={dialog.formData.webhook_config.http_method || 'POST'}
+                    targetTable={dialog.formData.webhook_config.target_table || 'contacts'}
+                    fieldMappings={dialog.formData.webhook_config.field_mappings || {}}
+                    onSourceNameChange={(value) => dialog.updateFormData({
+                      webhook_config: { ...dialog.formData.webhook_config, source_name: value }
                     })}
-                    onRateLimitChange={(value) => setFormData({
-                      ...formData,
+                    onRateLimitChange={(value) => dialog.updateFormData({
                       rate_limit_per_minute: value
                     })}
-                    onHttpMethodChange={(value) => setFormData({
-                      ...formData,
-                      webhook_config: { ...formData.webhook_config, http_method: value }
+                    onHttpMethodChange={(value) => dialog.updateFormData({
+                      webhook_config: { ...dialog.formData.webhook_config, http_method: value }
                     })}
-                    onTargetTableChange={(value) => setFormData({
-                      ...formData,
-                      webhook_config: { ...formData.webhook_config, target_table: value }
+                    onTargetTableChange={(value) => dialog.updateFormData({
+                      webhook_config: { ...dialog.formData.webhook_config, target_table: value }
                     })}
-                    onFieldMappingChange={(mappings) => setFormData({
-                      ...formData,
-                      webhook_config: { ...formData.webhook_config, field_mappings: mappings }
+                    onFieldMappingChange={(mappings) => dialog.updateFormData({
+                      webhook_config: { ...dialog.formData.webhook_config, field_mappings: mappings }
                     })}
                     customFields={customFields}
                   />
 
                   <div className="flex gap-2 pt-4">
-                    <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} className="flex-1">
+                    <Button type="button" variant="outline" onClick={dialog.closeDialog} className="flex-1">
                       Cancel
                     </Button>
                     <Button type="submit" className="flex-1" disabled={loading}>
-                      {loading ? "Saving..." : editingConnector ? "Update Connector" : "Create Connector"}
+                      {loading ? "Saving..." : dialog.isEditing ? "Update Connector" : "Create Connector"}
                     </Button>
                   </div>
                 </form>
@@ -390,19 +339,12 @@ export default function Connectors() {
         ) : (
           <div className="grid gap-4">
             {loading ? (
-              <Card>
-                <CardContent className="p-6">
-                  <p className="text-center text-muted-foreground">Loading connectors...</p>
-                </CardContent>
-              </Card>
+              <LoadingState message="Loading connectors..." />
             ) : connectors.length === 0 ? (
-              <Card>
-                <CardContent className="p-6">
-                  <p className="text-center text-muted-foreground">
-                    No webhook connectors created yet. Click "Create Connector" to get started.
-                  </p>
-                </CardContent>
-              </Card>
+              <EmptyState
+                icon={<Webhook className="h-12 w-12 text-muted-foreground" />}
+                message="No webhook connectors created yet. Click 'Create Connector' to get started."
+              />
             ) : (
               connectors.map((connector) => (
                 <Card key={connector.id}>
@@ -455,7 +397,7 @@ export default function Connectors() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => openEditDialog(connector)}
+                          onClick={() => dialog.openDialog(connector)}
                           title="Edit connector"
                         >
                           <Pencil className="h-4 w-4" />
@@ -463,7 +405,7 @@ export default function Connectors() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleDelete(connector.id)}
+                          onClick={() => confirmDelete(connector.id)}
                           title="Delete connector"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -477,6 +419,15 @@ export default function Connectors() {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Delete Connector"
+        description="This will delete the connector and all its logs. This action cannot be undone."
+        onConfirm={handleDelete}
+        confirmText="Delete"
+      />
     </DashboardLayout>
   );
 }

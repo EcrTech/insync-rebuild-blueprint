@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
+import { LoadingState } from "@/components/common/LoadingState";
 import { Loader2, CheckCircle2, AlertCircle, Copy, RefreshCw } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import DashboardLayout from "@/components/Layout/DashboardLayout";
@@ -35,7 +36,7 @@ interface EmailSettings {
 }
 
 const EmailSettings = () => {
-  const { toast } = useToast();
+  const notify = useNotification();
   const queryClient = useQueryClient();
   const [domain, setDomain] = useState("");
   const [isActive, setIsActive] = useState(true);
@@ -70,17 +71,10 @@ const EmailSettings = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['email-settings'] });
-      toast({
-        title: "Domain added",
-        description: "Your domain has been added to Resend. Please add the DNS records below.",
-      });
+      notify.success("Domain added", "Your domain has been added to Resend. Please add the DNS records below.");
     },
     onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("Error", error);
     },
   });
 
@@ -95,25 +89,14 @@ const EmailSettings = () => {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['email-settings'] });
       if (data.status === 'verified') {
-        toast({
-          title: "Domain verified!",
-          description: "Your domain is now verified and ready to send emails.",
-        });
+        notify.success("Domain verified!", "Your domain is now verified and ready to send emails.");
       } else {
-        toast({
-          title: "Verification pending",
-          description: "DNS records not yet propagated. Please wait a few minutes and try again.",
-          variant: "destructive",
-        });
+        notify.error("Verification pending", "DNS records not yet propagated. Please wait a few minutes and try again.");
       }
       setIsVerifying(false);
     },
     onError: (error: Error) => {
-      toast({
-        title: "Verification failed",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("Verification failed", error);
       setIsVerifying(false);
     },
   });
@@ -129,38 +112,23 @@ const EmailSettings = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['email-settings'] });
-      toast({
-        title: "Settings updated",
-        description: "Email settings have been saved successfully.",
-      });
+      notify.success("Settings updated", "Email settings have been saved successfully.");
     },
     onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("Error", error);
     },
   });
 
   const handleAddDomain = () => {
     if (!domain) {
-      toast({
-        title: "Error",
-        description: "Please enter a domain name",
-        variant: "destructive",
-      });
+      notify.error("Error", "Please enter a domain name");
       return;
     }
 
     // Basic domain validation
     const domainRegex = /^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]?\.([a-zA-Z]{2,}\.)?[a-zA-Z]{2,}$/;
     if (!domainRegex.test(domain)) {
-      toast({
-        title: "Invalid domain",
-        description: "Please enter a valid domain name (e.g., mail.yourcompany.com)",
-        variant: "destructive",
-      });
+      notify.error("Invalid domain", "Please enter a valid domain name (e.g., mail.yourcompany.com)");
       return;
     }
 
@@ -174,18 +142,12 @@ const EmailSettings = () => {
 
   const handleRefreshStatus = () => {
     queryClient.invalidateQueries({ queryKey: ['email-settings'] });
-    toast({
-      title: "Refreshed",
-      description: "Domain status has been refreshed.",
-    });
+    notify.success("Refreshed", "Domain status has been refreshed.");
   };
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    toast({
-      title: "Copied!",
-      description: "DNS record value copied to clipboard.",
-    });
+    notify.success("Copied!", "DNS record value copied to clipboard.");
   };
 
   const getStatusIcon = (status: string) => {
@@ -202,9 +164,7 @@ const EmailSettings = () => {
   if (isLoading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-96">
-          <Loader2 className="h-8 w-8 animate-spin" />
-        </div>
+        <LoadingState message="Loading email settings..." />
       </DashboardLayout>
     );
   }
@@ -441,7 +401,7 @@ const EmailSettings = () => {
                             variant="outline"
                             onClick={() => {
                               navigator.clipboard.writeText(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/email-inbound-webhook`);
-                              toast({ title: "Copied to clipboard" });
+                              notify.success("Copied to clipboard");
                             }}
                           >
                             Copy

@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
+import { LoadingState } from "@/components/common/LoadingState";
 import { Loader2, MessageSquare, CheckCircle2 } from "lucide-react";
 
 interface WhatsAppSettings {
@@ -21,7 +22,7 @@ interface WhatsAppSettings {
 
 const WhatsAppSettings = () => {
   const { effectiveOrgId } = useOrgContext();
-  const { toast } = useToast();
+  const notify = useNotification();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -56,11 +57,7 @@ const WhatsAppSettings = () => {
       }
     } catch (error: any) {
       console.error("Error fetching settings:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load WhatsApp settings",
-        variant: "destructive",
-      });
+      notify.error("Error", "Failed to load WhatsApp settings");
     } finally {
       setLoading(false);
     }
@@ -82,11 +79,7 @@ const WhatsAppSettings = () => {
 
   const handleSave = async () => {
     if (!settings.gupshup_api_key || !settings.whatsapp_source_number || !settings.app_name) {
-      toast({
-        title: "Validation Error",
-        description: "Please fill in all required fields",
-        variant: "destructive",
-      });
+      notify.error("Validation Error", "Please fill in all required fields");
       return;
     }
 
@@ -101,19 +94,11 @@ const WhatsAppSettings = () => {
 
       if (error) throw error;
 
-      toast({
-        title: "Success",
-        description: "WhatsApp settings saved successfully",
-      });
-
+      notify.success("Success", "WhatsApp settings saved successfully");
       fetchSettings();
     } catch (error: any) {
       console.error("Error saving settings:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to save settings",
-        variant: "destructive",
-      });
+      notify.error("Error", error.message || "Failed to save settings");
     } finally {
       setSaving(false);
     }
@@ -121,10 +106,7 @@ const WhatsAppSettings = () => {
 
   const handleSyncTemplates = async () => {
     if (!settings.id) {
-      toast({
-        title: "Info",
-        description: "Please save your settings first before syncing templates",
-      });
+      notify.info("Info", "Please save your settings first before syncing templates");
       return;
     }
 
@@ -134,19 +116,11 @@ const WhatsAppSettings = () => {
 
       if (error) throw error;
 
-      toast({
-        title: "Success",
-        description: `Synced ${data.synced} templates from Gupshup`,
-      });
-
+      notify.success("Success", `Synced ${data.synced} templates from Gupshup`);
       fetchTemplateCount();
     } catch (error: any) {
       console.error("Error syncing templates:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to sync templates",
-        variant: "destructive",
-      });
+      notify.error("Error", error.message || "Failed to sync templates");
     } finally {
       setSyncing(false);
     }
@@ -155,9 +129,7 @@ const WhatsAppSettings = () => {
   if (loading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin" />
-        </div>
+        <LoadingState message="Loading WhatsApp settings..." />
       </DashboardLayout>
     );
   }
@@ -239,10 +211,7 @@ const WhatsAppSettings = () => {
                     variant="outline"
                     onClick={() => {
                       navigator.clipboard.writeText(`https://aizgpxaqvtvvqarzjmze.supabase.co/functions/v1/whatsapp-webhook`);
-                      toast({
-                        title: "Copied!",
-                        description: "Webhook URL copied to clipboard",
-                      });
+                      notify.success("Copied!", "Webhook URL copied to clipboard");
                     }}
                   >
                     Copy
