@@ -3,10 +3,14 @@ import { supabase } from "@/integrations/supabase/client";
 import DashboardLayout from "@/components/Layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Phone, Clock, TrendingUp, Users, PhoneCall, CheckCircle, XCircle, Activity } from "lucide-react";
+import { Phone, Clock, TrendingUp, Users, PhoneCall, CheckCircle, XCircle, Activity, Search, Download, User, Calendar, FileText } from "lucide-react";
 import { useNotification } from "@/hooks/useNotification";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { format } from "date-fns";
 
 interface AgentStats {
   agent_id: string;
@@ -39,6 +43,31 @@ interface User {
   last_name: string;
 }
 
+interface CallLog {
+  id: string;
+  contact_id: string | null;
+  agent_id: string | null;
+  exotel_call_sid: string;
+  call_type: string;
+  from_number: string;
+  to_number: string;
+  status: string;
+  call_duration: number | null;
+  conversation_duration: number | null;
+  started_at: string | null;
+  ended_at: string | null;
+  recording_url: string | null;
+  disposition_id: string | null;
+  contacts?: {
+    first_name: string;
+    last_name: string | null;
+  };
+  call_dispositions?: {
+    name: string;
+    category: string;
+  };
+}
+
 export default function CallingDashboard() {
   const [agentStats, setAgentStats] = useState<AgentStats[]>([]);
   const [dispositionStats, setDispositionStats] = useState<DispositionStats[]>([]);
@@ -55,6 +84,9 @@ export default function CallingDashboard() {
   const [users, setUsers] = useState<User[]>([]);
   const [teamMemberIds, setTeamMemberIds] = useState<string[]>([]);
   const [activeCallsCount, setActiveCallsCount] = useState(0);
+  const [callLogs, setCallLogs] = useState<CallLog[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [callTypeFilter, setCallTypeFilter] = useState("all");
   const notify = useNotification();
 
   useEffect(() => {
@@ -72,7 +104,8 @@ export default function CallingDashboard() {
   useEffect(() => {
     fetchDashboardData();
     fetchActiveCalls();
-  }, [timeRange, selectedUser, teamMemberIds]);
+    fetchCallLogs();
+  }, [timeRange, selectedUser, teamMemberIds, callTypeFilter]);
 
   const fetchActiveCalls = async () => {
     try {
@@ -306,6 +339,50 @@ export default function CallingDashboard() {
     return `${minutes}m ${secs}s`;
   };
 
+  const fetchCallLogs = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('org_id')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile) return;
+
+      const daysAgo = new Date();
+      daysAgo.setDate(daysAgo.getDate() - parseInt(timeRange));
+
+      let query = supabase
+        .from('call_logs')
+        .select(`
+          *,
+          contacts (first_name, last_name),
+          call_dispositions (name, category)
+        `)
+        .eq('org_id', profile.org_id)
+        .gte('created_at', daysAgo.toISOString())
+        .order('created_at', { ascending: false });
+
+      if (callTypeFilter !== 'all') {
+        query = query.eq('call_type', callTypeFilter);
+      }
+
+      if (selectedUser !== "all" && teamMemberIds.length > 0) {
+        query = query.in("agent_id", teamMemberIds);
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+      setCallLogs((data || []) as CallLog[]);
+    } catch (error: any) {
+      console.error("Error loading call logs:", error);
+    }
+  };
+
   const getCategoryColor = (category: string) => {
     switch (category) {
       case "positive":
@@ -319,13 +396,30 @@ export default function CallingDashboard() {
     }
   };
 
+  const exportCallLogs = () => {
+    notify.info("Export initiated", "Call logs export will be available once API is integrated");
+  };
+
+  const filteredLogs = callLogs.filter((log) => {
+    const contactName = log.contacts 
+      ? `${log.contacts.first_name} ${log.contacts.last_name || ''}`.toLowerCase()
+      : '';
+
+    const matchesSearch =
+      contactName.includes(searchQuery.toLowerCase()) ||
+      log.from_number.includes(searchQuery) ||
+      log.to_number.includes(searchQuery);
+
+    return matchesSearch;
+  });
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-3xl font-bold">Calling Dashboard</h1>
-            <p className="text-muted-foreground">Monitor real-time Exotel call performance and analytics</p>
+            <p className="text-muted-foreground">Monitor real-time call performance and detailed logs</p>
           </div>
           <div className="flex flex-col sm:flex-row gap-3 items-center">
             <Select value={selectedUser} onValueChange={setSelectedUser}>
@@ -354,6 +448,20 @@ export default function CallingDashboard() {
             </Select>
           </div>
         </div>
+
+        <Tabs defaultValue="overview" className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="overview">
+              <Activity className="h-4 w-4 mr-2" />
+              Overview
+            </TabsTrigger>
+            <TabsTrigger value="logs">
+              <FileText className="h-4 w-4 mr-2" />
+              Call Logs
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview" className="space-y-6">
 
         {/* Overview Cards */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
@@ -497,6 +605,174 @@ export default function CallingDashboard() {
             </CardContent>
           </Card>
         </div>
+          </TabsContent>
+
+          <TabsContent value="logs" className="space-y-6">
+            {/* Filters */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Filters</CardTitle>
+                    <CardDescription>Search and filter call logs</CardDescription>
+                  </div>
+                  <Button onClick={exportCallLogs}>
+                    <Download className="mr-2 h-4 w-4" />
+                    Export Logs
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search by name, phone..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+
+                  <Select value={callTypeFilter} onValueChange={setCallTypeFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Call Type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Call Types</SelectItem>
+                      <SelectItem value="inbound">Inbound</SelectItem>
+                      <SelectItem value="outbound">Outbound</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Call Logs Table */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Call Records</CardTitle>
+                <CardDescription>
+                  {filteredLogs.length} call{filteredLogs.length !== 1 ? "s" : ""} found
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <div className="text-center py-12">
+                    <p className="text-muted-foreground">Loading call logs...</p>
+                  </div>
+                ) : filteredLogs.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Phone className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-medium mb-2">No call logs found</h3>
+                    <p className="text-muted-foreground mb-4">
+                      {callLogs.length === 0
+                        ? "Call logs will appear here once you make calls"
+                        : "Try adjusting your filters"}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>
+                            <div className="flex items-center gap-2">
+                              <Calendar className="h-4 w-4" />
+                              Date & Time
+                            </div>
+                          </TableHead>
+                          <TableHead>
+                            <div className="flex items-center gap-2">
+                              <User className="h-4 w-4" />
+                              Contact
+                            </div>
+                          </TableHead>
+                          <TableHead>Phone Number</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>
+                            <div className="flex items-center gap-2">
+                              <Clock className="h-4 w-4" />
+                              Duration
+                            </div>
+                          </TableHead>
+                          <TableHead>Disposition</TableHead>
+                          <TableHead>Recording</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredLogs.map((log) => (
+                          <TableRow key={log.id}>
+                            <TableCell>
+                              <div className="text-sm">
+                                {log.started_at && format(new Date(log.started_at), "MMM d, yyyy")}
+                                <div className="text-xs text-muted-foreground">
+                                  {log.started_at && format(new Date(log.started_at), "h:mm a")}
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell className="font-medium">
+                              {log.contacts ? `${log.contacts.first_name} ${log.contacts.last_name || ''}` : 'Unknown'}
+                            </TableCell>
+                            <TableCell className="font-mono text-sm">
+                              {log.call_type === 'outbound' ? log.to_number : log.from_number}
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant={
+                                  log.call_type === "inbound"
+                                    ? "default"
+                                    : "secondary"
+                                }
+                              >
+                                {log.call_type}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {log.conversation_duration ? formatDuration(log.conversation_duration) : 'N/A'}
+                            </TableCell>
+                            <TableCell>
+                              {log.call_dispositions ? (
+                                <Badge variant="outline">{log.call_dispositions.name}</Badge>
+                              ) : (
+                                <Badge variant="outline" className="opacity-50">Pending</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {log.recording_url ? (
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={async () => {
+                                    try {
+                                      const { data, error } = await supabase.functions.invoke('exotel-get-recording', {
+                                        body: { callLogId: log.id }
+                                      });
+                                      if (error) throw error;
+                                      notify.success("Recording loaded", "Playing recording...");
+                                    } catch (error: any) {
+                                      notify.error("Error", new Error("Failed to load recording"));
+                                    }
+                                  }}
+                                >
+                                  <Phone className="h-4 w-4" />
+                                </Button>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">
+                                  N/A
+                                </span>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </DashboardLayout>
   );
