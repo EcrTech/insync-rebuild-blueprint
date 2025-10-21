@@ -60,6 +60,60 @@ Deno.serve(async (req) => {
       .order('priority', { ascending: true })
       .limit(10);
 
+    // Fetch pipeline data
+    const { data: stages } = await supabase
+      .from('pipeline_stages')
+      .select('id, name, stage_order, probability')
+      .eq('org_id', orgId)
+      .order('stage_order');
+
+    const { data: contacts } = await supabase
+      .from('contacts')
+      .select('id, pipeline_stage_id, lead_score')
+      .eq('org_id', orgId);
+
+    // Fetch recent pipeline movements (last 7 days)
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const { data: recentMovements } = await supabase
+      .from('pipeline_movement_history')
+      .select('*, from_stage:pipeline_stages!from_stage_id(name), to_stage:pipeline_stages!to_stage_id(name)')
+      .eq('org_id', orgId)
+      .gte('moved_at', sevenDaysAgo.toISOString())
+      .order('moved_at', { ascending: false })
+      .limit(20);
+
+    // Fetch lead scores by stage
+    const { data: leadScores } = await supabase
+      .from('contact_lead_scores')
+      .select('contact_id, total_score, score_category')
+      .eq('org_id', orgId);
+
+    const scoreMap = new Map(leadScores?.map(s => [s.contact_id, s]) || []);
+
+    // Calculate pipeline metrics
+    const pipelineMetrics = stages?.map(stage => {
+      const stageContacts = contacts?.filter(c => c.pipeline_stage_id === stage.id) || [];
+      const scores = stageContacts.map(c => scoreMap.get(c.id)?.score_category).filter(Boolean);
+      const avgScore = stageContacts.reduce((sum, c) => {
+        const score = scoreMap.get(c.id)?.total_score || 0;
+        return sum + score;
+      }, 0) / (stageContacts.length || 1);
+
+      return {
+        name: stage.name,
+        count: stageContacts.length,
+        probability: stage.probability,
+        avgScore: Math.round(avgScore),
+        scoreBreakdown: {
+          hot: scores.filter(s => s === 'hot').length,
+          warm: scores.filter(s => s === 'warm').length,
+          cool: scores.filter(s => s === 'cool').length,
+        }
+      };
+    }) || [];
+
     // Build context summary
     const emailSummary = emailCampaigns?.map(c => 
       `${c.name}: ${c.status}, ${c.sent_count} sent, ${c.failed_count} failed`
@@ -77,7 +131,15 @@ Deno.serve(async (req) => {
       `${i.priority.toUpperCase()}: ${i.title}`
     ).join('\n') || 'No active insights';
 
-    const context = `You are a helpful campaign analytics assistant for an organization.
+    const pipelineSummary = pipelineMetrics.map(m => 
+      `${m.name}: ${m.count} contacts (${m.probability}% prob), Avg Score: ${m.avgScore}, Hot: ${m.scoreBreakdown.hot}, Warm: ${m.scoreBreakdown.warm}`
+    ).join('\n');
+
+    const recentMovementsSummary = recentMovements?.slice(0, 5).map(m => 
+      `${m.from_stage?.name || 'Unknown'} → ${m.to_stage?.name || 'Unknown'} (${m.days_in_previous_stage} days in prev stage)`
+    ).join('\n') || 'No recent movements';
+
+    const context = `You are a helpful campaign and pipeline analytics assistant for an organization.
 
 CURRENT CAMPAIGNS:
 
@@ -93,7 +155,13 @@ ${analyticsSummary}
 ACTIVE INSIGHTS:
 ${insightsSummary}
 
-Provide helpful, data-driven answers about campaign performance, trends, and recommendations.
+PIPELINE STATUS:
+${pipelineSummary}
+
+RECENT PIPELINE MOVEMENTS (Last 7 days):
+${recentMovementsSummary}
+
+Provide helpful, data-driven answers about campaign performance, pipeline health, lead scoring, trends, and recommendations.
 Be conversational but precise. Use specific numbers when available.
 If the user asks about specific campaigns, reference the data above.`;
 

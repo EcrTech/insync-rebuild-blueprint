@@ -3591,6 +3591,125 @@ export type Database = {
           },
         ]
       }
+      pipeline_benchmarks: {
+        Row: {
+          avg_days_in_stage: number | null
+          calculated_at: string
+          conversion_rate: number | null
+          created_at: string
+          id: string
+          org_id: string
+          period_end: string
+          period_start: string
+          stage_id: string
+          total_contacts_processed: number | null
+        }
+        Insert: {
+          avg_days_in_stage?: number | null
+          calculated_at?: string
+          conversion_rate?: number | null
+          created_at?: string
+          id?: string
+          org_id: string
+          period_end: string
+          period_start: string
+          stage_id: string
+          total_contacts_processed?: number | null
+        }
+        Update: {
+          avg_days_in_stage?: number | null
+          calculated_at?: string
+          conversion_rate?: number | null
+          created_at?: string
+          id?: string
+          org_id?: string
+          period_end?: string
+          period_start?: string
+          stage_id?: string
+          total_contacts_processed?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pipeline_benchmarks_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pipeline_benchmarks_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "pipeline_stages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pipeline_movement_history: {
+        Row: {
+          contact_id: string
+          created_at: string
+          days_in_previous_stage: number | null
+          from_stage_id: string | null
+          id: string
+          moved_at: string
+          moved_by: string | null
+          org_id: string
+          to_stage_id: string | null
+        }
+        Insert: {
+          contact_id: string
+          created_at?: string
+          days_in_previous_stage?: number | null
+          from_stage_id?: string | null
+          id?: string
+          moved_at?: string
+          moved_by?: string | null
+          org_id: string
+          to_stage_id?: string | null
+        }
+        Update: {
+          contact_id?: string
+          created_at?: string
+          days_in_previous_stage?: number | null
+          from_stage_id?: string | null
+          id?: string
+          moved_at?: string
+          moved_by?: string | null
+          org_id?: string
+          to_stage_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pipeline_movement_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pipeline_movement_history_from_stage_id_fkey"
+            columns: ["from_stage_id"]
+            isOneToOne: false
+            referencedRelation: "pipeline_stages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pipeline_movement_history_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pipeline_movement_history_to_stage_id_fkey"
+            columns: ["to_stage_id"]
+            isOneToOne: false
+            referencedRelation: "pipeline_stages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pipeline_stages: {
         Row: {
           color: string | null

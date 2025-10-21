@@ -1,9 +1,9 @@
-import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Brain, MessageCircle, TrendingUp } from "lucide-react";
-import InsightCard from "./InsightCard";
+import { Brain, MessageCircle, TrendingUp, GitBranch } from "lucide-react";
+import InsightCard from "@/components/Campaigns/Insights/InsightCard";
 import AIChatInterface from "./AIChatInterface";
+import PipelineInsightsCard from "./PipelineInsightsCard";
 import { useOrgContext } from "@/hooks/useOrgContext";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,62 +12,74 @@ import { Skeleton } from "@/components/ui/skeleton";
 export default function AIInsightsTab() {
   const { effectiveOrgId } = useOrgContext();
 
-  const { data: insights = [], isLoading } = useQuery({
-    queryKey: ['ai-insights', effectiveOrgId],
+  // Fetch AI-generated insights from campaign_insights table
+  const { data: aiInsights = [], isLoading: insightsLoading, refetch } = useQuery({
+    queryKey: ['campaign-insights', effectiveOrgId],
     queryFn: async () => {
       if (!effectiveOrgId) return [];
       
-      // Fetch some basic insights data
-      const [emailData, whatsappData, contactsData] = await Promise.all([
-        supabase.from('email_bulk_campaigns').select('*').eq('org_id', effectiveOrgId).limit(10),
-        supabase.from('whatsapp_bulk_campaigns').select('*').eq('org_id', effectiveOrgId).limit(10),
-        supabase.from('contacts').select('*').eq('org_id', effectiveOrgId).limit(100),
-      ]);
+      const { data, error } = await supabase
+        .from('campaign_insights')
+        .select('*')
+        .eq('org_id', effectiveOrgId)
+        .eq('status', 'active')
+        .order('priority', { ascending: true })
+        .order('created_at', { ascending: false });
 
-      const insights = [];
-      
-      if (emailData.data && emailData.data.length > 0) {
-        const totalSent = emailData.data.reduce((sum, c) => sum + (c.sent_count || 0), 0);
-        // Note: opened_count tracking will be added in future updates
-        const openRate = totalSent > 0 ? Math.round((totalSent / Math.max(totalSent, 1)) * 100) : 0;
-        
-        insights.push({
-          title: "Email Campaign Performance",
-          description: `Your email campaigns have an average open rate of ${openRate}%. ${openRate > 20 ? 'Great job!' : 'Consider improving subject lines.'}`,
-          type: openRate > 20 ? "success" : "warning",
-          metric: `${openRate}%`,
-          trend: openRate > 20 ? "up" : "neutral"
-        });
-      }
-
-      if (whatsappData.data && whatsappData.data.length > 0) {
-        const totalSent = whatsappData.data.reduce((sum, c) => sum + (c.sent_count || 0), 0);
-        const totalFailed = whatsappData.data.reduce((sum, c) => sum + (c.failed_count || 0), 0);
-        const deliveryRate = totalSent > 0 ? Math.round(((totalSent - totalFailed) / totalSent) * 100) : 0;
-        
-        insights.push({
-          title: "WhatsApp Delivery Rate",
-          description: `${deliveryRate}% of your WhatsApp messages are being delivered successfully. ${deliveryRate > 90 ? 'Excellent!' : 'Some numbers may be invalid.'}`,
-          type: deliveryRate > 90 ? "success" : "warning",
-          metric: `${deliveryRate}%`,
-          trend: deliveryRate > 90 ? "up" : "neutral"
-        });
-      }
-
-      if (contactsData.data && contactsData.data.length > 0) {
-        insights.push({
-          title: "Contact Database Health",
-          description: `You have ${contactsData.data.length} contacts in your database. Keep engaging with them regularly.`,
-          type: "info",
-          metric: `${contactsData.data.length}`,
-          trend: "up"
-        });
-      }
-
-      return insights;
+      if (error) throw error;
+      return data || [];
     },
     enabled: !!effectiveOrgId,
   });
+
+  // Fetch pipeline metrics
+  const { data: pipelineMetrics = [], isLoading: pipelineLoading } = useQuery({
+    queryKey: ['pipeline-metrics', effectiveOrgId],
+    queryFn: async () => {
+      if (!effectiveOrgId) return [];
+      
+      const [stagesRes, contactsRes, movementsRes] = await Promise.all([
+        supabase.from('pipeline_stages').select('*').eq('org_id', effectiveOrgId).order('stage_order'),
+        supabase.from('contacts').select('id, pipeline_stage_id').eq('org_id', effectiveOrgId),
+        supabase.from('pipeline_movement_history')
+          .select('*')
+          .eq('org_id', effectiveOrgId)
+          .gte('moved_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+      ]);
+
+      if (!stagesRes.data) return [];
+
+      return stagesRes.data.map((stage, idx) => {
+        const stageContacts = contactsRes.data?.filter(c => c.pipeline_stage_id === stage.id) || [];
+        const stageMovements = movementsRes.data?.filter(m => m.from_stage_id === stage.id) || [];
+        
+        const avgDays = stageMovements.length > 0
+          ? Math.round(stageMovements.reduce((sum, m) => sum + (m.days_in_previous_stage || 0), 0) / stageMovements.length)
+          : 0;
+
+        const nextStageId = stagesRes.data[idx + 1]?.id;
+        const movedToNext = movementsRes.data?.filter(m => 
+          m.from_stage_id === stage.id && m.to_stage_id === nextStageId
+        ).length || 0;
+        
+        const conversionRate = stageMovements.length > 0 
+          ? Math.round((movedToNext / stageMovements.length) * 100)
+          : 0;
+
+        return {
+          name: stage.name,
+          count: stageContacts.length,
+          probability: stage.probability || 0,
+          avgDays,
+          conversionRate,
+          trend: (conversionRate > 60 ? 'up' : conversionRate < 40 ? 'down' : 'neutral') as 'up' | 'down' | 'neutral',
+        };
+      });
+    },
+    enabled: !!effectiveOrgId,
+  });
+
+  const isLoading = insightsLoading || pipelineLoading;
 
   return (
     <div className="space-y-6">
@@ -80,7 +92,11 @@ export default function AIInsightsTab() {
         <TabsList>
           <TabsTrigger value="insights">
             <Brain className="h-4 w-4 mr-2" />
-            Smart Insights
+            AI Insights
+          </TabsTrigger>
+          <TabsTrigger value="pipeline">
+            <GitBranch className="h-4 w-4 mr-2" />
+            Pipeline Intelligence
           </TabsTrigger>
           <TabsTrigger value="chat">
             <MessageCircle className="h-4 w-4 mr-2" />
@@ -90,34 +106,51 @@ export default function AIInsightsTab() {
 
         <TabsContent value="insights" className="space-y-4">
           {isLoading ? (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {[1, 2, 3].map((i) => (
+            <div className="grid gap-4 md:grid-cols-2">
+              {[1, 2].map((i) => (
                 <Card key={i}>
                   <CardHeader>
                     <Skeleton className="h-6 w-3/4" />
                     <Skeleton className="h-4 w-full mt-2" />
                   </CardHeader>
                   <CardContent>
-                    <Skeleton className="h-8 w-20" />
+                    <Skeleton className="h-20 w-full" />
                   </CardContent>
                 </Card>
               ))}
             </div>
-          ) : insights.length === 0 ? (
+          ) : aiInsights.length === 0 ? (
             <Card>
               <CardContent className="text-center py-12">
                 <Brain className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                 <p className="text-muted-foreground">
-                  No insights available yet. Create some campaigns to get started!
+                  No AI insights available yet. Run analytics to generate insights!
                 </p>
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {insights.map((insight, index) => (
-                <InsightCard key={index} insight={insight} />
+            <div className="grid gap-4 md:grid-cols-2">
+              {aiInsights.map((insight) => (
+                <InsightCard key={insight.id} insight={insight} onUpdate={() => refetch()} />
               ))}
             </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="pipeline" className="space-y-4">
+          {isLoading ? (
+            <Skeleton className="h-96 w-full" />
+          ) : pipelineMetrics.length === 0 ? (
+            <Card>
+              <CardContent className="text-center py-12">
+                <GitBranch className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">
+                  No pipeline data available. Add contacts to your pipeline to see insights!
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <PipelineInsightsCard metrics={pipelineMetrics} />
           )}
         </TabsContent>
 
