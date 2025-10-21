@@ -315,22 +315,6 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                     <CreditCard size={20} />
                     <span>Subscriptions</span>
                   </Link>
-                  <Link
-                    to="/platform-admin/billing"
-                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-                    onClick={() => setSidebarOpen(false)}
-                  >
-                    <CreditCard size={20} />
-                    <span>Billing</span>
-                  </Link>
-                  <Link
-                    to="/platform-admin/usage"
-                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-                    onClick={() => setSidebarOpen(false)}
-                  >
-                    <Activity size={20} />
-                    <span>Usage</span>
-                  </Link>
                 </>
               )}
 

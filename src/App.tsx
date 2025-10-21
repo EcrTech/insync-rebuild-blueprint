@@ -49,9 +49,7 @@ import CampaignOverview from "./pages/Campaigns/CampaignOverview";
 import AIInsightsDashboard from "./pages/Campaigns/AIInsightsDashboard";
 import Documentation from "./pages/Documentation";
 import RedefineDataRepository from "./pages/RedefineDataRepository";
-import Billing from "./pages/Billing";
-import Usage from "./pages/Usage";
-import PlatformAdminSubscriptions from "./pages/PlatformAdminSubscriptions";
+import Subscriptions from "./pages/Subscriptions";
 import Inventory from "./pages/Inventory";
 import ApiKeys from "./pages/ApiKeys";
 import GoogleCalendarCallback from "./pages/GoogleCalendarCallback";
@@ -340,21 +338,9 @@ const App = () => (
             </ProtectedRoute>
           } />
           
-          <Route path="/platform-admin/billing" element={
-            <ProtectedRoute>
-              <Billing />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/platform-admin/usage" element={
-            <ProtectedRoute>
-              <Usage />
-            </ProtectedRoute>
-          } />
-          
           <Route path="/platform-admin/subscriptions" element={
             <ProtectedRoute>
-              <PlatformAdminSubscriptions />
+              <Subscriptions />
             </ProtectedRoute>
           } />
           
