@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useOrgContext } from "@/hooks/useOrgContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -35,27 +36,13 @@ export default function WhatsAppCampaigns() {
   });
 
   // Realtime subscription for campaign updates
-  useEffect(() => {
-    if (!effectiveOrgId) return;
-
-    const channel = supabase
-      .channel('whatsapp-campaigns-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'whatsapp_bulk_campaigns',
-          filter: `org_id=eq.${effectiveOrgId}`,
-        },
-        () => refetch()
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [effectiveOrgId, refetch]);
+  useRealtimeSync({
+    table: 'whatsapp_bulk_campaigns',
+    filter: `org_id=eq.${effectiveOrgId}`,
+    enabled: !!effectiveOrgId,
+    onUpdate: () => refetch(),
+    onInsert: () => refetch(),
+  });
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, any> = {

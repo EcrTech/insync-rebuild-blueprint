@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgContext } from "@/hooks/useOrgContext";
 import { useNotification } from "@/hooks/useNotification";
@@ -40,10 +41,7 @@ interface EmailTemplate {
 const Templates = () => {
   const { effectiveOrgId } = useOrgContext();
   const notify = useNotification();
-  const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
-  const [whatsappTemplates, setWhatsappTemplates] = useState<WhatsAppTemplate[]>([]);
-  const [emailTemplates, setEmailTemplates] = useState<EmailTemplate[]>([]);
   const [queuedJobId, setQueuedJobId] = useState<string | null>(null);
   const [queueStatus, setQueueStatus] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("whatsapp");
@@ -64,7 +62,7 @@ const Templates = () => {
         setQueuedJobId(null);
         setQueueStatus(null);
         setSyncing(false);
-        fetchTemplates();
+        // React Query will refetch automatically
       } else if (newStatus === 'failed') {
         notify.error("Sync Failed", payload.new.error || "Failed to sync templates");
         setQueuedJobId(null);
@@ -74,23 +72,9 @@ const Templates = () => {
     },
   });
 
-  useEffect(() => {
-    if (effectiveOrgId) {
-      fetchTemplates();
-    }
-  }, [effectiveOrgId]);
-
-  const fetchTemplates = async () => {
-    setLoading(true);
-    try {
-      await Promise.all([fetchWhatsAppTemplates(), fetchEmailTemplates()]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchWhatsAppTemplates = async () => {
-    try {
+  const { data: whatsappTemplates = [], isLoading: loadingWhatsApp } = useQuery({
+    queryKey: ['whatsapp-templates', effectiveOrgId],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from("communication_templates")
         .select("*")
@@ -98,15 +82,14 @@ const Templates = () => {
         .order("template_name");
 
       if (error) throw error;
-      setWhatsappTemplates((data || []) as unknown as WhatsAppTemplate[]);
-    } catch (error: any) {
-      console.error("Error fetching WhatsApp templates:", error);
-      notify.error("Error", "Failed to load WhatsApp templates");
-    }
-  };
+      return (data || []) as unknown as WhatsAppTemplate[];
+    },
+    enabled: !!effectiveOrgId,
+  });
 
-  const fetchEmailTemplates = async () => {
-    try {
+  const { data: emailTemplates = [], isLoading: loadingEmail, refetch: refetchEmailTemplates } = useQuery({
+    queryKey: ['email-templates', effectiveOrgId],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from("email_templates")
         .select("*")
@@ -115,12 +98,12 @@ const Templates = () => {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setEmailTemplates(data || []);
-    } catch (error: any) {
-      console.error("Error fetching email templates:", error);
-      notify.error("Error", "Failed to load email templates");
-    }
-  };
+      return data || [];
+    },
+    enabled: !!effectiveOrgId,
+  });
+
+  const loading = loadingWhatsApp || loadingEmail;
 
   const handleSync = async () => {
     setSyncing(true);
@@ -136,10 +119,9 @@ const Templates = () => {
         
         notify.info("Sync Queued", `Your template sync has been queued. Estimated wait: ${response.data.estimated_wait_minutes} minutes. Position: ${response.data.position_in_queue}`);
       } else {
-        // Immediate sync
+        // Immediate sync - React Query will refetch automatically
         notify.success("Success", `Synced ${response.data.synced} templates from Gupshup`);
         setSyncing(false);
-        fetchWhatsAppTemplates();
       }
     } catch (error: any) {
       console.error("Error syncing templates:", error);
@@ -170,7 +152,7 @@ const Templates = () => {
       if (error) throw error;
 
       notify.success("Success", "Template deleted successfully");
-      fetchEmailTemplates();
+      refetchEmailTemplates();
     } catch (error: any) {
       console.error("Error deleting template:", error);
       notify.error("Error", "Failed to delete template");
@@ -393,7 +375,7 @@ const Templates = () => {
         open={emailDialogOpen}
         onOpenChange={setEmailDialogOpen}
         template={selectedEmailTemplate}
-        onSuccess={fetchEmailTemplates}
+        onSuccess={refetchEmailTemplates}
       />
     </DashboardLayout>
   );

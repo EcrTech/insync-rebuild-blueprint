@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { supabase } from "@/integrations/supabase/client";
 import { useNotification } from "@/hooks/useNotification";
+import { LoadingState } from "@/components/common/LoadingState";
 import { Loader2, Send, ArrowRight, ArrowLeft } from "lucide-react";
 import { useOrgContext } from "@/hooks/useOrgContext";
 import { VariableMappingStep } from "@/components/Campaigns/VariableMappingStep";

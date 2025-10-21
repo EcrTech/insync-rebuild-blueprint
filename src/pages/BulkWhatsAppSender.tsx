@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useNotification } from "@/hooks/useNotification";
+import { LoadingState } from "@/components/common/LoadingState";
 import { Loader2, Upload, Users, Send } from "lucide-react";
 import { VariableMappingStep } from "@/components/Campaigns/VariableMappingStep";
 import { TemplateVariable, VariableMapping, detectTemplateVariables } from "@/utils/templateVariables";
@@ -580,23 +581,19 @@ export default function BulkWhatsAppSender() {
               <Button variant="outline" onClick={() => setStep(3)} className="flex-1">
                 Back
               </Button>
-              <Button 
-                onClick={handleCreateCampaign} 
-                disabled={loading}
-                className="flex-1"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {sendImmediately ? 'Sending...' : 'Scheduling...'}
-                  </>
-                ) : (
-                  <>
-                    <Send className="mr-2 h-4 w-4" />
-                    {sendImmediately ? 'Send Campaign' : 'Schedule Campaign'}
-                  </>
-                )}
-              </Button>
+              {loading ? (
+                <div className="flex-1">
+                  <LoadingState message="Creating campaign..." />
+                </div>
+              ) : (
+                <Button 
+                  onClick={handleCreateCampaign} 
+                  className="flex-1"
+                >
+                  <Send className="mr-2 h-4 w-4" />
+                  {sendImmediately ? 'Send Campaign' : 'Schedule Campaign'}
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
