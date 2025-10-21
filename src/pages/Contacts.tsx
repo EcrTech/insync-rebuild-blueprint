@@ -28,6 +28,11 @@ interface Contact {
   status: string;
   source: string | null;
   assigned_to: string | null;
+  pipeline_stage_id: string | null;
+  pipeline_stages?: {
+    name: string;
+    color: string;
+  } | null;
   created_at: string;
 }
 
@@ -88,7 +93,10 @@ export default function Contacts() {
       // PERFORMANCE: Paginated loading with cursor
       const { data, error, count } = await supabase
         .from("contacts")
-        .select("*", { count: 'exact' })
+        .select(`
+          *,
+          pipeline_stages:pipeline_stage_id(name, color)
+        `, { count: 'exact' })
         .eq("org_id", effectiveOrgId)
         .order("created_at", { ascending: false })
         .range(offset, offset + limit - 1);
@@ -257,7 +265,7 @@ export default function Contacts() {
       job_title: contact.job_title || "",
       status: contact.status,
       source: contact.source || "",
-      pipeline_stage_id: "",
+      pipeline_stage_id: contact.pipeline_stage_id || "",
       assigned_to: contact.assigned_to || "",
       notes: "",
     });
@@ -574,6 +582,7 @@ Jane,Smith,jane.smith@example.com,+0987654321,Tech Inc,CEO,contacted,Referral`;
                     <TableHead>Name</TableHead>
                     <TableHead>Company</TableHead>
                     <TableHead>Contact Info</TableHead>
+                    <TableHead>Pipeline Stage</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -610,6 +619,18 @@ Jane,Smith,jane.smith@example.com,+0987654321,Tech Inc,CEO,contacted,Referral`;
                             </span>
                           )}
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        {contact.pipeline_stages && (
+                          <Badge 
+                            style={{ 
+                              backgroundColor: contact.pipeline_stages.color || '#8AD4EB',
+                              color: '#fff'
+                            }}
+                          >
+                            {contact.pipeline_stages.name}
+                          </Badge>
+                        )}
                       </TableCell>
                       <TableCell>
                         <Badge className={getStatusColor(contact.status)}>
