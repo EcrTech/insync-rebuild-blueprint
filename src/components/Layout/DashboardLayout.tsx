@@ -432,17 +432,6 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                     </div>
                   )}
                   
-                  {canAccessFeature("organization_settings") && (
-                    <Link
-                      to="/admin"
-                      className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-                      onClick={() => setSidebarOpen(false)}
-                    >
-                      <Building2 size={20} />
-                      <span>Organization Settings</span>
-                    </Link>
-                  )}
-                  
                   {canAccessFeature("pipeline_stages") && (
                     <Link
                       to="/admin/pipeline-stages"
@@ -484,6 +473,17 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                     >
                       <FileText size={20} />
                       <span>Forms</span>
+                    </Link>
+                  )}
+                  
+                  {canAccessFeature("organization_settings") && (
+                    <Link
+                      to="/admin"
+                      className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
+                      onClick={() => setSidebarOpen(false)}
+                    >
+                      <Building2 size={20} />
+                      <span>Organization Settings</span>
                     </Link>
                   )}
                   
