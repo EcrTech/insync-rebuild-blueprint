@@ -54,7 +54,6 @@ export function EditContactDialog({
     last_name: "",
     company: "",
     job_title: "",
-    status: "new",
     source: "",
     linkedin_url: "",
     notes: "",
@@ -86,7 +85,6 @@ export function EditContactDialog({
         last_name: contact.last_name || "",
         company: contact.company || "",
         job_title: contact.job_title || "",
-        status: contact.status,
         source: contact.source || "",
         linkedin_url: contact.linkedin_url || "",
         notes: contact.notes || "",
@@ -107,7 +105,6 @@ export function EditContactDialog({
           last_name: formData.last_name || null,
           company: formData.company || null,
           job_title: formData.job_title || null,
-          status: formData.status,
           source: formData.source || null,
           linkedin_url: formData.linkedin_url || null,
           notes: formData.notes || null,
@@ -174,46 +171,29 @@ export function EditContactDialog({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="status">Status</Label>
-              <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="new">New</SelectItem>
-                  <SelectItem value="contacted">Contacted</SelectItem>
-                  <SelectItem value="qualified">Qualified</SelectItem>
-                  <SelectItem value="converted">Converted</SelectItem>
-                  <SelectItem value="lost">Lost</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="pipeline_stage">Pipeline Stage</Label>
-              <Select 
-                value={formData.pipeline_stage_id} 
-                onValueChange={(value) => setFormData({ ...formData, pipeline_stage_id: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select stage" />
-                </SelectTrigger>
-                <SelectContent>
-                  {pipelineStages.map((stage) => (
-                    <SelectItem key={stage.id} value={stage.id}>
-                      <div className="flex items-center gap-2">
-                        <div 
-                          className="w-3 h-3 rounded-full" 
-                          style={{ backgroundColor: stage.color }}
-                        />
-                        {stage.name}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="pipeline_stage">Pipeline Stage</Label>
+            <Select 
+              value={formData.pipeline_stage_id} 
+              onValueChange={(value) => setFormData({ ...formData, pipeline_stage_id: value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select stage" />
+              </SelectTrigger>
+              <SelectContent>
+                {pipelineStages.map((stage) => (
+                  <SelectItem key={stage.id} value={stage.id}>
+                    <div className="flex items-center gap-2">
+                      <div 
+                        className="w-3 h-3 rounded-full" 
+                        style={{ backgroundColor: stage.color }}
+                      />
+                      {stage.name}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">
