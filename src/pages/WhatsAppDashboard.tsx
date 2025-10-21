@@ -5,7 +5,7 @@ import { DashboardLayout } from "@/components/Layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 import { Loader2, MessageSquare, CheckCircle2, XCircle, Clock, Send, RefreshCw, Download } from "lucide-react";
 import { format } from "date-fns";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -42,7 +42,7 @@ interface MessageStats {
 
 const WhatsAppDashboard = () => {
   const { effectiveOrgId } = useOrgContext();
-  const { toast } = useToast();
+  const notify = useNotification();
 
   const fetchMessages = async () => {
     const { data, error } = await supabase
@@ -130,16 +130,9 @@ const WhatsAppDashboard = () => {
 
       exportToCSV(messages, columns, `whatsapp-messages-${new Date().toISOString().split('T')[0]}`);
       
-      toast({
-        title: "Success",
-        description: "Messages exported successfully",
-      });
+      notify.success("Success", "Messages exported successfully");
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to export messages",
-        variant: "destructive",
-      });
+      notify.error("Error", "Failed to export messages");
     }
   };
 

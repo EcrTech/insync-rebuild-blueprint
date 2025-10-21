@@ -5,12 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 import { Building2, Palette, Users, Upload } from "lucide-react";
 import GoogleCalendarSettings from "@/components/Settings/GoogleCalendarSettings";
 
 export default function TechAdmin() {
-  const { toast } = useToast();
+  const notify = useNotification();
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -92,21 +92,13 @@ export default function TechAdmin() {
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
-      toast({
-        variant: "destructive",
-        title: "Invalid file type",
-        description: "Please upload an image file",
-      });
+      notify.error("Invalid file type", "Please upload an image file");
       return;
     }
 
     // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      toast({
-        variant: "destructive",
-        title: "File too large",
-        description: "Please upload an image smaller than 5MB",
-      });
+      notify.error("File too large", "Please upload an image smaller than 5MB");
       return;
     }
 
@@ -143,16 +135,9 @@ export default function TechAdmin() {
       // Update organization with new logo URL
       setOrgData({ ...orgData, logo_url: publicUrl });
 
-      toast({
-        title: "Logo uploaded",
-        description: "Logo uploaded successfully. Don't forget to save changes.",
-      });
+      notify.success("Logo uploaded", "Logo uploaded successfully. Don't forget to save changes.");
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Upload failed",
-        description: error.message,
-      });
+      notify.error("Upload failed", error);
     } finally {
       setUploading(false);
     }
@@ -183,19 +168,12 @@ export default function TechAdmin() {
 
       if (error) throw error;
 
-      toast({
-        title: "Settings saved",
-        description: "Your organization settings have been updated",
-      });
+      notify.success("Settings saved", "Your organization settings have been updated");
       
       // Reload page to show new logo in sidebar
       window.location.reload();
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Failed to save",
-        description: error.message,
-      });
+      notify.error("Failed to save", error);
     } finally {
       setLoading(false);
     }

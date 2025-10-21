@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Download, Calendar, Plus, Phone, Target } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 import { useNavigate } from "react-router-dom";
 import { CustomReportsList } from "@/components/Reports/CustomReportsList";
 import { ReportViewer } from "@/components/Reports/ReportViewer";
@@ -35,7 +35,7 @@ export default function Reports() {
   const navigate = useNavigate();
   const [dateRange, setDateRange] = useState<"week" | "month" | "quarter">("month");
   const [viewingReportId, setViewingReportId] = useState<string | null>(null);
-  const { toast } = useToast();
+  const notify = useNotification();
   const { effectiveOrgId } = useOrgContext();
 
   // Calculate date range
@@ -91,11 +91,7 @@ export default function Reports() {
 
   const exportToCSV = (data: any[], filename: string) => {
     if (data.length === 0) {
-      toast({
-        variant: "destructive",
-        title: "No data",
-        description: "There is no data to export",
-      });
+      notify.error("No data", "There is no data to export");
       return;
     }
 
@@ -111,10 +107,7 @@ export default function Reports() {
     a.click();
     window.URL.revokeObjectURL(url);
 
-    toast({
-      title: "Export successful",
-      description: `Report exported as ${filename}_${dateRange}.csv`,
-    });
+    notify.success("Export successful", `Report exported as ${filename}_${dateRange}.csv`);
   };
 
   return (

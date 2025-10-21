@@ -8,7 +8,7 @@ import { DesignationPermissions } from "@/components/PlatformAdmin/DesignationPe
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 import { Building2, Users, Activity, MoreVertical, Eye, Ban, CheckCircle, LogIn, PhoneCall, Mail, UserCheck, AlertTriangle } from "lucide-react";
 import {
   DropdownMenu,
@@ -109,7 +109,7 @@ export default function PlatformAdmin() {
   const [showErrorLogs, setShowErrorLogs] = useState(false);
   const [orphanedProfiles, setOrphanedProfiles] = useState<OrphanedProfile[]>([]);
   const [loadingOrphaned, setLoadingOrphaned] = useState(false);
-  const { toast } = useToast();
+  const notify = useNotification();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -133,22 +133,14 @@ export default function PlatformAdmin() {
         .single();
 
       if (!profile?.is_platform_admin) {
-        toast({
-          variant: "destructive",
-          title: "Access Denied",
-          description: "You don't have platform admin privileges",
-        });
+        notify.error("Access Denied", "You don't have platform admin privileges");
         navigate("/dashboard");
         return;
       }
 
       fetchOrganizations();
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message,
-      });
+      notify.error("Error", error);
     }
   };
 
@@ -279,12 +271,8 @@ export default function PlatformAdmin() {
         emailVolume: totalEmails,
       });
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error loading organizations",
-        description: error.message,
-      });
-    } finally {
+      notify.error("Error loading organizations", error);
+    } finally{
       setLoading(false);
     }
   };
@@ -318,11 +306,7 @@ export default function PlatformAdmin() {
       setOrgDetails({ users, contacts });
       setIsDetailsOpen(true);
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message,
-      });
+      notify.error("Error", error);
     }
   };
 
@@ -330,10 +314,7 @@ export default function PlatformAdmin() {
     // Use utility function to set impersonation
     setImpersonation(org.id, org.name);
 
-    toast({
-      title: "Switched to organization",
-      description: `You are now accessing ${org.name}`,
-    });
+    notify.success("Switched to organization", `You are now accessing ${org.name}`);
 
     // Redirect to dashboard
     navigate("/dashboard");
@@ -360,18 +341,11 @@ export default function PlatformAdmin() {
         details: { org_name: org.name } as any,
       }] as any);
 
-      toast({
-        title: "Success",
-        description: `Organization ${disable ? "disabled" : "enabled"} successfully`,
-      });
+      notify.success("Success", `Organization ${disable ? "disabled" : "enabled"} successfully`);
 
       fetchOrganizations();
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message,
-      });
+      notify.error("Error", error);
     }
   };
 
@@ -408,11 +382,7 @@ export default function PlatformAdmin() {
       setTotalPages(Math.ceil((count || 0) / pageSize));
       setCurrentPage(page);
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error loading logs",
-        description: error.message,
-      });
+      notify.error("Error loading logs", error);
     }
   };
 
@@ -452,18 +422,11 @@ export default function PlatformAdmin() {
       
       if (error) throw error;
 
-      toast({
-        title: "Account deleted",
-        description: `Orphaned account for ${userName} has been removed`,
-      });
+      notify.success("Account deleted", `Orphaned account for ${userName} has been removed`);
 
       fetchOrphanedProfiles();
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message,
-      });
+      notify.error("Error", error);
     }
   };
 

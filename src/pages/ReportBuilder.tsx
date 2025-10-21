@@ -12,11 +12,11 @@ import SaveReportDialog from "@/components/Reports/SaveReportDialog";
 import { DataSourceType, getDataSource } from "@/config/reportDataSources";
 import { ReportParameters } from "@/utils/reportQueryBuilder";
 import { useOrgContext } from "@/hooks/useOrgContext";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 
 export default function ReportBuilder() {
   const { effectiveOrgId } = useOrgContext();
-  const { toast } = useToast();
+  const notify = useNotification();
   const navigate = useNavigate();
   
   const [selectedDataSource, setSelectedDataSource] = useState<DataSourceType | null>(null);
@@ -29,10 +29,7 @@ export default function ReportBuilder() {
   const dataSource = selectedDataSource ? getDataSource(selectedDataSource) : null;
 
   const handleExportCSV = () => {
-    toast({
-      title: "Export started",
-      description: "Your report will be downloaded shortly",
-    });
+    notify.info("Export started", "Your report will be downloaded shortly");
     // CSV export logic would go here
   };
 
@@ -128,10 +125,7 @@ export default function ReportBuilder() {
           }}
           orgId={effectiveOrgId!}
           onSaved={() => {
-            toast({
-              title: "Success",
-              description: "Report saved successfully",
-            });
+            notify.success("Success", "Report saved successfully");
           }}
         />
       )}

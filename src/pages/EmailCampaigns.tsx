@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 import { Loader2, Plus, Mail, Download, RefreshCw } from "lucide-react";
 import { useOrgContext } from "@/hooks/useOrgContext";
 import { format } from "date-fns";
@@ -28,7 +28,7 @@ interface Campaign {
 
 const EmailCampaigns = () => {
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const notify = useNotification();
   const { effectiveOrgId } = useOrgContext();
 
   const fetchCampaigns = async () => {
@@ -86,16 +86,9 @@ const EmailCampaigns = () => {
 
       exportToCSV(campaigns, columns, `email-campaigns-${new Date().toISOString().split('T')[0]}`);
       
-      toast({
-        title: "Success",
-        description: "Campaigns exported successfully",
-      });
+      notify.success("Success", "Campaigns exported successfully");
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to export campaigns",
-        variant: "destructive",
-      });
+      notify.error("Error", "Failed to export campaigns");
     }
   };
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 export default function GoogleCalendarCallback() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const notify = useNotification();
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
   const [message, setMessage] = useState('Connecting to Google Calendar...');
 
@@ -22,11 +22,7 @@ export default function GoogleCalendarCallback() {
       if (error) {
         setStatus('error');
         setMessage(`Authorization failed: ${error}`);
-        toast({
-          variant: "destructive",
-          title: "Connection Failed",
-          description: "You cancelled the Google Calendar authorization",
-        });
+        notify.error("Connection Failed", "You cancelled the Google Calendar authorization");
         return;
       }
 
@@ -49,10 +45,7 @@ export default function GoogleCalendarCallback() {
         setStatus('success');
         setMessage(`Successfully connected Google Calendar: ${data.calendar_email}`);
         
-        toast({
-          title: "Google Calendar Connected",
-          description: "You can now generate Google Meet links for your meetings",
-        });
+        notify.success("Google Calendar Connected", "You can now generate Google Meet links for your meetings");
 
         // Redirect after 2 seconds
         setTimeout(() => {
@@ -63,16 +56,12 @@ export default function GoogleCalendarCallback() {
         setStatus('error');
         setMessage(error.message || 'Failed to connect Google Calendar');
         
-        toast({
-          variant: "destructive",
-          title: "Connection Failed",
-          description: error.message || 'Failed to connect Google Calendar',
-        });
+        notify.error("Connection Failed", error);
       }
     };
 
     handleCallback();
-  }, [searchParams, navigate, toast]);
+  }, [searchParams, navigate, notify]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">

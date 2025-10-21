@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 import { Loader2, CheckCircle, FileText } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -39,7 +39,7 @@ interface FormData {
 export default function PublicForm() {
   const { formId } = useParams();
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const notify = useNotification();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -104,13 +104,9 @@ export default function PublicForm() {
 
       setFields(transformedFields);
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error loading form",
-        description: error.message,
-      });
+      notify.error("Error loading form", error);
       setTimeout(() => navigate("/"), 3000);
-    } finally {
+    } finally{
       setLoading(false);
     }
   };
@@ -167,32 +163,17 @@ export default function PublicForm() {
       }
 
       setSubmitted(true);
-      toast({
-        title: "Form submitted successfully",
-        description: "Thank you for your submission. We'll be in touch soon!",
-      });
+      notify.success("Form submitted successfully", "Thank you for your submission. We'll be in touch soon!");
     } catch (error: any) {
       const errorMessage = error.message || "Failed to submit form";
       
       // Handle rate limiting
       if (error.message?.includes('Rate limit') || error.message?.includes('Too many')) {
-        toast({
-          variant: "destructive",
-          title: "Submission Limit Reached",
-          description: errorMessage,
-        });
+        notify.error("Submission Limit Reached", errorMessage);
       } else if (error.message?.includes('Bot detected') || error.message?.includes('too fast')) {
-        toast({
-          variant: "destructive",
-          title: "Invalid Submission",
-          description: "Please try again more slowly.",
-        });
+        notify.error("Invalid Submission", "Please try again more slowly.");
       } else {
-        toast({
-          variant: "destructive",
-          title: "Error submitting form",
-          description: errorMessage,
-        });
+        notify.error("Error submitting form", errorMessage);
       }
     } finally {
       setSubmitting(false);

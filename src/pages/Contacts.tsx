@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useNotification } from "@/hooks/useNotification";
+import { useBulkUpload } from "@/hooks/useBulkUpload";
 import { Plus, Pencil, Trash2, Mail, Phone as PhoneIcon, Building, Upload, Download, Loader2 } from "lucide-react";
 import { useOrgContext } from "@/hooks/useOrgContext";
 
@@ -48,11 +49,10 @@ export default function Contacts() {
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
-  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const notify = useNotification();
+  const bulkUpload = useBulkUpload();
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
@@ -281,94 +281,44 @@ Jane,Smith,jane.smith@example.com,+0987654321,Tech Inc,CEO,contacted,Referral`;
     notify.info("Template Downloaded", "Use this template to format your contacts CSV file.");
   };
 
-  const handleCSVUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setUploading(true);
-
-    try {
-      const text = await file.text();
-      const lines = text.split('\n');
-      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
-
-      // LIMIT: Check total row count before processing
-      const dataRows = lines.slice(1).filter(line => line.trim());
-      if (dataRows.length > 10000) {
-        notify.error("File Too Large", new Error(`Maximum 10,000 contacts allowed per import. Your file contains ${dataRows.length} rows. Please split into smaller files.`));
-        setUploading(false);
-        e.target.value = '';
-        return;
-      }
-
-      const contactsToInsert = [];
-
-      for (let i = 1; i < lines.length; i++) {
-        if (!lines[i].trim()) continue;
-
-        const values = lines[i].split(',').map(v => v.trim());
-        const row: Record<string, string> = {};
-        headers.forEach((header, index) => {
-          row[header] = values[index] || '';
-        });
-
-        // Map CSV columns to database fields
-        const contact = {
-          first_name: row['first_name'] || row['first name'] || row['firstname'],
-          last_name: row['last_name'] || row['last name'] || row['lastname'] || null,
-          email: row['email'] || null,
-          phone: row['phone'] || null,
-          company: row['company'] || null,
-          job_title: row['job_title'] || row['job title'] || row['title'] || null,
-          status: row['status'] || 'new',
-          source: row['source'] || 'csv_import',
-        };
-
-        if (!contact.first_name) {
-          continue;
-        }
-
-        contactsToInsert.push(contact);
-      }
-
-      if (contactsToInsert.length === 0) {
-        notify.error("No Valid Contacts", new Error("No valid contacts found in the CSV file."));
-        return;
-      }
-
-      // PERFORMANCE: Use queue manager for batch processing with rate limiting
-      const { data, error } = await supabase.functions.invoke('queue-manager', {
-        body: {
-          operation: 'contact_import',
-          data: contactsToInsert,
-          priority: 5,
-        },
-      });
-
-      if (error) {
-        // Check if it's a rate limit error
-        if (error.message?.includes('Rate limit')) {
-          notify.error("Rate Limit Exceeded", new Error("Please wait a minute before importing more contacts."));
-        } else if (error.message?.includes('Item limit exceeded')) {
-          notify.error("Import Limit Exceeded", error);
-        } else {
-          throw error;
-        }
-        return;
-      }
-
-      const result = data as { processed: number; errors: number; total: number };
-
-      notify.success("CSV Import Complete", `Successfully imported ${result.processed} contacts. ${result.errors > 0 ? `${result.errors} rows failed.` : ''}`);
-
-      setIsUploadDialogOpen(false);
-      fetchContacts(true);
-    } catch (error: any) {
-      notify.error("Import Failed", error);
-    } finally {
-      setUploading(false);
-      e.target.value = '';
+  const handleCSVUpload = async (parsedData: any[]) => {
+    // LIMIT: Check count already validated by useBulkUpload
+    if (parsedData.length > 10000) {
+      throw new Error(`Maximum 10,000 contacts allowed per import. Your file contains ${parsedData.length} rows.`);
     }
+
+    // Map CSV data to contact format
+    const contactsToInsert = parsedData.map(row => ({
+      first_name: row.first_name,
+      last_name: row.last_name || null,
+      email: row.email || null,
+      phone: row.phone || null,
+      company: row.company || null,
+      job_title: row.job_title || row.title || null,
+      status: row.status || 'new',
+      source: row.source || 'csv_import',
+    }));
+
+    // PERFORMANCE: Use queue manager for batch processing with rate limiting
+    const { data, error } = await supabase.functions.invoke('queue-manager', {
+      body: {
+        operation: 'contact_import',
+        data: contactsToInsert,
+        priority: 5,
+      },
+    });
+
+    if (error) {
+      if (error.message?.includes('Rate limit')) {
+        throw new Error("Please wait a minute before importing more contacts.");
+      } else if (error.message?.includes('Item limit exceeded')) {
+        throw error;
+      } else {
+        throw error;
+      }
+    }
+
+    fetchContacts(true);
   };
 
   const getStatusColor = (status: string) => {
@@ -391,7 +341,7 @@ Jane,Smith,jane.smith@example.com,+0987654321,Tech Inc,CEO,contacted,Referral`;
             <p className="text-muted-foreground">Manage your leads and contacts</p>
           </div>
           <div className="flex gap-2">
-            <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
+            <Dialog open={bulkUpload.isOpen} onOpenChange={(open) => open ? bulkUpload.openDialog() : bulkUpload.closeDialog()}>
               <DialogTrigger asChild>
                 <Button variant="outline">
                   <Upload className="mr-2 h-4 w-4" />
@@ -422,16 +372,30 @@ Jane,Smith,jane.smith@example.com,+0987654321,Tech Inc,CEO,contacted,Referral`;
                     <Input
                       type="file"
                       accept=".csv"
-                      onChange={handleCSVUpload}
-                      disabled={uploading}
+                      onChange={bulkUpload.handleFileChange}
+                      disabled={bulkUpload.uploading}
                     />
                   </div>
-                  {uploading && (
+                  {bulkUpload.uploading && (
                     <div className="space-y-2">
                       <p className="text-sm text-muted-foreground">Processing CSV in batches of 100...</p>
                       <p className="text-xs text-muted-foreground">Large imports may take several minutes. Rate limited to 5 imports/min (max 10k contacts per file).</p>
                     </div>
                   )}
+                  <Button
+                    onClick={() => bulkUpload.handleUpload(handleCSVUpload, 'email')}
+                    disabled={!bulkUpload.file || bulkUpload.uploading}
+                    className="w-full"
+                  >
+                    {bulkUpload.uploading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Uploading...
+                      </>
+                    ) : (
+                      'Upload CSV'
+                    )}
+                  </Button>
                 </div>
               </DialogContent>
             </Dialog>

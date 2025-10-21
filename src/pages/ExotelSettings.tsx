@@ -5,13 +5,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Copy, Check } from "lucide-react";
 import { useOrgContext } from "@/hooks/useOrgContext";
 
 export default function ExotelSettings() {
-  const { toast } = useToast();
+  const notify = useNotification();
   const { effectiveOrgId } = useOrgContext();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -55,13 +55,9 @@ export default function ExotelSettings() {
           is_active: data.is_active ?? true,
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching settings:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load Exotel settings",
-        variant: "destructive",
-      });
+      notify.error("Error", error);
     } finally {
       setLoading(false);
     }
@@ -69,11 +65,7 @@ export default function ExotelSettings() {
 
   const handleSave = async () => {
     if (!settings.api_key || !settings.api_token || !settings.account_sid || !settings.caller_id) {
-      toast({
-        title: "Missing fields",
-        description: "Please fill in all required fields",
-        variant: "destructive",
-      });
+      notify.error("Missing fields", "Please fill in all required fields");
       return;
     }
 
@@ -88,17 +80,10 @@ export default function ExotelSettings() {
 
       if (error) throw error;
 
-      toast({
-        title: "Settings saved",
-        description: "Exotel configuration has been updated",
-      });
-    } catch (error) {
+      notify.success("Settings saved", "Exotel configuration has been updated");
+    } catch (error: any) {
       console.error('Error saving settings:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save Exotel settings",
-        variant: "destructive",
-      });
+      notify.error("Error", error);
     } finally {
       setSaving(false);
     }
@@ -108,10 +93,7 @@ export default function ExotelSettings() {
     navigator.clipboard.writeText(webhookUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-    toast({
-      title: "Copied!",
-      description: "Webhook URL copied to clipboard",
-    });
+    notify.success("Copied!", "Webhook URL copied to clipboard");
   };
 
   if (loading) {

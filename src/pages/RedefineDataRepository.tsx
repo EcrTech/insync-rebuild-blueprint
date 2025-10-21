@@ -13,7 +13,7 @@ import { AddEditRepositoryDialog } from "@/components/RedefineRepository/AddEdit
 import { BulkImportDialog } from "@/components/RedefineRepository/BulkImportDialog";
 import { RepositoryFilters } from "@/components/RedefineRepository/RepositoryFilters";
 import { exportToCSV, ExportColumn } from "@/utils/exportUtils";
-import { toast } from "sonner";
+import { useNotification } from "@/hooks/useNotification";
 import { format } from "date-fns";
 import {
   Pagination,
@@ -27,6 +27,7 @@ import {
 
 export default function RedefineDataRepository() {
   const { effectiveOrgId } = useOrgContext();
+  const notify = useNotification();
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -163,7 +164,7 @@ export default function RedefineDataRepository() {
 
   const handleExport = () => {
     if (!records || records.length === 0) {
-      toast.error("No data to export");
+      notify.error("No data to export", "There is no data to export");
       return;
     }
 
@@ -197,9 +198,9 @@ export default function RedefineDataRepository() {
 
     try {
       exportToCSV(records, columns, `redefine-repository-${format(new Date(), "yyyy-MM-dd")}`);
-      toast.success("Data exported successfully");
+      notify.success("Data exported successfully", "Your data has been exported to CSV");
     } catch (error) {
-      toast.error("Failed to export data");
+      notify.error("Failed to export data", "An error occurred while exporting");
     }
   };
 

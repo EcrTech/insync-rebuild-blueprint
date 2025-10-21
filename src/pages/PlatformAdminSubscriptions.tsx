@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 import { useOrgContext } from "@/hooks/useOrgContext";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -16,21 +16,17 @@ import { formatDistanceToNow } from "date-fns";
 import DashboardLayout from "@/components/Layout/DashboardLayout";
 
 export default function PlatformAdminSubscriptions() {
-  const { toast } = useToast();
+  const notify = useNotification();
   const { isPlatformAdmin, isLoading: orgLoading } = useOrgContext();
   const navigate = useNavigate();
 
   // Redirect non-platform admins
   useEffect(() => {
     if (!orgLoading && isPlatformAdmin === false) {
-      toast({
-        title: "Access Denied",
-        description: "Only platform admins can access subscription management.",
-        variant: "destructive",
-      });
+      notify.error("Access Denied", "Only platform admins can access subscription management.");
       navigate("/dashboard");
     }
-  }, [isPlatformAdmin, orgLoading, navigate, toast]);
+  }, [isPlatformAdmin, orgLoading, navigate, notify]);
   const [overrideDialogOpen, setOverrideDialogOpen] = useState(false);
   const [selectedSubscription, setSelectedSubscription] = useState<any>(null);
   const [overrideDate, setOverrideDate] = useState<Date>();
@@ -115,10 +111,7 @@ export default function PlatformAdminSubscriptions() {
 
         if (error) throw error;
 
-        toast({
-          title: "Success",
-          description: "Subscription created successfully",
-        });
+        notify.success("Success", "Subscription created successfully");
       } else {
         const { error } = await supabase
           .from('organization_subscriptions')
@@ -137,20 +130,13 @@ export default function PlatformAdminSubscriptions() {
 
         if (error) throw error;
 
-        toast({
-          title: "Success",
-          description: "Subscription updated successfully",
-        });
+        notify.success("Success", "Subscription updated successfully");
       }
 
       setEditDialogOpen(false);
       refetch();
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("Error", error);
     }
   };
 
@@ -167,20 +153,13 @@ export default function PlatformAdminSubscriptions() {
 
       if (error) throw error;
 
-      toast({
-        title: "Success",
-        description: "Subscription status overridden successfully",
-      });
+      notify.success("Success", "Subscription status overridden successfully");
 
       setOverrideDialogOpen(false);
       setOverrideDate(undefined);
       refetch();
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("Error", error);
     }
   };
 

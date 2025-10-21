@@ -5,6 +5,7 @@ import { useDialogState } from "@/hooks/useDialogState";
 import { useNotification } from "@/hooks/useNotification";
 import { useOrgData } from "@/hooks/useOrgData";
 import { useDragDropOrder } from "@/hooks/useDragDropOrder";
+import { useBulkUpload } from "@/hooks/useBulkUpload";
 import DashboardLayout from "@/components/Layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +13,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Pencil, Trash2, GripVertical, Upload, Download } from "lucide-react";
+import { Plus, Pencil, Trash2, GripVertical, Upload, Download, Loader2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { FormDialog } from "@/components/common/FormDialog";
 import { LoadingState } from "@/components/common/LoadingState";
@@ -154,7 +156,7 @@ function SortableFieldCard({ field, onEdit, onDelete }: SortableFieldCardProps) 
 export default function CustomFields() {
   const { effectiveOrgId } = useOrgContext();
   const notify = useNotification();
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const bulkUpload = useBulkUpload();
   const [isProcessing, setIsProcessing] = useState(false);
 
   const dialog = useDialogState({
@@ -167,8 +169,6 @@ export default function CustomFields() {
     field_order: 0,
     applies_to_table: "contacts",
   });
-
-  const uploadDialog = useDialogState({});
 
   const { data: fields = [], isLoading, refetch } = useOrgData<CustomField>("custom_fields", {
     orderBy: { column: "field_order", ascending: true }
@@ -306,53 +306,28 @@ export default function CustomFields() {
     notify.success("Template downloaded", "CSV template has been downloaded successfully");
   };
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      if (file.type !== "text/csv" && !file.name.endsWith(".csv")) {
-        notify.error("Invalid file type", "Please upload a CSV file");
-        return;
-      }
-      setUploadFile(file);
-    }
-  };
+  const processCSVUpload = async (parsedData: any[]) => {
+    if (!effectiveOrgId) return;
 
-  const processCSVUpload = async () => {
-    if (!uploadFile || !effectiveOrgId) return;
+    const fieldsToInsert = parsedData.map((row, index) => ({
+      field_name: row.field_name.toLowerCase().replace(/\s+/g, "_"),
+      field_label: row.field_label,
+      field_type: row.field_type,
+      field_options: row.field_options ? row.field_options.split(";").map(opt => opt.trim()).filter(opt => opt) : null,
+      is_required: row.is_required === "true",
+      is_active: row.is_active === "true",
+      field_order: parseInt(row.field_order) || index,
+      applies_to_table: row.applies_to_table || "contacts",
+      org_id: effectiveOrgId,
+    }));
 
-    setIsProcessing(true);
-    try {
-      const text = await uploadFile.text();
-      const rows = text.split("\n").map(row => row.split(","));
-      const dataRows = rows.slice(1).filter(row => row.length >= 7 && row[0].trim());
+    const { error } = await supabase
+      .from("custom_fields")
+      .insert(fieldsToInsert);
 
-      const fieldsToInsert = dataRows.map((row, index) => ({
-        field_name: row[0].trim().toLowerCase().replace(/\s+/g, "_"),
-        field_label: row[1].trim(),
-        field_type: row[2].trim(),
-        field_options: row[3].trim() ? row[3].trim().split(";").map(opt => opt.trim()).filter(opt => opt) : null,
-        is_required: row[4].trim().toLowerCase() === "true",
-        is_active: row[5].trim().toLowerCase() === "true",
-        field_order: parseInt(row[6].trim()) || index,
-        applies_to_table: row[7] && row[7].trim() ? row[7].trim() : "contacts",
-        org_id: effectiveOrgId,
-      }));
+    if (error) throw error;
 
-      const { error } = await supabase
-        .from("custom_fields")
-        .insert(fieldsToInsert);
-
-      if (error) throw error;
-
-      notify.success("Upload successful", `${fieldsToInsert.length} custom field(s) have been imported`);
-      uploadDialog.closeDialog();
-      setUploadFile(null);
-      refetch();
-    } catch (error) {
-      notify.error("Upload failed", error);
-    } finally {
-      setIsProcessing(false);
-    }
+    refetch();
   };
 
   return (
@@ -369,7 +344,7 @@ export default function CustomFields() {
               Download Template
             </Button>
 
-            <Button variant="outline" onClick={() => uploadDialog.openDialog()}>
+            <Button variant="outline" onClick={() => bulkUpload.openDialog()}>
               <Upload className="mr-2 h-4 w-4" />
               Bulk Upload
             </Button>
@@ -381,43 +356,56 @@ export default function CustomFields() {
           </div>
         </div>
 
-        <FormDialog
-          open={uploadDialog.isOpen}
-          onOpenChange={(open) => !open && uploadDialog.closeDialog()}
-          title="Upload Custom Fields CSV"
-          onSubmit={(e) => {
-            e.preventDefault();
-            processCSVUpload();
-          }}
-          isLoading={isProcessing}
-          submitLabel={isProcessing ? "Uploading..." : "Upload"}
-        >
-          <div className="space-y-2">
-            <Label>CSV File</Label>
-            <Input
-              type="file"
-              accept=".csv"
-              onChange={handleFileUpload}
-            />
-            <p className="text-xs text-muted-foreground">
-              Upload a CSV file with custom field definitions. Download the template for the correct format.
-            </p>
-          </div>
+        <Dialog open={bulkUpload.isOpen} onOpenChange={(open) => open ? bulkUpload.openDialog() : bulkUpload.closeDialog()}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Upload Custom Fields CSV</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label>CSV File</Label>
+                <Input
+                  type="file"
+                  accept=".csv"
+                  onChange={bulkUpload.handleFileChange}
+                  disabled={bulkUpload.uploading}
+                />
+                <p className="text-xs text-muted-foreground mt-2">
+                  Upload a CSV file with custom field definitions. Download the template for the correct format.
+                </p>
+              </div>
 
-          <div className="bg-muted p-4 rounded-lg space-y-2">
-            <p className="text-sm font-medium">CSV Format:</p>
-            <ul className="text-xs text-muted-foreground space-y-1">
-              <li>• field_name: Internal name (lowercase, underscores)</li>
-              <li>• field_label: Display label</li>
-              <li>• field_type: text, email, phone, number, date, select, textarea, file, location</li>
-              <li>• field_options: For select type, separate with semicolons (;)</li>
-              <li>• is_required: true or false</li>
-              <li>• is_active: true or false</li>
-              <li>• field_order: Number for ordering</li>
-              <li>• applies_to_table: contacts, redefine_data_repository, inventory_items, or all</li>
-            </ul>
-          </div>
-        </FormDialog>
+              <div className="bg-muted p-4 rounded-lg space-y-2">
+                <p className="text-sm font-medium">CSV Format:</p>
+                <ul className="text-xs text-muted-foreground space-y-1">
+                  <li>• field_name: Internal name (lowercase, underscores)</li>
+                  <li>• field_label: Display label</li>
+                  <li>• field_type: text, email, phone, number, date, select, textarea, file, location</li>
+                  <li>• field_options: For select type, separate with semicolons (;)</li>
+                  <li>• is_required: true or false</li>
+                  <li>• is_active: true or false</li>
+                  <li>• field_order: Number for ordering</li>
+                  <li>• applies_to_table: contacts, redefine_data_repository, inventory_items, or all</li>
+                </ul>
+              </div>
+
+              <Button
+                onClick={() => bulkUpload.handleUpload(processCSVUpload)}
+                disabled={!bulkUpload.file || bulkUpload.uploading}
+                className="w-full"
+              >
+                {bulkUpload.uploading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Uploading...
+                  </>
+                ) : (
+                  'Upload CSV'
+                )}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         <FormDialog
           open={dialog.isOpen}

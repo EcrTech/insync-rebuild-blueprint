@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 import { Plus, RefreshCw, Eye, Trash2, Download } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { exportToCSV, ExportColumn, formatDateForExport, formatNumberForExport } from "@/utils/exportUtils";
@@ -16,7 +16,7 @@ import { useEffect } from "react";
 export default function WhatsAppCampaigns() {
   const navigate = useNavigate();
   const { effectiveOrgId } = useOrgContext();
-  const { toast } = useToast();
+  const notify = useNotification();
 
   const fetchCampaigns = async () => {
     const { data } = await supabase
@@ -79,16 +79,9 @@ export default function WhatsAppCampaigns() {
       .eq("id", campaignId);
 
     if (error) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("Error", error);
     } else {
-      toast({
-        title: "Success",
-        description: "Campaign deleted",
-      });
+      notify.success("Success", "Campaign deleted");
       refetch();
     }
   };
@@ -115,16 +108,9 @@ export default function WhatsAppCampaigns() {
 
       exportToCSV(campaigns, columns, `whatsapp-campaigns-${new Date().toISOString().split('T')[0]}`);
       
-      toast({
-        title: "Success",
-        description: "Campaigns exported successfully",
-      });
+      notify.success("Success", "Campaigns exported successfully");
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to export campaigns",
-        variant: "destructive",
-      });
+      notify.error("Error", "Failed to export campaigns");
     }
   };
 

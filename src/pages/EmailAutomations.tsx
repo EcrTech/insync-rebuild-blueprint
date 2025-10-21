@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useOrgContext } from "@/hooks/useOrgContext";
 import { Button } from "@/components/ui/button";
 import { Plus, RefreshCw, Zap, TrendingUp, Mail, AlertCircle, BarChart3, History, Settings, Play } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 import {
   Card,
   CardContent,
@@ -37,7 +37,7 @@ import { AdvancedReporting } from "@/components/EmailAutomation/AdvancedReportin
 
 export default function EmailAutomations() {
   const { effectiveOrgId } = useOrgContext();
-  const { toast } = useToast();
+  const notify = useNotification();
   const queryClient = useQueryClient();
   const [isRuleBuilderOpen, setIsRuleBuilderOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<any>(null);
@@ -104,17 +104,10 @@ export default function EmailAutomations() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["email_automation_rules"] });
-      toast({
-        title: "Rule updated",
-        description: "Automation rule status changed successfully",
-      });
+      notify.success("Rule updated", "Automation rule status changed successfully");
     },
     onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("Error", error);
     },
   });
 
@@ -130,17 +123,10 @@ export default function EmailAutomations() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["email_automation_rules"] });
-      toast({
-        title: "Rule deleted",
-        description: "Automation rule deleted successfully",
-      });
+      notify.success("Rule deleted", "Automation rule deleted successfully");
     },
     onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("Error", error);
     },
   });
 

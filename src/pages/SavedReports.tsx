@@ -10,12 +10,12 @@ import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { reportDataSources } from "@/config/reportDataSources";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 
 export default function SavedReports() {
   const { effectiveOrgId } = useOrgContext();
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const notify = useNotification();
 
   const { data: reports, isLoading, refetch } = useQuery({
     queryKey: ['saved-reports', effectiveOrgId],
@@ -41,18 +41,11 @@ export default function SavedReports() {
 
       if (error) throw error;
 
-      toast({
-        title: "Report deleted",
-        description: "The report has been deleted successfully",
-      });
+      notify.success("Report deleted", "The report has been deleted successfully");
 
       refetch();
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("Error", error);
     }
   };
 

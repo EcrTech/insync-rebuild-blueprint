@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Plus, Trash2, Upload } from "lucide-react";
 import { useOrgContext } from "@/hooks/useOrgContext";
@@ -23,7 +23,7 @@ interface Button {
 
 export default function TemplateBuilder() {
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const notify = useNotification();
   const { effectiveOrgId } = useOrgContext();
   
   const [loading, setLoading] = useState(false);
@@ -88,11 +88,7 @@ export default function TemplateBuilder() {
 
   const addButton = (type: string) => {
     if (buttons.length >= 3) {
-      toast({
-        title: "Button Limit Reached",
-        description: "You can add a maximum of 3 buttons",
-        variant: "destructive",
-      });
+      notify.error("Button Limit Reached", "You can add a maximum of 3 buttons");
       return;
     }
 
@@ -131,11 +127,7 @@ export default function TemplateBuilder() {
     if (headerType !== 'none' && headerType !== 'text') {
       const allowedTypes = validTypes[headerType] || [];
       if (!allowedTypes.includes(file.type)) {
-        toast({
-          title: "Invalid File Type",
-          description: `Please upload a valid ${headerType} file`,
-          variant: "destructive",
-        });
+        notify.error("Invalid File Type", `Please upload a valid ${headerType} file`);
         return;
       }
     }
@@ -149,11 +141,7 @@ export default function TemplateBuilder() {
 
     const maxSize = maxSizes[headerType] || 5 * 1024 * 1024;
     if (file.size > maxSize) {
-      toast({
-        title: "File Too Large",
-        description: `File size must be less than ${maxSize / (1024 * 1024)}MB`,
-        variant: "destructive",
-      });
+      notify.error("File Too Large", `File size must be less than ${maxSize / (1024 * 1024)}MB`);
       return;
     }
 
@@ -179,17 +167,10 @@ export default function TemplateBuilder() {
 
       setMediaUrl(publicUrl);
 
-      toast({
-        title: "Upload Successful",
-        description: "File uploaded successfully",
-      });
+      notify.success("Upload Successful", "File uploaded successfully");
     } catch (error: any) {
       console.error('Error uploading file:', error);
-      toast({
-        title: "Upload Failed",
-        description: error.message || "Failed to upload file",
-        variant: "destructive",
-      });
+      notify.error("Upload Failed", error);
     } finally {
       setUploading(false);
     }
@@ -197,11 +178,7 @@ export default function TemplateBuilder() {
 
   const handleSubmit = async () => {
     if (!templateName || !bodyContent) {
-      toast({
-        title: "Validation Error",
-        description: "Template name and body content are required",
-        variant: "destructive",
-      });
+      notify.error("Validation Error", "Template name and body content are required");
       return;
     }
 
@@ -233,19 +210,12 @@ export default function TemplateBuilder() {
 
       if (error) throw error;
 
-      toast({
-        title: "Template Submitted",
-        description: data.message || "Template submitted successfully for WhatsApp approval",
-      });
+      notify.success("Template Submitted", data.message || "Template submitted successfully for WhatsApp approval");
 
       navigate('/templates');
     } catch (error: any) {
       console.error('Error submitting template:', error);
-      toast({
-        title: "Submission Failed",
-        description: error.message || "Failed to submit template",
-        variant: "destructive",
-      });
+      notify.error("Submission Failed", error);
     } finally {
       setLoading(false);
     }

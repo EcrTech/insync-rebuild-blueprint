@@ -4,7 +4,7 @@ import DashboardLayout from "@/components/Layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 import { Mail, Phone as PhoneIcon, Building, LayoutGrid, Table as TableIcon, Sparkles, Loader2, Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -51,7 +51,7 @@ export default function PipelineBoard() {
   const [showScoreDialog, setShowScoreDialog] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
-  const { toast } = useToast();
+  const notify = useNotification();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -81,11 +81,7 @@ export default function PipelineBoard() {
       setContacts(contactsRes.data || []);
       setAllContacts(contactsRes.data || []);
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error loading pipeline",
-        description: error.message,
-      });
+      notify.error("Error loading pipeline", error);
     } finally {
       setLoading(false);
     }
@@ -119,16 +115,9 @@ export default function PipelineBoard() {
         )
       );
 
-      toast({
-        title: "Contact moved",
-        description: "Contact has been moved to new stage",
-      });
+      notify.success("Contact moved", "Contact has been moved to new stage");
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message,
-      });
+      notify.error("Error", error);
     } finally {
       setDraggedContact(null);
     }
@@ -157,16 +146,9 @@ export default function PipelineBoard() {
 
       setSelectedLeadScore(data);
       setShowScoreDialog(true);
-      toast({
-        title: "Lead scored successfully",
-        description: `Score: ${data.finalScore}/100 (${data.grade})`,
-      });
+      notify.success("Lead scored successfully", `Score: ${data.finalScore}/100 (${data.grade})`);
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Scoring failed",
-        description: error.message,
-      });
+      notify.error("Scoring failed", error);
     } finally {
       setScoringLeadId(null);
     }
@@ -220,17 +202,10 @@ export default function PipelineBoard() {
       
       setContacts(filtered);
       
-      toast({
-        title: "Search complete",
-        description: `Found ${filtered.length} matching contacts`,
-      });
+      notify.success("Search complete", `Found ${filtered.length} matching contacts`);
     } catch (error: any) {
       console.error('Search error:', error);
-      toast({
-        variant: "destructive",
-        title: "Search failed",
-        description: error.message || 'Unknown error occurred',
-      });
+      notify.error("Search failed", error);
       setContacts(allContacts);
     } finally {
       setIsSearching(false);
