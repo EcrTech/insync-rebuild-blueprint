@@ -43,6 +43,7 @@ interface Contact {
   website: string | null;
   linkedin_url: string | null;
   notes: string | null;
+  pipeline_stage_id: string | null;
   created_at: string;
   pipeline_stages: { name: string } | null;
   profiles: { first_name: string; last_name: string } | null;

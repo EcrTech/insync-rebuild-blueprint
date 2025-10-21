@@ -136,6 +136,14 @@ export function FillFormDialog({ open, onOpenChange, contactId, onFormFilled }: 
         }
       }
 
+      // Check if there's a pipeline_stage field
+      const pipelineStageField = fields.find(
+        field => field.custom_field.field_name === "pipeline_stage"
+      );
+      const pipelineStageValue = pipelineStageField 
+        ? formValues[pipelineStageField.custom_field.field_name]
+        : null;
+
       // Delete existing custom field values for this contact and form
       const customFieldIds = fields.map(f => f.custom_field_id);
       await supabase
@@ -161,6 +169,43 @@ export function FillFormDialog({ open, onOpenChange, contactId, onFormFilled }: 
           .insert(customFieldValues);
 
         if (customFieldsError) throw customFieldsError;
+      }
+
+      // If pipeline stage was set, update the contact's pipeline_stage_id
+      if (pipelineStageValue) {
+        const { error: updateError } = await supabase
+          .from("contacts")
+          .update({ pipeline_stage_id: pipelineStageValue })
+          .eq("id", contactId);
+
+        if (updateError) throw updateError;
+
+        // Log an activity for the pipeline stage change
+        const { data: stageData } = await supabase
+          .from("pipeline_stages")
+          .select("name")
+          .eq("id", pipelineStageValue)
+          .single();
+
+        const { data: contactData } = await supabase
+          .from("contacts")
+          .select("org_id")
+          .eq("id", contactId)
+          .single();
+
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (stageData && contactData) {
+          await supabase.from("contact_activities").insert({
+            contact_id: contactId,
+            org_id: contactData.org_id,
+            activity_type: "note",
+            subject: "Pipeline Stage Updated",
+            description: `Pipeline stage changed to: ${stageData.name}`,
+            created_by: user?.id,
+            completed_at: new Date().toISOString(),
+          });
+        }
       }
 
       notify.success("Form filled successfully", "Contact information has been updated.");

@@ -11,6 +11,12 @@ import { ContactEmails } from "./ContactEmails";
 import { ContactPhones } from "./ContactPhones";
 import { Separator } from "@/components/ui/separator";
 
+interface PipelineStage {
+  id: string;
+  name: string;
+  color: string;
+}
+
 interface Contact {
   id: string;
   org_id: string;
@@ -24,6 +30,7 @@ interface Contact {
   source: string | null;
   linkedin_url: string | null;
   notes: string | null;
+  pipeline_stage_id: string | null;
 }
 
 interface EditContactDialogProps {
@@ -41,6 +48,7 @@ export function EditContactDialog({
 }: EditContactDialogProps) {
   const notify = useNotification();
   const [loading, setLoading] = useState(false);
+  const [pipelineStages, setPipelineStages] = useState<PipelineStage[]>([]);
   const [formData, setFormData] = useState({
     first_name: "",
     last_name: "",
@@ -50,7 +58,26 @@ export function EditContactDialog({
     source: "",
     linkedin_url: "",
     notes: "",
+    pipeline_stage_id: "",
   });
+
+  useEffect(() => {
+    const fetchPipelineStages = async () => {
+      const { data, error } = await supabase
+        .from("pipeline_stages")
+        .select("id, name, color")
+        .eq("is_active", true)
+        .order("stage_order");
+
+      if (!error && data) {
+        setPipelineStages(data);
+      }
+    };
+
+    if (open) {
+      fetchPipelineStages();
+    }
+  }, [open]);
 
   useEffect(() => {
     if (open && contact) {
@@ -63,6 +90,7 @@ export function EditContactDialog({
         source: contact.source || "",
         linkedin_url: contact.linkedin_url || "",
         notes: contact.notes || "",
+        pipeline_stage_id: contact.pipeline_stage_id || "",
       });
     }
   }, [open, contact]);
@@ -83,6 +111,7 @@ export function EditContactDialog({
           source: formData.source || null,
           linkedin_url: formData.linkedin_url || null,
           notes: formData.notes || null,
+          pipeline_stage_id: formData.pipeline_stage_id || null,
         })
         .eq("id", contact.id);
 
@@ -162,14 +191,39 @@ export function EditContactDialog({
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="source">Source</Label>
-              <Input
-                id="source"
-                value={formData.source}
-                onChange={(e) => setFormData({ ...formData, source: e.target.value })}
-                placeholder="e.g., Website, Referral"
-              />
+              <Label htmlFor="pipeline_stage">Pipeline Stage</Label>
+              <Select 
+                value={formData.pipeline_stage_id} 
+                onValueChange={(value) => setFormData({ ...formData, pipeline_stage_id: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select stage" />
+                </SelectTrigger>
+                <SelectContent>
+                  {pipelineStages.map((stage) => (
+                    <SelectItem key={stage.id} value={stage.id}>
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-3 h-3 rounded-full" 
+                          style={{ backgroundColor: stage.color }}
+                        />
+                        {stage.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="source">Source</Label>
+            <Input
+              id="source"
+              value={formData.source}
+              onChange={(e) => setFormData({ ...formData, source: e.target.value })}
+              placeholder="e.g., Website, Referral"
+            />
           </div>
 
           <div className="space-y-2">
