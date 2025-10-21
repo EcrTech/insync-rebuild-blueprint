@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 import { Loader2 } from "lucide-react";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { format } from "date-fns";
@@ -38,7 +38,7 @@ export function SendWhatsAppDialog({
   onMessageSent,
 }: SendWhatsAppDialogProps) {
   const { effectiveOrgId } = useOrgContext();
-  const { toast } = useToast();
+  const notify = useNotification();
   const [sending, setSending] = useState(false);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
@@ -70,11 +70,7 @@ export function SendWhatsAppDialog({
       setTemplates((data || []) as Template[]);
     } catch (error: any) {
       console.error("Error fetching templates:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load templates",
-        variant: "destructive",
-      });
+      notify.error("Error", new Error("Failed to load templates"));
     }
   };
 
@@ -92,29 +88,17 @@ export function SendWhatsAppDialog({
 
   const handleSend = async () => {
     if (messageType === "template" && !selectedTemplateId) {
-      toast({
-        title: "Validation Error",
-        description: "Please select a template",
-        variant: "destructive",
-      });
+      notify.error("Validation Error", new Error("Please select a template"));
       return;
     }
 
     if (messageType === "custom" && !customMessage.trim()) {
-      toast({
-        title: "Validation Error",
-        description: "Please enter a message",
-        variant: "destructive",
-      });
+      notify.error("Validation Error", new Error("Please enter a message"));
       return;
     }
 
     if (!sendImmediately && !scheduledAt) {
-      toast({
-        title: "Validation Error",
-        description: "Please select a scheduled date and time",
-        variant: "destructive",
-      });
+      notify.error("Validation Error", new Error("Please select a scheduled date and time"));
       return;
     }
 
@@ -140,10 +124,7 @@ export function SendWhatsAppDialog({
 
         if (error) throw error;
 
-        toast({
-          title: "Success",
-          description: "WhatsApp message sent successfully",
-        });
+        notify.success("Success", "WhatsApp message sent successfully");
       } else {
         // Create scheduled message record
         const { data: { user } } = await supabase.auth.getUser();
@@ -168,21 +149,14 @@ export function SendWhatsAppDialog({
 
         if (error) throw error;
 
-        toast({
-          title: "Message scheduled",
-          description: `Message will be sent on ${format(scheduledAt, "PPP 'at' p")}`,
-        });
+        notify.success("Message scheduled", `Message will be sent on ${format(scheduledAt, "PPP 'at' p")}`);
       }
 
       onOpenChange(false);
       onMessageSent?.();
     } catch (error: any) {
       console.error("Error sending message:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to send message",
-        variant: "destructive",
-      });
+      notify.error("Error", error);
     } finally {
       setSending(false);
     }

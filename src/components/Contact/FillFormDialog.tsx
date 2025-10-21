@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 import { Loader2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -49,7 +49,7 @@ interface FillFormDialogProps {
 }
 
 export function FillFormDialog({ open, onOpenChange, contactId, onFormFilled }: FillFormDialogProps) {
-  const { toast } = useToast();
+  const notify = useNotification();
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [forms, setForms] = useState<FormData[]>([]);
@@ -83,11 +83,7 @@ export function FillFormDialog({ open, onOpenChange, contactId, onFormFilled }: 
       if (error) throw error;
       setForms(data || []);
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error loading forms",
-        description: error.message,
-      });
+      notify.error("Error loading forms", error);
     }
   };
 
@@ -122,12 +118,8 @@ export function FillFormDialog({ open, onOpenChange, contactId, onFormFilled }: 
 
       setFields(transformedFields);
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error loading form fields",
-        description: error.message,
-      });
-    } finally {
+      notify.error("Error loading form fields", error);
+    } finally{
       setLoading(false);
     }
   };
@@ -171,21 +163,14 @@ export function FillFormDialog({ open, onOpenChange, contactId, onFormFilled }: 
         if (customFieldsError) throw customFieldsError;
       }
 
-      toast({
-        title: "Form filled successfully",
-        description: "Contact information has been updated.",
-      });
+      notify.success("Form filled successfully", "Contact information has been updated.");
 
       onFormFilled();
       onOpenChange(false);
       setSelectedFormId("");
       setFormValues({});
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error submitting form",
-        description: error.message,
-      });
+      notify.error("Error submitting form", error);
     } finally {
       setSubmitting(false);
     }

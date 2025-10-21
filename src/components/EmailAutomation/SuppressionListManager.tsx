@@ -31,13 +31,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 import { Ban, Plus, Trash2, Upload } from "lucide-react";
 import { format } from "date-fns";
 
 export function SuppressionListManager() {
   const { effectiveOrgId } = useOrgContext();
-  const { toast } = useToast();
+  const notify = useNotification();
   const queryClient = useQueryClient();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [newEmail, setNewEmail] = useState("");
@@ -99,20 +99,13 @@ export function SuppressionListManager() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["suppression_list"] });
-      toast({
-        title: "Email suppressed",
-        description: "The email has been added to the suppression list",
-      });
+      notify.success("Email suppressed", "The email has been added to the suppression list");
       setNewEmail("");
       setNewNotes("");
       setIsAddDialogOpen(false);
     },
     onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("Error", error);
     },
   });
 
@@ -132,19 +125,12 @@ export function SuppressionListManager() {
     },
     onSuccess: (_, emails) => {
       queryClient.invalidateQueries({ queryKey: ["suppression_list"] });
-      toast({
-        title: "Bulk import complete",
-        description: `${emails.length} emails added to suppression list`,
-      });
+      notify.success("Bulk import complete", `${emails.length} emails added to suppression list`);
       setBulkEmails("");
       setIsAddDialogOpen(false);
     },
     onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("Error", error);
     },
   });
 
@@ -155,27 +141,16 @@ export function SuppressionListManager() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["suppression_list"] });
-      toast({
-        title: "Email removed",
-        description: "The email has been removed from the suppression list",
-      });
+      notify.success("Email removed", "The email has been removed from the suppression list");
     },
     onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("Error", error);
     },
   });
 
   const handleAddEmail = () => {
     if (!newEmail.trim()) {
-      toast({
-        title: "Error",
-        description: "Please enter an email address",
-        variant: "destructive",
-      });
+      notify.error("Error", new Error("Please enter an email address"));
       return;
     }
 
@@ -189,11 +164,7 @@ export function SuppressionListManager() {
       .filter((e) => e && e.includes("@"));
 
     if (emails.length === 0) {
-      toast({
-        title: "Error",
-        description: "No valid emails found",
-        variant: "destructive",
-      });
+      notify.error("Error", new Error("No valid emails found"));
       return;
     }
 

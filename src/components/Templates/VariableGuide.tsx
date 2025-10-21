@@ -2,7 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Copy } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 import { Button } from "@/components/ui/button";
 
 interface VariableCategory {
@@ -16,14 +16,11 @@ interface VariableCategory {
 }
 
 export function VariableGuide() {
-  const { toast } = useToast();
+  const notify = useNotification();
 
   const copyVariable = (variable: string) => {
     navigator.clipboard.writeText(variable);
-    toast({
-      title: "Copied!",
-      description: `${variable} copied to clipboard`,
-    });
+    notify.success("Copied!", `${variable} copied to clipboard`);
   };
 
   const categories: VariableCategory[] = [

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 
 interface CallDisposition {
   id: string;
@@ -35,7 +35,7 @@ export function PostCallDispositionDialog({
   callDuration,
   onDispositionSaved,
 }: PostCallDispositionDialogProps) {
-  const { toast } = useToast();
+  const notify = useNotification();
   const [loading, setLoading] = useState(false);
   const [dispositions, setDispositions] = useState<CallDisposition[]>([]);
   const [subDispositions, setSubDispositions] = useState<CallSubDisposition[]>([]);
@@ -85,11 +85,7 @@ export function PostCallDispositionDialog({
     e.preventDefault();
     
     if (!formData.disposition_id) {
-      toast({
-        variant: "destructive",
-        title: "Disposition required",
-        description: "Please select a call disposition",
-      });
+      notify.error("Disposition required", new Error("Please select a call disposition"));
       return;
     }
 
@@ -151,20 +147,13 @@ export function PostCallDispositionDialog({
         }
       }
 
-      toast({
-        title: "Disposition saved",
-        description: "Call disposition has been recorded successfully",
-      });
+      notify.success("Disposition saved", "Call disposition has been recorded successfully");
 
       resetForm();
       onOpenChange(false);
       if (onDispositionSaved) onDispositionSaved();
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message,
-      });
+      notify.error("Error", error);
     } finally {
       setLoading(false);
     }

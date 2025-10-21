@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 import { Phone as PhoneIcon, Plus, X, Star } from "lucide-react";
 
 interface ContactPhone {
@@ -21,7 +21,7 @@ interface ContactPhonesProps {
 }
 
 export function ContactPhones({ contactId, orgId, readOnly = false }: ContactPhonesProps) {
-  const { toast } = useToast();
+  const notify = useNotification();
   const [phones, setPhones] = useState<ContactPhone[]>([]);
   const [newPhone, setNewPhone] = useState({ phone: "", phone_type: "mobile" });
   const [loading, setLoading] = useState(false);
@@ -60,11 +60,11 @@ export function ContactPhones({ contactId, orgId, readOnly = false }: ContactPho
 
       if (error) throw error;
 
-      toast({ title: "Phone added successfully" });
+      notify.success("Phone added successfully");
       setNewPhone({ phone: "", phone_type: "mobile" });
       fetchPhones();
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Error", description: error.message });
+      notify.error("Error", error);
     } finally {
       setLoading(false);
     }
@@ -77,7 +77,7 @@ export function ContactPhones({ contactId, orgId, readOnly = false }: ContactPho
       .eq("id", id);
 
     if (!error) {
-      toast({ title: "Phone removed" });
+      notify.success("Phone removed");
       fetchPhones();
     }
   };
@@ -96,7 +96,7 @@ export function ContactPhones({ contactId, orgId, readOnly = false }: ContactPho
       .eq("id", id);
 
     if (!error) {
-      toast({ title: "Primary phone updated" });
+      notify.success("Primary phone updated");
       fetchPhones();
     }
   };

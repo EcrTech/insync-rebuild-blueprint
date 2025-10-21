@@ -4,7 +4,7 @@ import { ABTestManager } from "./ABTestManager";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgContext } from "@/hooks/useOrgContext";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 import {
   Dialog,
   DialogContent,
@@ -35,7 +35,7 @@ type TriggerType = "stage_change" | "disposition_set" | "activity_logged" | "fie
 
 export function RuleBuilder({ open, onOpenChange, editingRule }: RuleBuilderProps) {
   const { effectiveOrgId } = useOrgContext();
-  const { toast } = useToast();
+  const notify = useNotification();
   const queryClient = useQueryClient();
 
   const [name, setName] = useState("");
@@ -293,38 +293,24 @@ export function RuleBuilder({ open, onOpenChange, editingRule }: RuleBuilderProp
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["email_automation_rules"] });
-      toast({
-        title: editingRule ? "Rule updated" : "Rule created",
-        description: "Automation rule saved successfully",
-      });
+      const title = editingRule ? "Rule updated" : "Rule created";
+      notify.success(title, "Automation rule saved successfully");
       onOpenChange(false);
       resetForm();
     },
     onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("Error", error);
     },
   });
 
   const handleSave = () => {
     if (!name) {
-      toast({
-        title: "Validation Error",
-        description: "Please provide a rule name",
-        variant: "destructive",
-      });
+      notify.error("Validation Error", new Error("Please provide a rule name"));
       return;
     }
 
     if (!templateId) {
-      toast({
-        title: "Validation Error",
-        description: "Please select an email template",
-        variant: "destructive",
-      });
+      notify.error("Validation Error", new Error("Please select an email template"));
       return;
     }
 

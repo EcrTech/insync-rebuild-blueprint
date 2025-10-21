@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 
@@ -18,7 +18,7 @@ interface AddEditInventoryDialogProps {
 }
 
 export function AddEditInventoryDialog({ open, onOpenChange, item, orgId }: AddEditInventoryDialogProps) {
-  const { toast } = useToast();
+  const notify = useNotification();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<any>({});
 
@@ -52,9 +52,7 @@ export function AddEditInventoryDialog({ open, onOpenChange, item, orgId }: AddE
 
         if (error) throw error;
 
-        toast({
-          title: "Item updated successfully",
-        });
+        notify.success("Item updated successfully");
       } else {
         const { error } = await supabase
           .from("inventory_items")
@@ -62,18 +60,12 @@ export function AddEditInventoryDialog({ open, onOpenChange, item, orgId }: AddE
 
         if (error) throw error;
 
-        toast({
-          title: "Item added successfully",
-        });
+        notify.success("Item added successfully");
       }
 
       onOpenChange(false);
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("Error", error);
     } finally {
       setLoading(false);
     }

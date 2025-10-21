@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 import { Clock, Save } from "lucide-react";
 
 const DAYS_OF_WEEK = [
@@ -44,7 +44,7 @@ interface BusinessHour {
 
 export function BusinessHoursConfig() {
   const { effectiveOrgId } = useOrgContext();
-  const { toast } = useToast();
+  const notify = useNotification();
   const queryClient = useQueryClient();
   const [timezone, setTimezone] = useState("UTC");
 
@@ -90,17 +90,10 @@ export function BusinessHoursConfig() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["business_hours"] });
-      toast({
-        title: "Business hours saved",
-        description: "Your business hours configuration has been updated",
-      });
+      notify.success("Business hours saved", "Your business hours configuration has been updated");
     },
     onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("Error", error);
     },
   });
 

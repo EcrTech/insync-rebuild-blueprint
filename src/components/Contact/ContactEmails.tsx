@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 import { Mail, Plus, X, Star } from "lucide-react";
 
 interface ContactEmail {
@@ -22,7 +22,7 @@ interface ContactEmailsProps {
 }
 
 export function ContactEmails({ contactId, orgId, readOnly = false }: ContactEmailsProps) {
-  const { toast } = useToast();
+  const notify = useNotification();
   const [emails, setEmails] = useState<ContactEmail[]>([]);
   const [newEmail, setNewEmail] = useState({ email: "", email_type: "work" });
   const [loading, setLoading] = useState(false);
@@ -61,11 +61,11 @@ export function ContactEmails({ contactId, orgId, readOnly = false }: ContactEma
 
       if (error) throw error;
 
-      toast({ title: "Email added successfully" });
+      notify.success("Email added successfully");
       setNewEmail({ email: "", email_type: "work" });
       fetchEmails();
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Error", description: error.message });
+      notify.error("Error", error);
     } finally {
       setLoading(false);
     }
@@ -78,7 +78,7 @@ export function ContactEmails({ contactId, orgId, readOnly = false }: ContactEma
       .eq("id", id);
 
     if (!error) {
-      toast({ title: "Email removed" });
+      notify.success("Email removed");
       fetchEmails();
     }
   };
@@ -97,7 +97,7 @@ export function ContactEmails({ contactId, orgId, readOnly = false }: ContactEma
       .eq("id", id);
 
     if (!error) {
-      toast({ title: "Primary email updated" });
+      notify.success("Primary email updated");
       fetchEmails();
     }
   };

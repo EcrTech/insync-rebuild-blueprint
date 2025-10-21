@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgContext } from "@/hooks/useOrgContext";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 import {
   Dialog,
   DialogContent,
@@ -31,7 +31,7 @@ interface RuleTestDialogProps {
 
 export function RuleTestDialog({ open, onOpenChange, rule }: RuleTestDialogProps) {
   const { effectiveOrgId } = useOrgContext();
-  const { toast } = useToast();
+  const notify = useNotification();
   const [selectedContactId, setSelectedContactId] = useState("");
   const [previewData, setPreviewData] = useState<any>(null);
 
@@ -72,17 +72,10 @@ export function RuleTestDialog({ open, onOpenChange, rule }: RuleTestDialogProps
     },
     onSuccess: (data) => {
       setPreviewData(data);
-      toast({
-        title: "Preview Generated",
-        description: "Email preview is ready below",
-      });
+      notify.success("Preview Generated", "Email preview is ready below");
     },
     onError: (error: any) => {
-      toast({
-        title: "Preview Failed",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("Preview Failed", error);
     },
   });
 
@@ -105,18 +98,11 @@ export function RuleTestDialog({ open, onOpenChange, rule }: RuleTestDialogProps
       return data;
     },
     onSuccess: () => {
-      toast({
-        title: "Test Email Sent",
-        description: "Check the recipient's inbox",
-      });
+      notify.success("Test Email Sent", "Check the recipient's inbox");
       onOpenChange(false);
     },
     onError: (error: any) => {
-      toast({
-        title: "Test Failed",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("Test Failed", error);
     },
   });
 

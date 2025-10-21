@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 import { useOrgContext } from "@/hooks/useOrgContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
@@ -27,7 +27,7 @@ export function SendEmailDialog({
   contactName,
   onEmailSent,
 }: SendEmailDialogProps) {
-  const { toast } = useToast();
+  const notify = useNotification();
   const { effectiveOrgId } = useOrgContext();
   const [loading, setLoading] = useState(false);
   const [recipientEmail, setRecipientEmail] = useState("");
@@ -101,20 +101,12 @@ export function SendEmailDialog({
 
   const handleSend = async () => {
     if (!recipientEmail || !subject || !body) {
-      toast({
-        variant: "destructive",
-        title: "Missing fields",
-        description: "Please fill in all fields before sending.",
-      });
+      notify.error("Missing fields", new Error("Please fill in all fields before sending."));
       return;
     }
 
     if (!sendImmediately && !scheduledAt) {
-      toast({
-        variant: "destructive",
-        title: "Missing schedule",
-        description: "Please select a scheduled date and time.",
-      });
+      notify.error("Missing schedule", new Error("Please select a scheduled date and time."));
       return;
     }
 
@@ -134,10 +126,7 @@ export function SendEmailDialog({
 
         if (error) throw error;
 
-        toast({
-          title: "Email sent",
-          description: `Email sent successfully to ${contactName}`,
-        });
+        notify.success("Email sent", `Email sent successfully to ${contactName}`);
       } else {
         // Create scheduled email record
         const { data: { user } } = await supabase.auth.getUser();
@@ -173,10 +162,8 @@ export function SendEmailDialog({
 
         if (error) throw error;
 
-        toast({
-          title: "Email scheduled",
-          description: `Email will be sent on ${format(scheduledAt, "PPP 'at' p")}`,
-        });
+        notify.success("Email scheduled", `Email will be sent on ${format(scheduledAt, "PPP 'at' p")}`);
+
       }
 
       // Reset form
@@ -189,11 +176,7 @@ export function SendEmailDialog({
       onOpenChange(false);
     } catch (error: any) {
       console.error("Error sending email:", error);
-      toast({
-        variant: "destructive",
-        title: "Failed to send email",
-        description: error.message || "Please check your email settings and try again.",
-      });
+      notify.error("Failed to send email", error);
     } finally {
       setLoading(false);
     }

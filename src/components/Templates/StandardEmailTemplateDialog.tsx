@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 import { supabase } from "@/integrations/supabase/client";
 import { CTAButtonManager, CTAButton } from "./CTAButtonManager";
 import { AttachmentManager, Attachment } from "./AttachmentManager";
@@ -34,7 +34,7 @@ export const StandardEmailTemplateDialog = ({
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [loading, setLoading] = useState(false);
   const [orgId, setOrgId] = useState("");
-  const { toast } = useToast();
+  const notify = useNotification();
 
   useEffect(() => {
     const fetchOrgId = async () => {
@@ -69,11 +69,7 @@ export const StandardEmailTemplateDialog = ({
 
   const handleSave = async () => {
     if (!templateName.trim() || !subject.trim()) {
-      toast({
-        title: "Missing required fields",
-        description: "Please provide template name and subject",
-        variant: "destructive",
-      });
+      notify.error("Missing required fields", new Error("Please provide template name and subject"));
       return;
     }
 
@@ -102,10 +98,7 @@ export const StandardEmailTemplateDialog = ({
 
         if (error) throw error;
 
-        toast({
-          title: "Template updated",
-          description: "Email template has been updated successfully",
-        });
+        notify.success("Template updated", "Email template has been updated successfully");
       } else {
         const { error } = await supabase
           .from('email_templates')
@@ -113,21 +106,14 @@ export const StandardEmailTemplateDialog = ({
 
         if (error) throw error;
 
-        toast({
-          title: "Template created",
-          description: "Email template has been created successfully",
-        });
+        notify.success("Template created", "Email template has been created successfully");
       }
 
       onSuccess();
       onOpenChange(false);
     } catch (error) {
       console.error('Save error:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save template. Please try again.",
-        variant: "destructive",
-      });
+      notify.error("Error", new Error("Failed to save template. Please try again."));
     } finally {
       setLoading(false);
     }

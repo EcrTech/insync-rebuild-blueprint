@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 import {
   Dialog,
   DialogContent,
@@ -18,7 +18,7 @@ interface ForgotPasswordDialogProps {
 }
 
 export function ForgotPasswordDialog({ open, onOpenChange }: ForgotPasswordDialogProps) {
-  const { toast } = useToast();
+  const notify = useNotification();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -35,19 +35,12 @@ export function ForgotPasswordDialog({ open, onOpenChange }: ForgotPasswordDialo
 
       if (error) throw error;
 
-      toast({
-        title: "Check your email",
-        description: "We've sent you a password reset link",
-      });
+      notify.success("Check your email", "We've sent you a password reset link");
       
       onOpenChange(false);
       setEmail("");
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message,
-      });
+      notify.error("Error", error);
     } finally {
       setLoading(false);
     }

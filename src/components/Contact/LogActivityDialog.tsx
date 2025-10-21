@@ -10,7 +10,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { ParticipantSelector } from "./ParticipantSelector";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 import { Plus, X } from "lucide-react";
 
 interface CallDisposition {
@@ -39,7 +39,7 @@ export function LogActivityDialog({
   defaultActivityType = "note",
   onActivityLogged,
 }: LogActivityDialogProps) {
-  const { toast } = useToast();
+  const notify = useNotification();
   const [loading, setLoading] = useState(false);
   const [dispositions, setDispositions] = useState<CallDisposition[]>([]);
   const [subDispositions, setSubDispositions] = useState<CallSubDisposition[]>([]);
@@ -192,10 +192,7 @@ export function LogActivityDialog({
         
         // Show warning if participants were skipped
         if (skippedParticipants > 0) {
-          toast({
-            title: "Warning",
-            description: `${skippedParticipants} team member(s) skipped (no email address configured)`,
-          });
+          notify.info("Warning", `${skippedParticipants} team member(s) skipped (no email address configured)`);
         }
         
         // Add external participants
@@ -241,10 +238,7 @@ export function LogActivityDialog({
             .maybeSingle();
 
           if (!tokens) {
-            toast({
-              title: "Google Calendar Not Connected",
-              description: "Meeting created without Google Meet link. Connect Google Calendar in Admin Settings to enable.",
-            });
+            notify.info("Google Calendar Not Connected", "Meeting created without Google Meet link. Connect Google Calendar in Admin Settings to enable.");
           } else {
             try {
               const { data: meetData, error: meetError } = await supabase.functions.invoke('create-google-meet', {
@@ -261,10 +255,7 @@ export function LogActivityDialog({
               
               if (meetError) {
                 console.error('Failed to create Google Meet link:', meetError);
-                toast({
-                  title: 'Partial Success',
-                  description: 'Meeting created but Google Meet link generation failed.',
-                });
+                notify.info('Partial Success', 'Meeting created but Google Meet link generation failed.');
               } else if (meetData?.meetLink) {
                 // Update activity with meet link
                 await supabase
@@ -284,33 +275,25 @@ export function LogActivityDialog({
               }
             } catch (meetError: any) {
               console.error('Google Meet error:', meetError);
-              toast({
-                title: 'Partial Success',
-                description: 'Meeting created but Google Meet link generation failed.',
-              });
+              notify.info('Partial Success', 'Meeting created but Google Meet link generation failed.');
             }
           }
         }
       }
 
-      toast({
-        title: "Activity logged",
-        description: formData.activity_type === 'meeting' && meetingConfig.generateMeetLink && meetLinkGenerated
-          ? "Meeting created and invitations sent"
-          : formData.activity_type === 'meeting'
-          ? "Meeting created successfully"
-          : "Activity has been logged successfully",
-      });
+      const description = formData.activity_type === 'meeting' && meetingConfig.generateMeetLink && meetLinkGenerated
+        ? "Meeting created and invitations sent"
+        : formData.activity_type === 'meeting'
+        ? "Meeting created successfully"
+        : "Activity has been logged successfully";
+      
+      notify.success("Activity logged", description);
 
       resetForm();
       onOpenChange(false);
       if (onActivityLogged) onActivityLogged();
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message,
-      });
+      notify.error("Error", error);
     } finally {
       setLoading(false);
     }

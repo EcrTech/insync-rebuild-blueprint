@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 import { Loader2, Save, Eye } from "lucide-react";
 import { useOrgContext } from "@/hooks/useOrgContext";
 import EmailEditor, { EditorRef, EmailEditorProps } from "react-email-editor";
@@ -22,7 +22,7 @@ interface EmailTemplateDialogProps {
 }
 
 export const EmailTemplateDialog = ({ open, onOpenChange, template, onSuccess }: EmailTemplateDialogProps) => {
-  const { toast } = useToast();
+  const notify = useNotification();
   const { effectiveOrgId } = useOrgContext();
   const emailEditorRef = useRef<EditorRef>(null);
 
@@ -42,20 +42,12 @@ export const EmailTemplateDialog = ({ open, onOpenChange, template, onSuccess }:
 
   const handleSave = async () => {
     if (!templateName.trim() || !subject.trim()) {
-      toast({
-        title: "Validation Error",
-        description: "Please provide template name and subject",
-        variant: "destructive",
-      });
+      notify.error("Validation Error", new Error("Please provide template name and subject"));
       return;
     }
 
     if (!emailEditorRef.current) {
-      toast({
-        title: "Error",
-        description: "Email editor not initialized",
-        variant: "destructive",
-      });
+      notify.error("Error", new Error("Email editor not initialized"));
       return;
     }
 
@@ -82,10 +74,7 @@ export const EmailTemplateDialog = ({ open, onOpenChange, template, onSuccess }:
 
           if (error) throw error;
 
-          toast({
-            title: "Success",
-            description: "Template updated successfully",
-          });
+          notify.success("Success", "Template updated successfully");
         } else {
           // Create new template
           const { data: session } = await supabase.auth.getSession();
@@ -98,10 +87,7 @@ export const EmailTemplateDialog = ({ open, onOpenChange, template, onSuccess }:
 
           if (error) throw error;
 
-          toast({
-            title: "Success",
-            description: "Template created successfully",
-          });
+          notify.success("Success", "Template created successfully");
         }
 
         setLoading(false);
@@ -113,11 +99,7 @@ export const EmailTemplateDialog = ({ open, onOpenChange, template, onSuccess }:
       });
     } catch (error: any) {
       console.error("Error saving template:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to save template",
-        variant: "destructive",
-      });
+      notify.error("Error", error);
       setLoading(false);
     }
   };

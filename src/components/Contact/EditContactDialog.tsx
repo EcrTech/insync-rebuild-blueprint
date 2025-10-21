@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 import { ContactEmails } from "./ContactEmails";
 import { ContactPhones } from "./ContactPhones";
 import { Separator } from "@/components/ui/separator";
@@ -39,7 +39,7 @@ export function EditContactDialog({
   contact,
   onContactUpdated,
 }: EditContactDialogProps) {
-  const { toast } = useToast();
+  const notify = useNotification();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     first_name: "",
@@ -88,19 +88,12 @@ export function EditContactDialog({
 
       if (error) throw error;
 
-      toast({
-        title: "Contact updated",
-        description: "Contact has been updated successfully",
-      });
+      notify.success("Contact updated", "Contact has been updated successfully");
 
       onOpenChange(false);
       if (onContactUpdated) onContactUpdated();
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message,
-      });
+      notify.error("Error", error);
     } finally {
       setLoading(false);
     }

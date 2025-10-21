@@ -3,12 +3,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 import { Calendar, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 export default function GoogleCalendarSettings() {
-  const { toast } = useToast();
+  const notify = useNotification();
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<{
@@ -86,11 +86,7 @@ export default function GoogleCalendarSettings() {
       }, 1000);
     } catch (error: any) {
       console.error('Connection error:', error);
-      toast({
-        variant: "destructive",
-        title: "Connection Failed",
-        description: error.message,
-      });
+      notify.error("Connection Failed", error);
       setConnecting(false);
     }
   };
@@ -117,16 +113,9 @@ export default function GoogleCalendarSettings() {
 
       setConnectionStatus({ connected: false });
       
-      toast({
-        title: "Disconnected",
-        description: "Google Calendar has been disconnected",
-      });
+      notify.success("Disconnected", "Google Calendar has been disconnected");
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Disconnection Failed",
-        description: error.message,
-      });
+      notify.error("Disconnection Failed", error);
     }
   };
 

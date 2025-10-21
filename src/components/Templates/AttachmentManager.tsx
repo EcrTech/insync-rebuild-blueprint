@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Upload, X, Image, Video } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -22,7 +22,7 @@ interface AttachmentManagerProps {
 
 export const AttachmentManager = ({ attachments, onChange, orgId }: AttachmentManagerProps) => {
   const [uploading, setUploading] = useState(false);
-  const { toast } = useToast();
+  const notify = useNotification();
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -34,20 +34,12 @@ export const AttachmentManager = ({ attachments, onChange, orgId }: AttachmentMa
 
     // Check file size limits
     if (fileSize > 5 * 1024 * 1024) {
-      toast({
-        title: "File too large",
-        description: "Maximum file size is 5MB per file",
-        variant: "destructive",
-      });
+      notify.error("File too large", new Error("Maximum file size is 5MB per file"));
       return;
     }
 
     if (totalSize + fileSize > 10 * 1024 * 1024) {
-      toast({
-        title: "Total size exceeded",
-        description: "Total attachments size cannot exceed 10MB",
-        variant: "destructive",
-      });
+      notify.error("Total size exceeded", new Error("Total attachments size cannot exceed 10MB"));
       return;
     }
 
@@ -79,17 +71,10 @@ export const AttachmentManager = ({ attachments, onChange, orgId }: AttachmentMa
 
       onChange([...attachments, newAttachment]);
 
-      toast({
-        title: "File uploaded",
-        description: `${file.name} has been uploaded successfully`,
-      });
+      notify.success("File uploaded", `${file.name} has been uploaded successfully`);
     } catch (error) {
       console.error('Upload error:', error);
-      toast({
-        title: "Upload failed",
-        description: "Failed to upload file. Please try again.",
-        variant: "destructive",
-      });
+      notify.error("Upload failed", new Error("Failed to upload file. Please try again."));
     } finally {
       setUploading(false);
       event.target.value = '';
@@ -103,17 +88,10 @@ export const AttachmentManager = ({ attachments, onChange, orgId }: AttachmentMa
         await supabase.storage.from('email-attachments').remove([path]);
       }
       onChange(attachments.filter(att => att.id !== attachment.id));
-      toast({
-        title: "Attachment removed",
-        description: `${attachment.name} has been removed`,
-      });
+      notify.success("Attachment removed", `${attachment.name} has been removed`);
     } catch (error) {
       console.error('Remove error:', error);
-      toast({
-        title: "Error",
-        description: "Failed to remove attachment",
-        variant: "destructive",
-      });
+      notify.error("Error", new Error("Failed to remove attachment"));
     }
   };
 
