@@ -338,17 +338,6 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                 </Link>
               )}
               
-              {canAccessFeature("campaigns_email") && (
-                <Link
-                  to="/email-campaigns"
-                  className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  <Mail size={20} />
-                  <span>Email Campaigns</span>
-                </Link>
-              )}
-              
               {canAccessFeature("contacts") && (
                 <Link
                   to="/contacts"
