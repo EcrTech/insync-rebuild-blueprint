@@ -1,19 +1,25 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgContext } from "@/hooks/useOrgContext";
+import { useDialogState } from "@/hooks/useDialogState";
+import { useNotification } from "@/hooks/useNotification";
+import { useOrgData } from "@/hooks/useOrgData";
+import { useCRUD } from "@/hooks/useCRUD";
 import DashboardLayout from "@/components/Layout/DashboardLayout";
+import { LoadingState } from "@/components/common/LoadingState";
+import { EmptyState } from "@/components/common/EmptyState";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
-import { Checkbox } from "@/components/ui/checkbox";
-import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, FileText, Link2, Copy } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Plus, Pencil, Trash2, FileText, Link2, Copy } from "lucide-react";
 
 interface CustomField {
   id: string;
@@ -36,90 +42,76 @@ interface FormWithFields extends Form {
   field_count: number;
 }
 
+interface FormData {
+  name: string;
+  description: string;
+  is_active: boolean;
+  connector_type: string;
+}
+
 export default function Forms() {
   const { effectiveOrgId } = useOrgContext();
-  const [forms, setForms] = useState<FormWithFields[]>([]);
-  const [customFields, setCustomFields] = useState<CustomField[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingForm, setEditingForm] = useState<Form | null>(null);
+  const notification = useNotification();
   const [selectedFields, setSelectedFields] = useState<string[]>([]);
-  const { toast } = useToast();
-
-  const [formData, setFormData] = useState({
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [formsWithCounts, setFormsWithCounts] = useState<FormWithFields[]>([]);
+  
+  const dialog = useDialogState<FormData>({
     name: "",
     description: "",
     is_active: true,
     connector_type: "manual",
   });
 
+  const { data: forms = [], isLoading: formsLoading, refetch: refetchForms } = useOrgData<Form>(
+    "forms",
+    {
+      orderBy: { column: "created_at", ascending: false },
+      filter: { connector_type: "manual" },
+    }
+  );
+
+  const { data: customFields = [], isLoading: fieldsLoading } = useOrgData<CustomField>(
+    "custom_fields",
+    {
+      filter: { is_active: true },
+      orderBy: { column: "field_order", ascending: true },
+    }
+  );
+
+  const { create, update, delete: deleteForm } = useCRUD("forms", {
+    onSuccess: () => {
+      refetchForms();
+      fetchFormsWithCounts();
+    },
+  });
+
+  const loading = formsLoading || fieldsLoading;
+
   useEffect(() => {
-    if (effectiveOrgId) {
-      fetchForms();
-      fetchCustomFields();
+    if (forms.length > 0) {
+      fetchFormsWithCounts();
+    } else {
+      setFormsWithCounts([]);
     }
-  }, [effectiveOrgId]);
+  }, [forms]);
 
-  const fetchForms = async () => {
-    if (!effectiveOrgId) return;
-    
-    try {
-      const { data: formsData, error: formsError } = await supabase
-        .from("forms")
-        .select("*")
-        .eq("org_id", effectiveOrgId)
-        .neq("connector_type", "webhook")
-        .order("created_at", { ascending: false });
+  const fetchFormsWithCounts = async () => {
+    const formsWithCountsData = await Promise.all(
+      forms.map(async (form) => {
+        const { count } = await supabase
+          .from("form_fields")
+          .select("*", { count: "exact", head: true })
+          .eq("form_id", form.id);
 
-      if (formsError) throw formsError;
+        return {
+          ...form,
+          field_count: count || 0,
+        };
+      })
+    );
 
-      // Get field counts for each form
-      const formsWithCounts = await Promise.all(
-        (formsData || []).map(async (form) => {
-          const { count } = await supabase
-            .from("form_fields")
-            .select("*", { count: "exact", head: true })
-            .eq("form_id", form.id);
-
-          return {
-            ...form,
-            field_count: count || 0,
-          };
-        })
-      );
-
-      setForms(formsWithCounts as any);
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error loading forms",
-        description: error.message,
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchCustomFields = async () => {
-    if (!effectiveOrgId) return;
-    
-    try {
-      const { data, error } = await supabase
-        .from("custom_fields")
-        .select("id, field_name, field_label, field_type, is_active")
-        .eq("org_id", effectiveOrgId)
-        .eq("is_active", true)
-        .order("field_order");
-
-      if (error) throw error;
-      setCustomFields(data || []);
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error loading fields",
-        description: error.message,
-      });
-    }
+    setFormsWithCounts(formsWithCountsData as any);
   };
 
   const fetchFormFields = async (formId: string) => {
@@ -132,11 +124,7 @@ export default function Forms() {
       if (error) throw error;
       return data.map((ff) => ff.custom_field_id);
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error loading form fields",
-        description: error.message,
-      });
+      notification.error("Error loading form fields", error);
       return [];
     }
   };
@@ -145,34 +133,26 @@ export default function Forms() {
     e.preventDefault();
     
     if (selectedFields.length === 0) {
-      toast({
-        variant: "destructive",
-        title: "No fields selected",
-        description: "Please select at least one field for the form",
-      });
+      notification.error("No fields selected", "Please select at least one field for the form");
       return;
     }
 
     if (!effectiveOrgId) return;
 
-    setLoading(true);
-
     try {
       let formId: string;
 
-      if (editingForm) {
-        const { error: updateError } = await supabase
-          .from("forms")
-          .update({
-            name: formData.name,
-            description: formData.description,
-            is_active: formData.is_active,
-            connector_type: formData.connector_type,
-          })
-          .eq("id", editingForm.id);
-
-        if (updateError) throw updateError;
-        formId = editingForm.id;
+      if (dialog.editingItem) {
+        await update({
+          id: dialog.editingItem.id,
+          data: {
+            name: dialog.formData.name,
+            description: dialog.formData.description,
+            is_active: dialog.formData.is_active,
+            connector_type: dialog.formData.connector_type,
+          }
+        });
+        formId = dialog.editingItem.id;
 
         // Delete existing form fields
         await supabase
@@ -184,10 +164,10 @@ export default function Forms() {
           .from("forms")
           .insert([{
             org_id: effectiveOrgId,
-            name: formData.name,
-            description: formData.description,
-            is_active: formData.is_active,
-            connector_type: formData.connector_type,
+            name: dialog.formData.name,
+            description: dialog.formData.description,
+            is_active: dialog.formData.is_active,
+            connector_type: dialog.formData.connector_type,
           }])
           .select()
           .single();
@@ -209,64 +189,36 @@ export default function Forms() {
 
       if (fieldsError) throw fieldsError;
 
-      toast({
-        title: editingForm ? "Form updated" : "Form created",
-        description: `Form has been ${editingForm ? "updated" : "created"} successfully`,
-      });
+      notification.success(
+        dialog.editingItem ? "Form updated" : "Form created",
+        `Form has been ${dialog.editingItem ? "updated" : "created"} successfully`
+      );
 
-      setIsDialogOpen(false);
-      resetForm();
-      fetchForms();
+      dialog.closeDialog();
+      setSelectedFields([]);
+      refetchForms();
+      fetchFormsWithCounts();
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message,
-      });
-    } finally {
-      setLoading(false);
+      notification.error("Error", error.message);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure? This will delete the form and all its field associations.")) return;
+  const handleDelete = async () => {
+    if (!deleteConfirm) return;
 
     try {
-      const { error } = await supabase
-        .from("forms")
-        .delete()
-        .eq("id", id);
-
-      if (error) throw error;
-
-      toast({
-        title: "Form deleted",
-        description: "Form has been removed successfully",
-      });
-      fetchForms();
+      await deleteForm(deleteConfirm);
+      notification.success("Form deleted", "Form has been removed successfully");
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error deleting form",
-        description: error.message,
-      });
+      notification.error("Error deleting form", error);
+    } finally {
+      setDeleteConfirm(null);
     }
-  };
-
-  const resetForm = () => {
-    setFormData({
-      name: "",
-      description: "",
-      is_active: true,
-      connector_type: "manual",
-    });
-    setSelectedFields([]);
-    setEditingForm(null);
   };
 
   const openEditDialog = async (form: Form) => {
-    setEditingForm(form);
-    setFormData({
+    dialog.openDialog(form);
+    dialog.setFormData({
       name: form.name,
       description: form.description || "",
       is_active: form.is_active,
@@ -275,7 +227,6 @@ export default function Forms() {
     
     const fields = await fetchFormFields(form.id);
     setSelectedFields(fields);
-    setIsDialogOpen(true);
   };
 
   const toggleFieldSelection = (fieldId: string) => {
@@ -289,10 +240,7 @@ export default function Forms() {
   const copyFormLink = (formId: string) => {
     const link = `${window.location.origin}/form/${formId}`;
     navigator.clipboard.writeText(link);
-    toast({
-      title: "Link copied",
-      description: "Form link has been copied to clipboard",
-    });
+    notification.success("Link copied", "Form link has been copied to clipboard");
   };
 
   const getConnectorTypeBadge = (type: string) => {
@@ -317,24 +265,27 @@ export default function Forms() {
             <h1 className="text-3xl font-bold">Forms</h1>
             <p className="text-muted-foreground">Create custom forms for lead data collection</p>
           </div>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <Dialog open={dialog.isOpen} onOpenChange={dialog.closeDialog}>
             <DialogTrigger asChild>
-              <Button onClick={resetForm}>
+              <Button onClick={() => {
+                dialog.openDialog();
+                setSelectedFields([]);
+              }}>
                 <Plus className="mr-2 h-4 w-4" />
                 Create Form
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>{editingForm ? "Edit Form" : "Create New Form"}</DialogTitle>
+                <DialogTitle>{dialog.editingItem ? "Edit Form" : "Create New Form"}</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">Form Name *</Label>
                   <Input
                     id="name"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    value={dialog.formData.name}
+                    onChange={(e) => dialog.updateFormData({ name: e.target.value })}
                     placeholder="e.g., Lead Intake Form"
                     required
                   />
@@ -344,8 +295,8 @@ export default function Forms() {
                   <Label htmlFor="description">Description</Label>
                   <Textarea
                     id="description"
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    value={dialog.formData.description}
+                    onChange={(e) => dialog.updateFormData({ description: e.target.value })}
                     placeholder="Brief description of this form"
                     rows={3}
                   />
@@ -354,8 +305,8 @@ export default function Forms() {
                 <div className="space-y-2">
                   <Label htmlFor="connector_type">Form Type</Label>
                   <Select
-                    value={formData.connector_type}
-                    onValueChange={(value) => setFormData({ ...formData, connector_type: value })}
+                    value={dialog.formData.connector_type}
+                    onValueChange={(value) => dialog.updateFormData({ connector_type: value })}
                   >
                     <SelectTrigger id="connector_type" className="bg-background">
                       <SelectValue />
@@ -366,8 +317,8 @@ export default function Forms() {
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
-                    {formData.connector_type === "manual" && "Form for manual data entry"}
-                    {formData.connector_type === "public_form" && "Public form that anyone can submit"}
+                    {dialog.formData.connector_type === "manual" && "Form for manual data entry"}
+                    {dialog.formData.connector_type === "public_form" && "Public form that anyone can submit"}
                   </p>
                 </div>
 
@@ -375,8 +326,8 @@ export default function Forms() {
                   <Label htmlFor="is_active">Active</Label>
                   <Switch
                     id="is_active"
-                    checked={formData.is_active}
-                    onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
+                    checked={dialog.formData.is_active}
+                    onCheckedChange={(checked) => dialog.updateFormData({ is_active: checked })}
                   />
                 </div>
 
@@ -419,11 +370,11 @@ export default function Forms() {
                 </div>
 
                 <div className="flex gap-2 pt-4">
-                  <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} className="flex-1">
+                  <Button type="button" variant="outline" onClick={dialog.closeDialog} className="flex-1">
                     Cancel
                   </Button>
-                  <Button type="submit" className="flex-1" disabled={loading}>
-                    {loading ? "Saving..." : editingForm ? "Update Form" : "Create Form"}
+                  <Button type="submit" className="flex-1">
+                    {dialog.editingItem ? "Update Form" : "Create Form"}
                   </Button>
                 </div>
               </form>
@@ -431,23 +382,16 @@ export default function Forms() {
           </Dialog>
         </div>
 
-        <div className="grid gap-4">
-          {loading ? (
-            <Card>
-              <CardContent className="p-6">
-                <p className="text-center text-muted-foreground">Loading forms...</p>
-              </CardContent>
-            </Card>
-          ) : forms.length === 0 ? (
-            <Card>
-              <CardContent className="p-6">
-                <p className="text-center text-muted-foreground">
-                  No forms created yet. Click "Create Form" to get started.
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            forms.map((form) => (
+        {loading ? (
+          <LoadingState message="Loading forms..." />
+        ) : formsWithCounts.length === 0 ? (
+          <EmptyState
+            icon={<FileText className="h-12 w-12 text-muted-foreground" />}
+            message="No forms created yet. Click 'Create Form' to get started."
+          />
+        ) : (
+          <div className="grid gap-4">
+            {formsWithCounts.map((form) => (
               <Card key={form.id}>
                 <CardHeader>
                   <div className="flex items-start justify-between">
@@ -461,7 +405,7 @@ export default function Forms() {
                             <Badge variant="outline" className="text-xs">Inactive</Badge>
                           )}
                         </CardTitle>
-                          <CardDescription className="space-y-2">
+                        <CardDescription className="space-y-2">
                           <div>{form.description || "No description"}</div>
                           <div className="flex items-center gap-2 text-xs flex-wrap">
                             <span>{form.field_count} field{form.field_count !== 1 ? 's' : ''}</span>
@@ -505,7 +449,7 @@ export default function Forms() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleDelete(form.id)}
+                        onClick={() => setDeleteConfirm(form.id)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -513,11 +457,20 @@ export default function Forms() {
                   </div>
                 </CardHeader>
               </Card>
-            ))
-          )}
-        </div>
-
+            ))}
+          </div>
+        )}
       </div>
+
+      <ConfirmDialog
+        open={!!deleteConfirm}
+        onOpenChange={(open) => !open && setDeleteConfirm(null)}
+        title="Delete Form"
+        description="Are you sure? This will delete the form and all its field associations."
+        onConfirm={handleDelete}
+        confirmText="Delete"
+        variant="destructive"
+      />
     </DashboardLayout>
   );
 }
