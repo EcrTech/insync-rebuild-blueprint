@@ -1,17 +1,21 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgContext } from "@/hooks/useOrgContext";
+import { useDialogState } from "@/hooks/useDialogState";
+import { useNotification } from "@/hooks/useNotification";
+import { useOrgData } from "@/hooks/useOrgData";
 import DashboardLayout from "@/components/Layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, GripVertical, Upload, Download } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { FormDialog } from "@/components/common/FormDialog";
+import { LoadingState } from "@/components/common/LoadingState";
+import { EmptyState } from "@/components/common/EmptyState";
 import {
   DndContext,
   closestCenter,
@@ -148,15 +152,11 @@ function SortableFieldCard({ field, onEdit, onDelete }: SortableFieldCardProps) 
 
 export default function CustomFields() {
   const { effectiveOrgId } = useOrgContext();
-  const [fields, setFields] = useState<CustomField[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
-  const [editingField, setEditingField] = useState<CustomField | null>(null);
+  const notify = useNotification();
   const [uploadFile, setUploadFile] = useState<File | null>(null);
-  const { toast } = useToast();
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  const [formData, setFormData] = useState({
+  const dialog = useDialogState({
     field_name: "",
     field_label: "",
     field_type: "text",
@@ -167,11 +167,12 @@ export default function CustomFields() {
     applies_to_table: "contacts",
   });
 
-  useEffect(() => {
-    if (effectiveOrgId) {
-      fetchFields();
-    }
-  }, [effectiveOrgId]);
+  const uploadDialog = useDialogState({});
+
+  const { data: fields = [], isLoading, refetch } = useOrgData<CustomField>("custom_fields", {
+    select: "*",
+    orderBy: { column: "field_order", ascending: true }
+  });
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -180,52 +181,22 @@ export default function CustomFields() {
     })
   );
 
-  const fetchFields = async () => {
-    if (!effectiveOrgId) return;
-    
-    try {
-      const { data, error } = await supabase
-        .from("custom_fields")
-        .select("*")
-        .eq("org_id", effectiveOrgId)
-        .order("field_order");
-
-      if (error) throw error;
-      setFields(data || []);
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error loading fields",
-        description: error.message,
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
 
-    if (!over || active.id === over.id) {
-      return;
-    }
+    if (!over || active.id === over.id) return;
 
     const oldIndex = fields.findIndex((f) => f.id === active.id);
     const newIndex = fields.findIndex((f) => f.id === over.id);
-
     const newFields = arrayMove(fields, oldIndex, newIndex);
-    
-    // Update local state immediately for smooth UX
-    setFields(newFields);
 
-    // Update field_order in the database
     try {
       const updates = newFields.map((field, index) => ({
         id: field.id,
         field_order: index,
       }));
 
-      // Batch update all field orders
       for (const update of updates) {
         await supabase
           .from('custom_fields')
@@ -233,18 +204,11 @@ export default function CustomFields() {
           .eq('id', update.id);
       }
 
-      toast({
-        title: "Order updated",
-        description: "Custom fields have been reordered successfully",
-      });
-    } catch (error: any) {
-      // Revert to original order on error
-      fetchFields();
-      toast({
-        variant: "destructive",
-        title: "Error updating order",
-        description: error.message,
-      });
+      notify.success("Order updated", "Custom fields have been reordered successfully");
+      refetch();
+    } catch (error) {
+      notify.error("Error updating order", error);
+      refetch();
     }
   };
 
@@ -252,23 +216,22 @@ export default function CustomFields() {
     e.preventDefault();
     if (!effectiveOrgId) return;
     
-    setLoading(true);
+    setIsProcessing(true);
 
     try {
       const fieldData: any = {
-        field_name: formData.field_name.toLowerCase().replace(/\s+/g, '_'),
-        field_label: formData.field_label,
-        field_type: formData.field_type,
-        is_required: formData.is_required,
-        is_active: formData.is_active,
-        field_order: formData.field_order,
-        applies_to_table: formData.applies_to_table,
+        field_name: dialog.formData.field_name.toLowerCase().replace(/\s+/g, '_'),
+        field_label: dialog.formData.field_label,
+        field_type: dialog.formData.field_type,
+        is_required: dialog.formData.is_required,
+        is_active: dialog.formData.is_active,
+        field_order: dialog.formData.field_order,
+        applies_to_table: dialog.formData.applies_to_table,
         org_id: effectiveOrgId,
       };
 
-      // Parse options for select type
-      if (formData.field_type === "select" && formData.field_options) {
-        fieldData.field_options = formData.field_options
+      if (dialog.formData.field_type === "select" && dialog.formData.field_options) {
+        fieldData.field_options = dialog.formData.field_options
           .split(",")
           .map(opt => opt.trim())
           .filter(opt => opt);
@@ -276,47 +239,34 @@ export default function CustomFields() {
         fieldData.field_options = null;
       }
 
-      if (editingField) {
+      if (dialog.isEditing) {
         const { error } = await supabase
           .from("custom_fields")
           .update(fieldData)
-          .eq("id", editingField.id);
+          .eq("id", dialog.editingItem.id);
 
         if (error) throw error;
-
-        toast({
-          title: "Field updated",
-          description: "Custom field has been updated successfully",
-        });
+        notify.success("Field updated", "Custom field has been updated successfully");
       } else {
         const { error } = await supabase
           .from("custom_fields")
           .insert([fieldData]);
 
         if (error) throw error;
-
-        toast({
-          title: "Field created",
-          description: "Custom field has been added successfully",
-        });
+        notify.success("Field created", "Custom field has been added successfully");
       }
 
-      setIsDialogOpen(false);
-      resetForm();
-      fetchFields();
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message,
-      });
+      dialog.closeDialog();
+      refetch();
+    } catch (error) {
+      notify.error("Error", error);
     } finally {
-      setLoading(false);
+      setIsProcessing(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure? This will delete all values for this field from existing contacts.")) return;
+    if (!notify.confirm("Are you sure? This will delete all values for this field from existing contacts.")) return;
 
     try {
       const { error } = await supabase
@@ -325,38 +275,15 @@ export default function CustomFields() {
         .eq("id", id);
 
       if (error) throw error;
-
-      toast({
-        title: "Field deleted",
-        description: "Custom field has been removed successfully",
-      });
-      fetchFields();
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error deleting field",
-        description: error.message,
-      });
+      notify.success("Field deleted", "Custom field has been removed successfully");
+      refetch();
+    } catch (error) {
+      notify.error("Error deleting field", error);
     }
   };
 
-  const resetForm = () => {
-    setFormData({
-      field_name: "",
-      field_label: "",
-      field_type: "text",
-      field_options: "",
-      is_required: false,
-      is_active: true,
-      field_order: fields.length,
-      applies_to_table: "contacts",
-    });
-    setEditingField(null);
-  };
-
   const openEditDialog = (field: CustomField) => {
-    setEditingField(field);
-    setFormData({
+    dialog.openDialog({
       field_name: field.field_name,
       field_label: field.field_label,
       field_type: field.field_type,
@@ -366,7 +293,6 @@ export default function CustomFields() {
       field_order: field.field_order,
       applies_to_table: field.applies_to_table || "contacts",
     });
-    setIsDialogOpen(true);
   };
 
   const downloadTemplate = () => {
@@ -388,21 +314,14 @@ export default function CustomFields() {
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
 
-    toast({
-      title: "Template downloaded",
-      description: "CSV template has been downloaded successfully",
-    });
+    notify.success("Template downloaded", "CSV template has been downloaded successfully");
   };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       if (file.type !== "text/csv" && !file.name.endsWith(".csv")) {
-        toast({
-          variant: "destructive",
-          title: "Invalid file type",
-          description: "Please upload a CSV file",
-        });
+        notify.error("Invalid file type", "Please upload a CSV file");
         return;
       }
       setUploadFile(file);
@@ -412,12 +331,10 @@ export default function CustomFields() {
   const processCSVUpload = async () => {
     if (!uploadFile || !effectiveOrgId) return;
 
-    setLoading(true);
+    setIsProcessing(true);
     try {
       const text = await uploadFile.text();
       const rows = text.split("\n").map(row => row.split(","));
-      
-      // Skip header row
       const dataRows = rows.slice(1).filter(row => row.length >= 7 && row[0].trim());
 
       const fieldsToInsert = dataRows.map((row, index) => ({
@@ -438,22 +355,14 @@ export default function CustomFields() {
 
       if (error) throw error;
 
-      toast({
-        title: "Upload successful",
-        description: `${fieldsToInsert.length} custom field(s) have been imported`,
-      });
-
-      setIsUploadDialogOpen(false);
+      notify.success("Upload successful", `${fieldsToInsert.length} custom field(s) have been imported`);
+      uploadDialog.closeDialog();
       setUploadFile(null);
-      fetchFields();
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Upload failed",
-        description: error.message,
-      });
+      refetch();
+    } catch (error) {
+      notify.error("Upload failed", error);
     } finally {
-      setLoading(false);
+      setIsProcessing(false);
     }
   };
 
@@ -470,218 +379,181 @@ export default function CustomFields() {
               <Download className="mr-2 h-4 w-4" />
               Download Template
             </Button>
-            <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline">
-                  <Upload className="mr-2 h-4 w-4" />
-                  Bulk Upload
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Upload Custom Fields CSV</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>CSV File</Label>
-                    <Input
-                      type="file"
-                      accept=".csv"
-                      onChange={handleFileUpload}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Upload a CSV file with custom field definitions. Download the template for the correct format.
-                    </p>
-                  </div>
 
-                  <div className="bg-muted p-4 rounded-lg space-y-2">
-                    <p className="text-sm font-medium">CSV Format:</p>
-                    <ul className="text-xs text-muted-foreground space-y-1">
-                      <li>• field_name: Internal name (lowercase, underscores)</li>
-                      <li>• field_label: Display label</li>
-                      <li>• field_type: text, email, phone, number, date, select, textarea, file, location</li>
-                      <li>• field_options: For select type, separate with semicolons (;)</li>
-                      <li>• is_required: true or false</li>
-                      <li>• is_active: true or false</li>
-                      <li>• field_order: Number for ordering</li>
-                      <li>• applies_to_table: contacts, redefine_data_repository, inventory_items, or all</li>
-                    </ul>
-                  </div>
+            <Button variant="outline" onClick={() => uploadDialog.openDialog()}>
+              <Upload className="mr-2 h-4 w-4" />
+              Bulk Upload
+            </Button>
 
-                  <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        setIsUploadDialogOpen(false);
-                        setUploadFile(null);
-                      }}
-                      className="flex-1"
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={processCSVUpload}
-                      disabled={!uploadFile || loading}
-                      className="flex-1"
-                    >
-                      {loading ? "Uploading..." : "Upload"}
-                    </Button>
-                  </div>
-                </div>
-              </DialogContent>
-            </Dialog>
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
-                <Button onClick={resetForm}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Field
-                </Button>
-              </DialogTrigger>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle>{editingField ? "Edit Field" : "Add New Field"}</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="field_label">Field Label *</Label>
-                  <Input
-                    id="field_label"
-                    value={formData.field_label}
-                    onChange={(e) => setFormData({ ...formData, field_label: e.target.value })}
-                    placeholder="e.g., Department"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="field_name">Field Name (Internal) *</Label>
-                  <Input
-                    id="field_name"
-                    value={formData.field_name}
-                    onChange={(e) => setFormData({ ...formData, field_name: e.target.value })}
-                    placeholder="e.g., department"
-                    disabled={!!editingField}
-                    required
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Will be converted to lowercase with underscores
-                  </p>
-                </div>
-
-                 <div className="space-y-2">
-                  <Label htmlFor="field_type">Field Type *</Label>
-                  <Select 
-                    value={formData.field_type} 
-                    onValueChange={(value) => setFormData({ ...formData, field_type: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {FIELD_TYPES.map((type) => (
-                        <SelectItem key={type.value} value={type.value}>
-                          {type.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="applies_to_table">Applies To Table *</Label>
-                  <Select 
-                    value={formData.applies_to_table} 
-                    onValueChange={(value) => setFormData({ ...formData, applies_to_table: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="contacts">Contacts</SelectItem>
-                      <SelectItem value="redefine_data_repository">Data Repository</SelectItem>
-                      <SelectItem value="inventory_items">Inventory</SelectItem>
-                      <SelectItem value="all">All Tables</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">
-                    Which table this custom field applies to
-                  </p>
-                </div>
-
-                {formData.field_type === "select" && (
-                  <div className="space-y-2">
-                    <Label htmlFor="field_options">Dropdown Options *</Label>
-                    <Input
-                      id="field_options"
-                      value={formData.field_options}
-                      onChange={(e) => setFormData({ ...formData, field_options: e.target.value })}
-                      placeholder="Option 1, Option 2, Option 3"
-                      required
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Separate options with commas
-                    </p>
-                  </div>
-                )}
-
-                <div className="space-y-2">
-                  <Label htmlFor="field_order">Display Order</Label>
-                  <Input
-                    id="field_order"
-                    type="number"
-                    value={formData.field_order}
-                    onChange={(e) => setFormData({ ...formData, field_order: parseInt(e.target.value) || 0 })}
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="is_required">Required Field</Label>
-                  <Switch
-                    id="is_required"
-                    checked={formData.is_required}
-                    onCheckedChange={(checked) => setFormData({ ...formData, is_required: checked })}
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="is_active">Active</Label>
-                  <Switch
-                    id="is_active"
-                    checked={formData.is_active}
-                    onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
-                  />
-                </div>
-
-                <div className="flex gap-2">
-                  <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} className="flex-1">
-                    Cancel
-                  </Button>
-                  <Button type="submit" className="flex-1" disabled={loading}>
-                    {loading ? "Saving..." : editingField ? "Update" : "Create"}
-                  </Button>
-                </div>
-              </form>
-            </DialogContent>
-            </Dialog>
+            <Button onClick={() => dialog.openDialog({ field_order: fields.length })}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Field
+            </Button>
           </div>
         </div>
 
+        <FormDialog
+          open={uploadDialog.isOpen}
+          onOpenChange={(open) => !open && uploadDialog.closeDialog()}
+          title="Upload Custom Fields CSV"
+          onSubmit={(e) => {
+            e.preventDefault();
+            processCSVUpload();
+          }}
+          isLoading={isProcessing}
+          submitLabel={isProcessing ? "Uploading..." : "Upload"}
+        >
+          <div className="space-y-2">
+            <Label>CSV File</Label>
+            <Input
+              type="file"
+              accept=".csv"
+              onChange={handleFileUpload}
+            />
+            <p className="text-xs text-muted-foreground">
+              Upload a CSV file with custom field definitions. Download the template for the correct format.
+            </p>
+          </div>
+
+          <div className="bg-muted p-4 rounded-lg space-y-2">
+            <p className="text-sm font-medium">CSV Format:</p>
+            <ul className="text-xs text-muted-foreground space-y-1">
+              <li>• field_name: Internal name (lowercase, underscores)</li>
+              <li>• field_label: Display label</li>
+              <li>• field_type: text, email, phone, number, date, select, textarea, file, location</li>
+              <li>• field_options: For select type, separate with semicolons (;)</li>
+              <li>• is_required: true or false</li>
+              <li>• is_active: true or false</li>
+              <li>• field_order: Number for ordering</li>
+              <li>• applies_to_table: contacts, redefine_data_repository, inventory_items, or all</li>
+            </ul>
+          </div>
+        </FormDialog>
+
+        <FormDialog
+          open={dialog.isOpen}
+          onOpenChange={(open) => !open && dialog.closeDialog()}
+          title={dialog.isEditing ? "Edit Field" : "Add New Field"}
+          onSubmit={handleSubmit}
+          isLoading={isProcessing}
+          submitLabel={isProcessing ? "Saving..." : dialog.isEditing ? "Update" : "Create"}
+        >
+          <div className="space-y-2">
+            <Label htmlFor="field_label">Field Label *</Label>
+            <Input
+              id="field_label"
+              value={dialog.formData.field_label}
+              onChange={(e) => dialog.updateFormData({ field_label: e.target.value })}
+              placeholder="e.g., Department"
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="field_name">Field Name (Internal) *</Label>
+            <Input
+              id="field_name"
+              value={dialog.formData.field_name}
+              onChange={(e) => dialog.updateFormData({ field_name: e.target.value })}
+              placeholder="e.g., department"
+              disabled={!!dialog.isEditing}
+              required
+            />
+            <p className="text-xs text-muted-foreground">
+              Will be converted to lowercase with underscores
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="field_type">Field Type *</Label>
+            <Select 
+              value={dialog.formData.field_type} 
+              onValueChange={(value) => dialog.updateFormData({ field_type: value })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {FIELD_TYPES.map((type) => (
+                  <SelectItem key={type.value} value={type.value}>
+                    {type.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="applies_to_table">Applies To Table *</Label>
+            <Select 
+              value={dialog.formData.applies_to_table} 
+              onValueChange={(value) => dialog.updateFormData({ applies_to_table: value })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="contacts">Contacts</SelectItem>
+                <SelectItem value="redefine_data_repository">Data Repository</SelectItem>
+                <SelectItem value="inventory_items">Inventory</SelectItem>
+                <SelectItem value="all">All Tables</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Which table this custom field applies to
+            </p>
+          </div>
+
+          {dialog.formData.field_type === "select" && (
+            <div className="space-y-2">
+              <Label htmlFor="field_options">Dropdown Options *</Label>
+              <Input
+                id="field_options"
+                value={dialog.formData.field_options}
+                onChange={(e) => dialog.updateFormData({ field_options: e.target.value })}
+                placeholder="Option 1, Option 2, Option 3"
+                required
+              />
+              <p className="text-xs text-muted-foreground">
+                Separate options with commas
+              </p>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <Label htmlFor="field_order">Display Order</Label>
+            <Input
+              id="field_order"
+              type="number"
+              value={dialog.formData.field_order}
+              onChange={(e) => dialog.updateFormData({ field_order: parseInt(e.target.value) || 0 })}
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <Label htmlFor="is_required">Required Field</Label>
+            <Switch
+              id="is_required"
+              checked={dialog.formData.is_required}
+              onCheckedChange={(checked) => dialog.updateFormData({ is_required: checked })}
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <Label htmlFor="is_active">Active</Label>
+            <Switch
+              id="is_active"
+              checked={dialog.formData.is_active}
+              onCheckedChange={(checked) => dialog.updateFormData({ is_active: checked })}
+            />
+          </div>
+        </FormDialog>
+
         <div className="grid gap-4">
-          {loading ? (
-            <Card>
-              <CardContent className="p-6">
-                <p className="text-center text-muted-foreground">Loading fields...</p>
-              </CardContent>
-            </Card>
+          {isLoading ? (
+            <LoadingState message="Loading fields..." />
           ) : fields.length === 0 ? (
-            <Card>
-              <CardContent className="p-6">
-                <p className="text-center text-muted-foreground">
-                  No custom fields configured. Click "Add Field" to create one.
-                </p>
-              </CardContent>
-            </Card>
+            <EmptyState message="No custom fields configured. Click 'Add Field' to create one." />
           ) : (
             <DndContext
               sensors={sensors}

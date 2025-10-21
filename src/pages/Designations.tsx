@@ -1,17 +1,21 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgContext } from "@/hooks/useOrgContext";
+import { useDialogState } from "@/hooks/useDialogState";
+import { useNotification } from "@/hooks/useNotification";
+import { useOrgData } from "@/hooks/useOrgData";
 import DashboardLayout from "@/components/Layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { toast } from "sonner";
 import { Plus, Trash2, Edit, Users } from "lucide-react";
+import { FormDialog } from "@/components/common/FormDialog";
+import { LoadingState } from "@/components/common/LoadingState";
+import { EmptyState } from "@/components/common/EmptyState";
 
 interface Designation {
   id: string;
@@ -39,63 +43,35 @@ const ROLES = [
 
 export default function Designations() {
   const { effectiveOrgId } = useOrgContext();
-  const [designations, setDesignations] = useState<Designation[]>([]);
-  const [reporting, setReporting] = useState<ReportingRelation[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingDesignation, setEditingDesignation] = useState<Designation | null>(null);
+  const notify = useNotification();
   
-  const [formData, setFormData] = useState({
+  const dialog = useDialogState({
     name: "",
     description: "",
     role: "",
     reports_to: "",
   });
 
-  useEffect(() => {
-    if (effectiveOrgId) {
-      fetchData();
-    }
-  }, [effectiveOrgId]);
+  const { data: designations = [], isLoading, refetch } = useOrgData<Designation>("designations", {
+    select: "id, name, description, role, is_active",
+    orderBy: { column: "name", ascending: true }
+  });
 
-  const fetchData = async () => {
-    if (!effectiveOrgId) return;
-    
-    try {
-      setLoading(true);
+  const { data: reporting = [] } = useOrgData<ReportingRelation>("reporting_hierarchy", {
+    select: "*"
+  });
 
-      const [designationsRes, reportingRes, profilesRes] = await Promise.all([
-        supabase
-          .from("designations" as any)
-          .select("*")
-          .eq("org_id", effectiveOrgId)
-          .order("name"),
-        supabase
-          .from("reporting_hierarchy" as any)
-          .select("*")
-          .eq("org_id", effectiveOrgId),
-        supabase
-          .from("profiles")
-          .select("designation_id")
-          .eq("org_id", effectiveOrgId)
-          .not("designation_id", "is", null),
-      ]);
+  const { data: profiles = [] } = useOrgData("profiles", {
+    select: "designation_id",
+    filter: { designation_id: { not: null } }
+  });
 
-      if (designationsRes.data) {
-        const designationsWithCounts = (designationsRes.data as any[]).map(des => ({
-          ...des,
-          employee_count: (profilesRes.data as any[] || []).filter(p => p.designation_id === des.id).length,
-        }));
-        setDesignations(designationsWithCounts);
-      }
-      if (reportingRes.data) setReporting(reportingRes.data as any);
-    } catch (error) {
-      console.error("Error fetching data:", error);
-      toast.error("Failed to load designations");
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Calculate employee counts
+  const designationsWithCounts = designations.map(des => ({
+    ...des,
+    employee_count: profiles.filter(p => p.designation_id === des.id).length
+  }));
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -104,23 +80,22 @@ export default function Designations() {
     try {
       const designationPayload = {
         org_id: effectiveOrgId,
-        name: formData.name,
-        description: formData.description,
-        role: formData.role,
+        name: dialog.formData.name,
+        description: dialog.formData.description,
+        role: dialog.formData.role,
         is_active: true,
       };
 
       let designationId: string;
 
-      if (editingDesignation) {
+      if (dialog.isEditing) {
         const { error } = await supabase
           .from("designations" as any)
           .update(designationPayload)
-          .eq("id", editingDesignation.id);
+          .eq("id", dialog.editingItem.id);
 
         if (error) throw error;
-        designationId = editingDesignation.id;
-        toast.success("Designation updated successfully");
+        designationId = dialog.editingItem.id;
       } else {
         const { data, error } = await supabase
           .from("designations" as any)
@@ -130,39 +105,36 @@ export default function Designations() {
 
         if (error) throw error;
         designationId = (data as any).id;
-        toast.success("Designation created successfully");
       }
 
       // Handle reporting relationship
-      if (formData.reports_to) {
+      if (dialog.formData.reports_to) {
         const { error: hierError } = await supabase
           .from("reporting_hierarchy" as any)
           .upsert({
             org_id: effectiveOrgId,
             designation_id: designationId,
-            reports_to_designation_id: formData.reports_to,
+            reports_to_designation_id: dialog.formData.reports_to,
           });
 
         if (hierError) throw hierError;
-      } else if (editingDesignation) {
-        // Remove reporting relationship if cleared
+      } else if (dialog.isEditing) {
         await supabase
           .from("reporting_hierarchy" as any)
           .delete()
           .eq("designation_id", designationId);
       }
 
-      setIsDialogOpen(false);
-      resetForm();
-      fetchData();
+      notify.success(dialog.isEditing ? "Designation updated successfully" : "Designation created successfully");
+      dialog.closeDialog();
+      refetch();
     } catch (error) {
-      console.error("Error saving designation:", error);
-      toast.error("Failed to save designation");
+      notify.error("Failed to save designation", error);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this designation?")) return;
+    if (!notify.confirm("Are you sure you want to delete this designation?")) return;
 
     try {
       const { error } = await supabase
@@ -171,52 +143,27 @@ export default function Designations() {
         .eq("id", id);
 
       if (error) throw error;
-      toast.success("Designation deleted successfully");
-      fetchData();
+      notify.success("Designation deleted successfully");
+      refetch();
     } catch (error) {
-      console.error("Error deleting designation:", error);
-      toast.error("Failed to delete designation");
+      notify.error("Failed to delete designation", error);
     }
   };
 
   const handleEdit = (designation: Designation) => {
-    setEditingDesignation(designation);
     const reportsTo = reporting.find(r => r.designation_id === designation.id);
-    setFormData({
-      name: designation.name,
-      description: designation.description || "",
-      role: designation.role,
+    dialog.openDialog({
+      ...designation,
       reports_to: reportsTo?.reports_to_designation_id || "",
     });
-    setIsDialogOpen(true);
-  };
-
-  const resetForm = () => {
-    setFormData({
-      name: "",
-      description: "",
-      role: "",
-      reports_to: "",
-    });
-    setEditingDesignation(null);
   };
 
   const getReportsToName = (designationId: string) => {
     const relation = reporting.find(r => r.designation_id === designationId);
     if (!relation?.reports_to_designation_id) return null;
-    const parentDesignation = designations.find(d => d.id === relation.reports_to_designation_id);
+    const parentDesignation = designationsWithCounts.find(d => d.id === relation.reports_to_designation_id);
     return parentDesignation?.name || null;
   };
-
-  if (loading) {
-    return (
-      <DashboardLayout>
-        <div className="flex justify-center items-center h-64">
-          <div className="text-lg">Loading...</div>
-        </div>
-      </DashboardLayout>
-    );
-  }
 
   return (
     <DashboardLayout>
@@ -226,118 +173,91 @@ export default function Designations() {
             <h1 className="text-3xl font-bold">Designations</h1>
             <p className="text-muted-foreground">Manage organizational designations and reporting structure</p>
           </div>
-          <Dialog open={isDialogOpen} onOpenChange={(open) => {
-            setIsDialogOpen(open);
-            if (!open) resetForm();
-          }}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Designation
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>
-                  {editingDesignation ? "Edit Designation" : "Create Designation"}
-                </DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <Label htmlFor="name">Designation Name *</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="e.g., Senior Sales Manager"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="role">Role *</Label>
-                  <Select
-                    value={formData.role}
-                    onValueChange={(value) => setFormData({ ...formData, role: value })}
-                    required
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ROLES.map((role) => (
-                        <SelectItem key={role.value} value={role.value}>
-                          {role.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label htmlFor="reports_to">Reports To</Label>
-                  <Select
-                    value={formData.reports_to || "none"}
-                    onValueChange={(value) => setFormData({ ...formData, reports_to: value === "none" ? "" : value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="No direct report" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">None (Top Level)</SelectItem>
-                      {designations
-                        .filter(d => d.id !== editingDesignation?.id)
-                        .map((des) => (
-                          <SelectItem key={des.id} value={des.id}>
-                            {des.name}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label htmlFor="description">Description</Label>
-                  <Textarea
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    placeholder="Describe this designation"
-                    rows={3}
-                  />
-                </div>
-
-                <div className="flex justify-end gap-2 pt-4">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setIsDialogOpen(false);
-                      resetForm();
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                  <Button type="submit">
-                    {editingDesignation ? "Update" : "Create"}
-                  </Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
+          <Button onClick={() => dialog.openDialog()}>
+            <Plus className="w-4 h-4 mr-2" />
+            Add Designation
+          </Button>
         </div>
 
+        <FormDialog
+          open={dialog.isOpen}
+          onOpenChange={(open) => !open && dialog.closeDialog()}
+          title={dialog.isEditing ? "Edit Designation" : "Create Designation"}
+          onSubmit={handleSubmit}
+          submitLabel={dialog.isEditing ? "Update" : "Create"}
+        >
+          <div>
+            <Label htmlFor="name">Designation Name *</Label>
+            <Input
+              id="name"
+              value={dialog.formData.name}
+              onChange={(e) => dialog.updateFormData({ name: e.target.value })}
+              placeholder="e.g., Senior Sales Manager"
+              required
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="role">Role *</Label>
+            <Select
+              value={dialog.formData.role}
+              onValueChange={(value) => dialog.updateFormData({ role: value })}
+              required
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select role" />
+              </SelectTrigger>
+              <SelectContent>
+                {ROLES.map((role) => (
+                  <SelectItem key={role.value} value={role.value}>
+                    {role.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="reports_to">Reports To</Label>
+            <Select
+              value={dialog.formData.reports_to || "none"}
+              onValueChange={(value) => dialog.updateFormData({ reports_to: value === "none" ? "" : value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="No direct report" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">None (Top Level)</SelectItem>
+                {designationsWithCounts
+                  .filter(d => d.id !== dialog.editingItem?.id)
+                  .map((des) => (
+                    <SelectItem key={des.id} value={des.id}>
+                      {des.name}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="description">Description</Label>
+            <Textarea
+              id="description"
+              value={dialog.formData.description}
+              onChange={(e) => dialog.updateFormData({ description: e.target.value })}
+              placeholder="Describe this designation"
+              rows={3}
+            />
+          </div>
+        </FormDialog>
+
         <div className="grid gap-4">
-          {designations.length === 0 ? (
-            <Card>
-              <CardContent className="pt-6">
-                <p className="text-center text-muted-foreground">
-                  No designations configured yet. Click "Add Designation" to get started.
-                </p>
-              </CardContent>
-            </Card>
+          {isLoading ? (
+            <LoadingState />
+          ) : designationsWithCounts.length === 0 ? (
+            <EmptyState message="No designations configured yet. Click 'Add Designation' to get started." />
           ) : (
-            designations.map((designation) => {
+            designationsWithCounts.map((designation) => {
               const reportsTo = getReportsToName(designation.id);
               return (
                 <Card key={designation.id}>
