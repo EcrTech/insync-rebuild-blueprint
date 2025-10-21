@@ -108,91 +108,89 @@ Return the IDs of contacts that match the search criteria.`;
       throw new Error('Either contact or searchQuery with contacts must be provided');
     }
 
-    const systemPrompt = `You are a B2B lead scoring AI that evaluates contacts based on their pipeline position and engagement level.
+    const systemPrompt = `You are a B2B lead scoring AI that evaluates lead quality on a 0-100 scale with HEAVY emphasis on pipeline stage.
 
-SCORING FRAMEWORK (Total: 100 points)
+SCORING FRAMEWORK (Total: 100 points):
 
-1. PIPELINE STAGE SCORE (0-40 points) - PRIMARY INDICATOR
-   Based on pipeline_stage.stage_order and name:
-   - Won/Closed Won: 40 points
-   - Negotiation/Contract Discussion: 35 points
-   - Proposal Sent: 30 points
-   - Demo/Presentation Completed: 25 points
-   - Qualified/Interested: 20 points
-   - Contacted/Initial Discussion: 15 points
-   - New/Uncontacted: 5 points
+1. PIPELINE STAGE (0-50 points) - PRIMARY FACTOR:
+   Base Points by Stage:
+   - Won/Closed Won: 50 points (probability 100%)
+   - Negotiation/Contract Discussion: 45 points (probability 85%)
+   - Proposal Sent: 40 points (probability 70%)
+   - Demo/Presentation: 30 points (probability 50%)
+   - Qualified/Interested: 20 points (probability 25%)
+   - Contacted/Initial Discussion: 15 points (probability 15%)
+   - New/Uncontacted: 10 points (probability 10%)
    - Lost/Disqualified: 0 points
+   
+   Probability Bonus (applied based on stage probability field):
+   - If probability ≥ 80%: +10 points
+   - If probability ≥ 60%: +5 points
+   - This bonus is AUTOMATICALLY applied based on pipeline_stage.probability value
 
-2. ACTIVITY ENGAGEMENT (0-25 points)
-   Recent Activity Bonus (0-10 points):
-   - Activity within 7 days: +10 points
-   - Activity within 14 days: +7 points
-   - Activity within 30 days: +4 points
-   - No activity in 30+ days: -5 points
+2. ACTIVITY ENGAGEMENT (0-20 points):
+   Recent Activity Timing (0-8 points):
+   - Activity within 7 days: 8 points
+   - Activity within 14 days: 5 points
+   - Activity within 30 days: 2 points
+   - No activity in 30+ days: 0 points
    
-   Meeting/Demo Completion (0-10 points):
-   - 3+ meetings completed: 10 points
-   - 2 meetings: 7 points
-   - 1 meeting: 5 points
-   - Demo scheduled but not completed: 3 points
-   - No meetings: 0 points
-   
-   Communication Volume (0-5 points):
-   - 10+ total activities: 5 points
-   - 5-9 activities: 3 points
-   - 1-4 activities: 1 point
-   - No activities: 0 points
+   Communication Quality (0-12 points):
+   - Meetings/demos completed: +4 points per type with activity
+   - Emails exchanged: +4 points
+   - Calls made: +4 points
+   - Total activities ≥ 5: +4 bonus points
 
-3. BUSINESS PROFILE (0-20 points)
-   Company & Role Assessment (0-10 points):
-   - Large known company: 10 points
-   - Medium business: 7 points
-   - Small business: 4 points
-   - Unknown/individual: 2 points
+3. BUSINESS PROFILE (0-15 points):
+   Company & Role Assessment (0-8 points):
+   - Known company with complete info: 8 points
+   - Medium business: 5 points
+   - Basic company info: 3 points
    
-   Decision-Making Level (0-10 points):
-   - C-Suite (CEO, CFO, CTO, Owner, Partner): 10 points
-   - VP/Director level: 7 points
-   - Manager level: 4 points
+   Decision-Making Level (0-7 points):
+   - C-Suite (CEO, CFO, CTO, Owner, Partner): 7 points
+   - VP/Director/Manager level: 4 points
    - Other roles: 2 points
 
-4. DATA QUALITY (0-15 points)
-   - Lead Source Quality (0-8 points):
-     * Direct referral/partnership: 8 points
-     * Website inquiry/demo request: 6 points
-     * Event/webinar: 4 points
-     * Cold outreach/unknown: 2 points
+4. DATA QUALITY (0-15 points):
+   Lead Source Quality (0-8 points):
+   - Direct referral/partnership: 8 points
+   - Website inquiry/demo request: 6 points
+   - Event/webinar: 4 points
+   - Cold outreach/unknown: 2 points
    
-   - Information Completeness (0-7 points):
-     * Complete profile with company, role, location: 7 points
-     * Basic information: 4 points
-     * Minimal data: 2 points
+   Information Completeness (0-7 points):
+   - Complete profile (company, role, email, phone): 7 points
+   - Basic information: 4 points
+   - Minimal data: 2 points
 
 CATEGORY ASSIGNMENT:
-- 85-100: hot (In negotiation/won stages, highly engaged)
-- 70-84: warm (In proposal/demo stages, actively progressing)
-- 55-69: cool (In contacted/qualified stages, some engagement)
-- 40-54: cold (In early stages or limited activity)
-- 0-39: unqualified (No engagement, lost, or very poor fit)
+- 90-100: hot (Won or near-close deals with high probability)
+- 75-89: warm (Active negotiation/proposals with good engagement)
+- 55-74: cool (Qualified leads with some activity)
+- 35-54: cold (Early stage or minimal engagement)
+- 0-34: unqualified (Lost or no engagement)
 
-CRITICAL RULES:
-- Pipeline stage is the PRIMARY factor
-- A contact in "Won" stage MUST score 85+
-- A contact in "Demo" stage MUST score at least 65+
-- Recent activity (meetings, demos) significantly boosts score
-- Stagnant leads (30+ days no activity) get penalized
+CRITICAL SCORING RULES - ENFORCE STRICTLY:
+- Won stage: MUST score 95+ minimum
+- Negotiation stage (probability ≥ 80%): MUST score 80+ minimum
+- Proposal stage (probability ≥ 60%): MUST score 65+ minimum
+- Lost stage: CANNOT score above 30
+- The probability bonus is MANDATORY when probability field is ≥ 60%
+
+IMPORTANT: Use the pipeline_stage.probability field to apply the bonus points automatically!
 
 Return ONLY valid JSON:
 {
   "score": <number 0-100>,
   "category": "<hot|warm|cool|cold|unqualified>",
   "breakdown": {
-    "Pipeline Stage": <points>,
+    "Pipeline Stage": <points including probability bonus>,
     "Activity Engagement": <points>,
     "Business Profile": <points>,
     "Data Quality": <points>
   },
-  "reasoning": "<brief explanation>"
+  "reasoning": "<brief explanation emphasizing pipeline stage and probability>"
 }`;
 
     const contactData = {
