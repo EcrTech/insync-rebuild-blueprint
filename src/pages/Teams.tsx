@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/Layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,6 +14,8 @@ import { useDialogState } from "@/hooks/useDialogState";
 import { useNotification } from "@/hooks/useNotification";
 import { useCRUD } from "@/hooks/useCRUD";
 import { useOrgData } from "@/hooks/useOrgData";
+import { FormDialog } from "@/components/common/FormDialog";
+import { EmptyState } from "@/components/common/EmptyState";
 
 interface Team {
   id: string;
@@ -108,80 +109,73 @@ export default function Teams() {
             <h1 className="text-3xl font-bold">Team Management</h1>
             <p className="text-muted-foreground">Organize your workforce into teams</p>
           </div>
-          <Dialog open={dialog.isOpen} onOpenChange={dialog.closeDialog}>
-            <DialogTrigger asChild>
-              <Button onClick={() => dialog.openDialog()}>
-                <Plus className="mr-2 h-4 w-4" />
-                Create Team
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>{dialog.isEditing ? "Edit Team" : "Create New Team"}</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Team Name *</Label>
-                  <Input
-                    id="name"
-                    value={dialog.formData.name}
-                    onChange={(e) => dialog.updateFormData({ name: e.target.value })}
-                    placeholder="e.g., Sales Team A"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="description">Description</Label>
-                  <Textarea
-                    id="description"
-                    value={dialog.formData.description}
-                    onChange={(e) => dialog.updateFormData({ description: e.target.value })}
-                    placeholder="Brief description of the team"
-                    rows={3}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="manager">Team Manager</Label>
-                  <Select 
-                    value={dialog.formData.manager_id || "none"} 
-                    onValueChange={(value) => dialog.updateFormData({ manager_id: value === "none" ? "" : value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a manager" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">No manager</SelectItem>
-                      {managers.map((manager) => (
-                        <SelectItem key={manager.id} value={manager.id}>
-                          {manager.first_name} {manager.last_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <Button type="submit" className="w-full" disabled={crud.isLoading}>
-                  {dialog.isEditing ? "Update Team" : "Create Team"}
-                </Button>
-              </form>
-            </DialogContent>
-          </Dialog>
+          <Button onClick={() => dialog.openDialog()}>
+            <Plus className="mr-2 h-4 w-4" />
+            Create Team
+          </Button>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {isLoading ? (
-            <div className="col-span-full text-center py-8">Loading...</div>
-          ) : teams.length === 0 ? (
-            <Card className="col-span-full">
-              <CardContent className="py-8 text-center">
-                <UsersIcon className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">No teams yet. Create your first team to get started.</p>
-              </CardContent>
-            </Card>
-          ) : (
-            teams.map((team) => (
+        <FormDialog
+          open={dialog.isOpen}
+          onOpenChange={(open) => !open && dialog.closeDialog()}
+          title={dialog.isEditing ? "Edit Team" : "Create New Team"}
+          onSubmit={handleSubmit}
+          isLoading={crud.isLoading}
+          submitLabel={dialog.isEditing ? "Update Team" : "Create Team"}
+        >
+          <div className="space-y-2">
+            <Label htmlFor="name">Team Name *</Label>
+            <Input
+              id="name"
+              value={dialog.formData.name}
+              onChange={(e) => dialog.updateFormData({ name: e.target.value })}
+              placeholder="e.g., Sales Team A"
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="description">Description</Label>
+            <Textarea
+              id="description"
+              value={dialog.formData.description}
+              onChange={(e) => dialog.updateFormData({ description: e.target.value })}
+              placeholder="Brief description of the team"
+              rows={3}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="manager">Team Manager</Label>
+            <Select 
+              value={dialog.formData.manager_id || "none"} 
+              onValueChange={(value) => dialog.updateFormData({ manager_id: value === "none" ? "" : value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select a manager" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No manager</SelectItem>
+                {managers.map((manager) => (
+                  <SelectItem key={manager.id} value={manager.id}>
+                    {manager.first_name} {manager.last_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </FormDialog>
+
+        {isLoading ? (
+          <div className="col-span-full text-center py-8">Loading...</div>
+        ) : teams.length === 0 ? (
+          <EmptyState
+            icon={<UsersIcon className="h-12 w-12 text-muted-foreground" />}
+            message="No teams yet. Create your first team to get started."
+          />
+        ) : (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {teams.map((team) => (
               <Card key={team.id}>
                 <CardHeader>
                   <CardTitle className="flex items-center justify-between">
@@ -216,9 +210,9 @@ export default function Teams() {
                   </div>
                 </CardContent>
               </Card>
-            ))
-          )}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );
