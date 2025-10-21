@@ -9,14 +9,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Download, Calendar, Plus, Phone, Target, TrendingUp, Brain, Users } from "lucide-react";
 import { useNotification } from "@/hooks/useNotification";
 import { useNavigate } from "react-router-dom";
-import { CustomReportsList } from "@/components/Reports/CustomReportsList";
-import { ReportViewer } from "@/components/Reports/ReportViewer";
 import { useOrgContext } from "@/hooks/useOrgContext";
 import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import CampaignAnalyticsTab from "@/components/Reports/Analytics/CampaignAnalyticsTab";
 import AIInsightsTab from "@/components/Reports/Insights/AIInsightsTab";
-import AgentPerformanceTab from "@/components/Reports/AgentPerformance/AgentPerformanceTab";
+import CallingDashboardTab from "@/components/Reports/CallingDashboard/CallingDashboardTab";
 
 interface SalesReport {
   user_name: string;
@@ -37,7 +35,6 @@ interface PipelineReport {
 export default function Reports() {
   const navigate = useNavigate();
   const [dateRange, setDateRange] = useState<"week" | "month" | "quarter">("month");
-  const [viewingReportId, setViewingReportId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>("campaigns");
   const notify = useNotification();
   const { effectiveOrgId } = useOrgContext();
@@ -160,7 +157,7 @@ export default function Reports() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="campaigns">
               <TrendingUp className="h-4 w-4 mr-2" />
               Campaign Analytics
@@ -169,17 +166,13 @@ export default function Reports() {
               <Brain className="h-4 w-4 mr-2" />
               AI Insights
             </TabsTrigger>
-            <TabsTrigger value="agents">
-              <Users className="h-4 w-4 mr-2" />
-              Agent Performance
+            <TabsTrigger value="calling">
+              <Phone className="h-4 w-4 mr-2" />
+              Calling Dashboard
             </TabsTrigger>
             <TabsTrigger value="sales">
               <Target className="h-4 w-4 mr-2" />
               Sales Performance
-            </TabsTrigger>
-            <TabsTrigger value="custom">
-              <Plus className="h-4 w-4 mr-2" />
-              Custom Reports
             </TabsTrigger>
           </TabsList>
 
@@ -191,8 +184,8 @@ export default function Reports() {
             <AIInsightsTab />
           </TabsContent>
 
-          <TabsContent value="agents" className="space-y-4">
-            <AgentPerformanceTab />
+          <TabsContent value="calling" className="space-y-4">
+            <CallingDashboardTab />
           </TabsContent>
 
           <TabsContent value="sales" className="space-y-4">
@@ -402,17 +395,7 @@ export default function Reports() {
         </Tabs>
       </div>
     </TabsContent>
-
-    <TabsContent value="custom" className="space-y-4">
-      <CustomReportsList onViewReport={setViewingReportId} />
-    </TabsContent>
   </Tabs>
-
-        <ReportViewer
-          reportId={viewingReportId}
-          open={!!viewingReportId}
-          onClose={() => setViewingReportId(null)}
-        />
       </div>
     </DashboardLayout>
   );
