@@ -91,7 +91,27 @@ export function LeadScoreCard({ contactId, orgId }: LeadScoreCardProps) {
     }
   };
 
-  const breakdown = leadScore.score_breakdown as Record<string, number> || {};
+  // Flatten nested score breakdown for display
+  const flattenBreakdown = (breakdown: any): Record<string, number> => {
+    const flattened: Record<string, number> = {};
+    
+    if (!breakdown || typeof breakdown !== 'object') return flattened;
+    
+    Object.entries(breakdown).forEach(([category, value]) => {
+      if (typeof value === 'number') {
+        flattened[category] = value;
+      } else if (typeof value === 'object' && value !== null) {
+        // For nested objects, show the total
+        const total = Object.values(value as Record<string, number>)
+          .reduce((sum, val) => sum + (typeof val === 'number' ? val : 0), 0);
+        flattened[category] = total;
+      }
+    });
+    
+    return flattened;
+  };
+
+  const breakdown = flattenBreakdown(leadScore.score_breakdown);
 
   return (
     <Card>
@@ -101,7 +121,7 @@ export function LeadScoreCard({ contactId, orgId }: LeadScoreCardProps) {
           Lead Score
         </CardTitle>
         <CardDescription>
-          Engagement-based scoring
+          Pipeline and engagement-based scoring
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -127,14 +147,18 @@ export function LeadScoreCard({ contactId, orgId }: LeadScoreCardProps) {
         {Object.keys(breakdown).length > 0 && (
           <div className="pt-4 border-t space-y-2">
             <div className="text-sm font-medium mb-2">Score Breakdown</div>
-            {Object.entries(breakdown).map(([reason, points]) => (
-              <div key={reason} className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">{reason}</span>
-                <span className={points > 0 ? 'text-success' : 'text-destructive'}>
-                  {points > 0 ? '+' : ''}{points}
-                </span>
-              </div>
-            ))}
+            {Object.entries(breakdown)
+              .sort(([, a], [, b]) => b - a)
+              .map(([category, points]) => (
+                <div key={category} className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground capitalize">
+                    {category.replace(/_/g, ' ')}
+                  </span>
+                  <span className="font-medium">
+                    {points > 0 ? '+' : ''}{points}
+                  </span>
+                </div>
+              ))}
           </div>
         )}
       </CardContent>

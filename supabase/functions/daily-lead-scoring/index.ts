@@ -17,7 +17,7 @@ Deno.serve(async (req) => {
 
     console.log('Starting daily lead scoring job...');
 
-    // Get all contacts (we'll filter in code for simplicity)
+    // Get all contacts with pipeline stage info
     const { data: allContacts, error: contactsError } = await supabase
       .from('contacts')
       .select(`
@@ -27,16 +27,25 @@ Deno.serve(async (req) => {
         last_name,
         email,
         phone,
-        company,
+        company_name,
         job_title,
-        status,
-        source,
+        industry,
+        company_size,
+        annual_revenue,
+        lead_source,
         city,
         state,
         country,
         website,
         notes,
-        created_at
+        created_at,
+        pipeline_stage_id,
+        pipeline_stages!inner(
+          id,
+          name,
+          stage_order,
+          probability
+        )
       `)
       .limit(100); // Process 100 contacts per run to avoid timeouts
 
@@ -81,7 +90,29 @@ Deno.serve(async (req) => {
       try {
         console.log(`Scoring contact: ${contact.first_name} ${contact.last_name} (${contact.id})`);
 
-        // Call the analyze-lead function
+        // Get recent activities for this contact
+        const { data: activities } = await supabase
+          .from('contact_activities')
+          .select('activity_type, created_at, completed_at')
+          .eq('contact_id', contact.id)
+          .order('created_at', { ascending: false })
+          .limit(20);
+
+        // Calculate engagement metrics
+        const now = new Date();
+        const lastActivity = activities?.[0]?.created_at 
+          ? new Date(activities[0].created_at) 
+          : null;
+        const daysSinceLastActivity = lastActivity 
+          ? Math.floor((now.getTime() - lastActivity.getTime()) / (1000 * 60 * 60 * 24))
+          : 999;
+
+        const activityCounts = activities?.reduce((acc: any, act: any) => {
+          acc[act.activity_type] = (acc[act.activity_type] || 0) + 1;
+          return acc;
+        }, {}) || {};
+
+        // Call the analyze-lead function with enriched data
         const { data: scoreData, error: scoreError } = await supabase.functions.invoke('analyze-lead', {
           body: {
             contact: {
@@ -90,16 +121,27 @@ Deno.serve(async (req) => {
               last_name: contact.last_name,
               email: contact.email,
               phone: contact.phone,
-              company: contact.company,
+              company_name: contact.company_name,
               job_title: contact.job_title,
-              status: contact.status,
-              source: contact.source,
+              industry: contact.industry,
+              company_size: contact.company_size,
+              annual_revenue: contact.annual_revenue,
+              lead_source: contact.lead_source,
               city: contact.city,
               state: contact.state,
               country: contact.country,
               website: contact.website,
               notes: contact.notes,
               created_at: contact.created_at,
+              pipeline_stage: contact.pipeline_stages,
+              engagement_metrics: {
+                total_activities: activities?.length || 0,
+                last_activity_date: lastActivity?.toISOString(),
+                days_since_last_activity: daysSinceLastActivity,
+                meetings_count: activityCounts['meeting'] || 0,
+                calls_count: activityCounts['call'] || 0,
+                emails_count: activityCounts['email'] || 0,
+              }
             }
           }
         });
@@ -110,22 +152,21 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // Save the score to the database
-        const scoreBreakdown = {
-          businessProfile: scoreData.breakdown?.businessProfile || {},
-          financialCapability: scoreData.breakdown?.financialCapability || {},
-          engagement: scoreData.breakdown?.engagement || {},
-          relationship: scoreData.breakdown?.relationship || {},
-        };
+        if (!scoreData?.score) {
+          console.error(`Invalid score data for contact ${contact.id}`);
+          failed++;
+          continue;
+        }
 
+        // Save the score to the database
         const { error: upsertError } = await supabase
           .from('contact_lead_scores')
           .upsert({
             contact_id: contact.id,
             org_id: contact.org_id,
-            score: scoreData.finalScore || 0,
-            score_category: scoreData.temperature?.toLowerCase() || 'cold',
-            score_breakdown: scoreBreakdown,
+            score: scoreData.score,
+            score_category: scoreData.category?.toLowerCase() || 'cold',
+            score_breakdown: scoreData.breakdown || {},
             last_calculated: new Date().toISOString(),
           }, {
             onConflict: 'contact_id'
@@ -136,7 +177,7 @@ Deno.serve(async (req) => {
           failed++;
         } else {
           processed++;
-          console.log(`Successfully scored contact ${contact.id}: ${scoreData.finalScore}/100 (${scoreData.temperature})`);
+          console.log(`Successfully scored contact ${contact.id}: ${scoreData.score}/100 (${scoreData.category})`);
         }
 
       } catch (error) {

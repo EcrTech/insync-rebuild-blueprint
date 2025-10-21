@@ -108,114 +108,127 @@ Return the IDs of contacts that match the search criteria.`;
       throw new Error('Either contact or searchQuery with contacts must be provided');
     }
 
-    const systemPrompt = `You are an expert lead scoring AI specialized in the Indian SMB market. You understand the unique characteristics of Indian small and medium businesses including budget sensitivity, relationship-driven sales, multi-stakeholder decision-making, and diverse digital maturity levels.
+    const systemPrompt = `You are a B2B lead scoring AI that evaluates contacts based on their pipeline position and engagement level.
 
-Your task is to analyze a lead and provide a detailed scoring report following the exact format specified. Use the comprehensive Indian SMB scoring framework to evaluate leads across Business Profile, Financial Capability, Engagement & Intent, and Relationship Quality.
+SCORING FRAMEWORK (Total: 100 points)
 
-CRITICAL: You must return ONLY valid JSON in this exact structure:
+1. PIPELINE STAGE SCORE (0-40 points) - PRIMARY INDICATOR
+   Based on pipeline_stage.stage_order and name:
+   - Won/Closed Won: 40 points
+   - Negotiation/Contract Discussion: 35 points
+   - Proposal Sent: 30 points
+   - Demo/Presentation Completed: 25 points
+   - Qualified/Interested: 20 points
+   - Contacted/Initial Discussion: 15 points
+   - New/Uncontacted: 5 points
+   - Lost/Disqualified: 0 points
+
+2. ACTIVITY ENGAGEMENT (0-25 points)
+   Recent Activity Bonus (0-10 points):
+   - Activity within 7 days: +10 points
+   - Activity within 14 days: +7 points
+   - Activity within 30 days: +4 points
+   - No activity in 30+ days: -5 points
+   
+   Meeting/Demo Completion (0-10 points):
+   - 3+ meetings completed: 10 points
+   - 2 meetings: 7 points
+   - 1 meeting: 5 points
+   - Demo scheduled but not completed: 3 points
+   - No meetings: 0 points
+   
+   Communication Volume (0-5 points):
+   - 10+ total activities: 5 points
+   - 5-9 activities: 3 points
+   - 1-4 activities: 1 point
+   - No activities: 0 points
+
+3. BUSINESS PROFILE (0-20 points)
+   Company Size & Revenue (0-10 points):
+   - Large enterprise (500+ employees, 100Cr+ revenue): 10 points
+   - Mid-sized (100-500 employees, 10-100Cr revenue): 7 points
+   - Small business (10-100 employees, 1-10Cr revenue): 4 points
+   - Startup/Very small (<10 employees, <1Cr revenue): 2 points
+   
+   Decision-Making Level (0-10 points):
+   - C-Suite (CEO, CFO, CTO, etc.): 10 points
+   - VP/Director level: 7 points
+   - Manager level: 4 points
+   - Other roles: 2 points
+
+4. FINANCIAL CAPABILITY (0-10 points)
+   - 100Cr+ annual revenue: 10 points
+   - 10-100Cr: 7 points
+   - 1-10Cr: 4 points
+   - <1Cr or unknown: 2 points
+
+5. DATA QUALITY (0-5 points)
+   - Lead Source + Information Completeness: 0-5 points
+
+CATEGORY ASSIGNMENT:
+- 85-100: hot (In negotiation/won stages, highly engaged)
+- 70-84: warm (In proposal/demo stages, actively progressing)
+- 55-69: cool (In contacted/qualified stages, some engagement)
+- 40-54: cold (In early stages or limited activity)
+- 0-39: unqualified (No engagement, lost, or very poor fit)
+
+CRITICAL RULES:
+- Pipeline stage is the PRIMARY factor
+- A contact in "Won" stage MUST score 85+
+- A contact in "Demo" stage MUST score at least 65+
+- Recent activity (meetings, demos) significantly boosts score
+- Stagnant leads (30+ days no activity) get penalized
+
+Return ONLY valid JSON:
 {
-  "finalScore": number (0-100),
-  "grade": string ("A+", "A", "B", "C", "D", or "F"),
-  "temperature": string ("HOT", "WARM", "COOL", "COLD", or "UNQUALIFIED"),
+  "score": <number 0-100>,
+  "category": "<hot|warm|cool|cold|unqualified>",
   "breakdown": {
-    "businessProfile": { "total": number, "companySize": number, "industry": number, "location": number, "registration": number, "msmeGst": number },
-    "financialCapability": { "total": number, "budgetIndicators": number, "priceSensitivity": number, "timeline": number },
-    "engagementIntent": { "total": number, "channels": number, "digitalBehavior": number, "highIntent": number },
-    "relationshipQuality": { "total": number, "decisionMaker": number, "relationship": number, "communication": number }
+    "Pipeline Stage": <points>,
+    "Activity Engagement": <points>,
+    "Business Profile": <points>,
+    "Financial Capability": <points>,
+    "Data Quality": <points>
   },
-  "modifiers": number,
-  "strengths": [string, string, string],
-  "concerns": [string, string],
-  "businessContext": {
-    "locationAdvantage": string,
-    "paymentCapability": string,
-    "decisionMaking": string,
-    "trustLevel": string
-  },
-  "recommendedAction": string,
-  "bestApproach": {
-    "preferredContact": string,
-    "languagePreference": string,
-    "bestTime": string,
-    "keyMessage": string
-  },
-  "relationshipStrategy": string,
-  "pricingStrategy": {
-    "budgetRange": string,
-    "recommendedPackage": string,
-    "paymentTerms": string,
-    "incentives": string
-  },
-  "conversionProbability": number,
-  "expectedClosureTime": string,
-  "effortLevel": string,
-  "nextFollowUp": {
-    "date": string,
-    "method": string,
-    "purpose": string
-  }
-}
-
-Base your scoring on this framework:
-
-## Scoring Framework (Total: 100 points)
-
-### 1. Business Profile Score (0-35 points)
-- Company Size (0-10): Based on employee count and turnover
-- Industry Sector (0-8): Manufacturing, IT, Retail, etc.
-- Geographic Location (0-7): Tier 1/2/3 cities
-- Business Registration (0-5): Pvt Ltd, LLP, Partnership, etc.
-- MSME/GST Status (0-5): Compliance indicators
-
-### 2. Financial Capability Score (0-25 points)
-- Budget Indicators (0-10): Stated budget, payment signals
-- Price Sensitivity (0-8): ROI focus, discount requests
-- Decision Timeline (0-7): Urgency level
-
-### 3. Engagement & Intent Score (0-25 points)
-- Communication Channels (0-10): WhatsApp, phone, email engagement
-- Digital Behavior (0-8): Website visits, downloads, demos
-- High-Intent Actions (0-7): Demo requests, proposals
-
-### 4. Relationship Quality Score (0-15 points)
-- Decision Maker Profile (0-8): Designation and authority
-- Relationship Signals (0-4): Referrals, connections
-- Communication Quality (0-3): Response time and clarity
-
-### Modifiers (can add/subtract points)
-- Positive: Referrals (+15), trusted connections (+8), credibility signals
-- Negative: Red flags, unrealistic expectations, non-responsiveness
-- Seasonal: Festival periods, fiscal timings
-
-### Score Interpretation
-- 85-100: A+ (Hot Lead) - 60-70% conversion, 7-21 days
-- 70-84: A (Very Warm) - 40-55% conversion, 2-6 weeks
-- 55-69: B (Warm) - 25-40% conversion, 1-3 months
-- 40-54: C (Cool) - 10-25% conversion, 3-6 months
-- 25-39: D (Very Cold) - 5-15% conversion, 6+ months
-- 0-24: F (Unqualified) - Disqualify or revisit after 12 months`;
+  "reasoning": "<brief explanation>"
+}`;
 
     const contactData = {
       name: `${contact.first_name || ''} ${contact.last_name || ''}`.trim(),
-      company: contact.company,
+      company_name: contact.company_name,
       job_title: contact.job_title,
       email: contact.email,
       phone: contact.phone,
-      source: contact.source,
-      status: contact.status,
+      industry: contact.industry,
+      company_size: contact.company_size,
+      annual_revenue: contact.annual_revenue,
+      lead_source: contact.lead_source,
       city: contact.city,
       state: contact.state,
       country: contact.country,
       website: contact.website,
       notes: contact.notes,
-      created_at: contact.created_at
+      created_at: contact.created_at,
+      pipeline_stage: {
+        name: contact.pipeline_stage?.name || 'Not set',
+        stage_order: contact.pipeline_stage?.stage_order || 0,
+        probability: contact.pipeline_stage?.probability || 0
+      },
+      engagement_metrics: {
+        total_activities: contact.engagement_metrics?.total_activities || 0,
+        last_activity_date: contact.engagement_metrics?.last_activity_date || 'Never',
+        days_since_last_activity: contact.engagement_metrics?.days_since_last_activity || 999,
+        meetings_count: contact.engagement_metrics?.meetings_count || 0,
+        calls_count: contact.engagement_metrics?.calls_count || 0,
+        emails_count: contact.engagement_metrics?.emails_count || 0
+      }
     };
 
-    const userPrompt = `Analyze this Indian SMB lead and provide a detailed scoring report:
+    const userPrompt = `Analyze this B2B contact and provide a lead score:
 
 ${JSON.stringify(contactData, null, 2)}
 
-Provide a comprehensive lead score following the exact JSON structure specified in the system prompt. Be thorough in your analysis and provide actionable insights.`;
+Focus heavily on the pipeline_stage (especially stage_order) and engagement_metrics when scoring. Return JSON as specified.`;
 
     console.log('Scoring lead:', contactData.name);
 
