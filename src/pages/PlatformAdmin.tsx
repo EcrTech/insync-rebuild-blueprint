@@ -8,6 +8,7 @@ import { DesignationPermissions } from "@/components/PlatformAdmin/DesignationPe
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { LoadingState } from "@/components/common/LoadingState";
 import { useNotification } from "@/hooks/useNotification";
 import { Building2, Users, Activity, MoreVertical, Eye, Ban, CheckCircle, LogIn, PhoneCall, Mail, UserCheck, AlertTriangle } from "lucide-react";
 import {
@@ -429,6 +430,14 @@ export default function PlatformAdmin() {
       notify.error("Error", error);
     }
   };
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <LoadingState message="Loading platform data..." />
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>

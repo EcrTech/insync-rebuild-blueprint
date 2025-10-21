@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import DashboardLayout from "@/components/Layout/DashboardLayout";
@@ -8,11 +7,12 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
 import { useNotification } from "@/hooks/useNotification";
-import { Loader2, Plus, Mail, Download, RefreshCw } from "lucide-react";
+import { LoadingState } from "@/components/common/LoadingState";
+import { Plus, Mail, Download, RefreshCw } from "lucide-react";
 import { useOrgContext } from "@/hooks/useOrgContext";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import { format } from "date-fns";
 import { exportToCSV, ExportColumn, formatDateForExport } from "@/utils/exportUtils";
-import { useEffect } from "react";
 
 interface Campaign {
   id: string;
@@ -48,28 +48,14 @@ const EmailCampaigns = () => {
     enabled: !!effectiveOrgId,
   });
 
-  // Realtime subscription for campaign updates
-  useEffect(() => {
-    if (!effectiveOrgId) return;
-
-    const channel = supabase
-      .channel('email-campaigns-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'email_bulk_campaigns',
-          filter: `org_id=eq.${effectiveOrgId}`,
-        },
-        () => refetch()
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [effectiveOrgId, refetch]);
+  // Realtime subscription using standardized hook
+  useRealtimeSync({
+    table: 'email_bulk_campaigns',
+    filter: `org_id=eq.${effectiveOrgId}`,
+    onUpdate: refetch,
+    onInsert: refetch,
+    enabled: !!effectiveOrgId,
+  });
 
   const handleExport = () => {
     try {
@@ -105,9 +91,7 @@ const EmailCampaigns = () => {
   if (isLoading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-[calc(100vh-200px)]">
-          <Loader2 className="h-8 w-8 animate-spin" />
-        </div>
+        <LoadingState message="Loading email campaigns..." />
       </DashboardLayout>
     );
   }

@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useMemo } from "react";
 import DashboardLayout from "@/components/Layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { LayoutDashboard, Users, TrendingUp, Phone, Target, Calendar, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { Users, TrendingUp, Phone, Target, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { Bar, BarChart, Line, LineChart, Pie, PieChart, Cell, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from "recharts";
 import { useOrgContext } from "@/hooks/useOrgContext";
+import { useOrgData } from "@/hooks/useOrgData";
+import { LoadingState } from "@/components/common/LoadingState";
 
 interface DashboardStats {
   totalContacts: number;
@@ -34,217 +35,148 @@ const COLORS = ['#01B8AA', '#168980', '#8AD4EB', '#F2C80F', '#A66999', '#FE9666'
 
 export default function Dashboard() {
   const { effectiveOrgId } = useOrgContext();
-  const [stats, setStats] = useState<DashboardStats>({
-    totalContacts: 0,
-    activeDeals: 0,
-    callsToday: 0,
-    conversionRate: 0,
-    newContactsThisWeek: 0,
-    dealsWonThisMonth: 0,
-    contactGrowth: 0,
-    dealGrowth: 0,
+
+  // Fetch all data using useOrgData hook for better caching
+  const { data: contacts = [] } = useOrgData('contacts', { enabled: !!effectiveOrgId });
+  const { data: stages = [] } = useOrgData('pipeline_stages', {
+    orderBy: { column: 'stage_order', ascending: true },
+    enabled: !!effectiveOrgId,
   });
-  const [pipelineData, setPipelineData] = useState<PipelineData[]>([]);
-  const [activityData, setActivityData] = useState<ActivityData[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: activities = [] } = useOrgData('contact_activities', {
+    select: 'activity_type, created_at',
+    enabled: !!effectiveOrgId,
+  });
 
-  useEffect(() => {
-    if (effectiveOrgId) {
-      fetchDashboardData();
+  // Calculate all stats in memory using useMemo
+  const { stats, pipelineData, activityData, loading } = useMemo(() => {
+    if (!contacts || contacts.length === 0) {
+      return {
+        stats: {
+          totalContacts: 0,
+          activeDeals: 0,
+          callsToday: 0,
+          conversionRate: 0,
+          newContactsThisWeek: 0,
+          dealsWonThisMonth: 0,
+          contactGrowth: 0,
+          dealGrowth: 0,
+        },
+        pipelineData: [],
+        activityData: [],
+        loading: !effectiveOrgId,
+      };
     }
-  }, [effectiveOrgId]);
 
-  const fetchDashboardData = async () => {
-    if (!effectiveOrgId) return;
+    // Calculate date ranges
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    const monthStart = new Date();
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
+    const lastMonthStart = new Date();
+    lastMonthStart.setMonth(lastMonthStart.getMonth() - 1);
+    lastMonthStart.setDate(1);
+
+    // Find won stage
+    const wonStage = stages.find((s: any) => s.name?.toLowerCase() === 'won');
+    const activeStageIds = stages
+      .filter((s: any) => !['won', 'lost'].includes(s.name?.toLowerCase()))
+      .map((s: any) => s.id);
+
+    // Calculate stats
+    const totalContacts = contacts.length;
+    const contactsLastWeek = contacts.filter((c: any) => new Date(c.created_at) < weekAgo).length;
+    const newContactsThisWeek = contacts.filter((c: any) => new Date(c.created_at) >= weekAgo).length;
     
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+    const activeDeals = contacts.filter((c: any) => activeStageIds.includes(c.pipeline_stage_id)).length;
+    const activeDealsLastMonth = contacts.filter((c: any) => 
+      activeStageIds.includes(c.pipeline_stage_id) && new Date(c.created_at) < lastMonthStart
+    ).length;
+    
+    const dealsWonThisMonth = wonStage 
+      ? contacts.filter((c: any) => 
+          c.pipeline_stage_id === wonStage.id && new Date(c.updated_at) >= monthStart
+        ).length
+      : 0;
 
-      // Calculate date ranges once
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      const twoWeeksAgo = new Date();
-      twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
-      const monthStart = new Date();
-      monthStart.setDate(1);
-      monthStart.setHours(0, 0, 0, 0);
-      const lastMonthStart = new Date();
-      lastMonthStart.setMonth(lastMonthStart.getMonth() - 1);
-      lastMonthStart.setDate(1);
-      lastMonthStart.setHours(0, 0, 0, 0);
+    const callsToday = activities.filter((a: any) => 
+      a.activity_type === 'call' && new Date(a.created_at) >= today
+    ).length;
 
-      // OPTIMIZATION: Batch all queries in parallel using Promise.all
-      const [
-        { count: totalContacts },
-        { count: contactsLastWeek },
-        { data: stages },
-        { count: callsToday },
-        { count: newContactsThisWeek },
-        { data: wonStage },
-        { data: pipelineStats },
-        { data: activityStats }
-      ] = await Promise.all([
-        // Total contacts
-        supabase
-          .from("contacts")
-          .select("*", { count: "exact", head: true })
-          .eq("org_id", effectiveOrgId),
-        
-        // Contacts from last week (for growth calculation)
-        supabase
-          .from("contacts")
-          .select("*", { count: "exact", head: true })
-          .eq("org_id", effectiveOrgId)
-          .lt("created_at", weekAgo.toISOString()),
-        
-        // Pipeline stages (for active deals)
-        supabase
-          .from("pipeline_stages")
-          .select("id, name")
-          .eq("org_id", effectiveOrgId)
-          .not("name", "in", '("Won","Lost")'),
-        
-        // Calls today
-        supabase
-          .from("contact_activities")
-          .select("*", { count: "exact", head: true })
-          .eq("org_id", effectiveOrgId)
-          .eq("activity_type", "call")
-          .gte("created_at", today.toISOString()),
-        
-        // New contacts this week
-        supabase
-          .from("contacts")
-          .select("*", { count: "exact", head: true })
-          .eq("org_id", effectiveOrgId)
-          .gte("created_at", weekAgo.toISOString()),
-        
-        // Won stage
-        supabase
-          .from("pipeline_stages")
-          .select("id")
-          .eq("org_id", effectiveOrgId)
-          .eq("name", "Won")
-          .maybeSingle(),
-        
-        // Pipeline distribution (limit to prevent loading huge datasets)
-        supabase
-          .from("contacts")
-          .select(`
-            pipeline_stage_id,
-            pipeline_stages (name, stage_order)
-          `)
-          .eq("org_id", effectiveOrgId)
-          .limit(1000), // Safety limit: max 1000 contacts for dashboard stats
-        
-        // OPTIMIZATION: Fetch all activities for 7 days in ONE query instead of 21 queries
-        supabase
-          .from("contact_activities")
-          .select("activity_type, created_at")
-          .eq("org_id", effectiveOrgId)
-          .gte("created_at", weekAgo.toISOString())
-          .in("activity_type", ["call", "email", "meeting"])
-          .limit(5000) // Safety limit: max 5000 activities for weekly chart
-      ]);
+    const conversionRate = totalContacts && dealsWonThisMonth
+      ? Math.round((dealsWonThisMonth / totalContacts) * 100)
+      : 0;
 
-      // Calculate active deals
-      const stageIds = stages?.map(s => s.id) || [];
-      const [
-        { count: activeDeals },
-        { count: activeDealsLastMonth }
-      ] = await Promise.all([
-        supabase
-          .from("contacts")
-          .select("*", { count: "exact", head: true })
-          .in("pipeline_stage_id", stageIds),
-        // Active deals from last month (for growth calculation)
-        supabase
-          .from("contacts")
-          .select("*", { count: "exact", head: true })
-          .in("pipeline_stage_id", stageIds)
-          .lt("created_at", lastMonthStart.toISOString())
-      ]);
+    const contactGrowth = contactsLastWeek > 0
+      ? Math.round(((totalContacts - contactsLastWeek) / contactsLastWeek) * 100)
+      : 0;
 
-      // Calculate won deals this month
-      const { count: dealsWonThisMonth } = wonStage?.id 
-        ? await supabase
-            .from("contacts")
-            .select("*", { count: "exact", head: true })
-            .eq("pipeline_stage_id", wonStage.id)
-            .gte("updated_at", monthStart.toISOString())
-        : { count: 0 };
+    const dealGrowth = activeDealsLastMonth > 0
+      ? Math.round(((activeDeals - activeDealsLastMonth) / activeDealsLastMonth) * 100)
+      : 0;
 
-      // Calculate conversion rate
-      const conversionRate = totalContacts && dealsWonThisMonth
-        ? Math.round((dealsWonThisMonth / totalContacts) * 100)
-        : 0;
+    // Process pipeline distribution
+    const pipelineMap = new Map<string, number>();
+    contacts.forEach((contact: any) => {
+      const stage = stages.find((s: any) => s.id === contact.pipeline_stage_id);
+      const stageName = stage?.name || "Unassigned";
+      pipelineMap.set(stageName, (pipelineMap.get(stageName) || 0) + 1);
+    });
 
-      // Process pipeline distribution
-      const pipelineMap = new Map<string, number>();
-      pipelineStats?.forEach(contact => {
-        const stageName = (contact as any).pipeline_stages?.name || "Unassigned";
-        pipelineMap.set(stageName, (pipelineMap.get(stageName) || 0) + 1);
+    const pipeline: PipelineData[] = Array.from(pipelineMap.entries()).map(([stage, count]) => ({
+      stage,
+      count,
+      value: count,
+    }));
+
+    // Process activity trends (last 7 days)
+    const activityArray: ActivityData[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      date.setHours(0, 0, 0, 0);
+      const nextDay = new Date(date);
+      nextDay.setDate(nextDay.getDate() + 1);
+
+      const dayActivities = activities.filter((activity: any) => {
+        const activityDate = new Date(activity.created_at);
+        return activityDate >= date && activityDate < nextDay;
       });
 
-      const pipeline: PipelineData[] = Array.from(pipelineMap.entries()).map(([stage, count]) => ({
-        stage,
-        count,
-        value: count,
-      }));
+      activityArray.push({
+        date: date.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+        calls: dayActivities.filter((a: any) => a.activity_type === "call").length,
+        emails: dayActivities.filter((a: any) => a.activity_type === "email").length,
+        meetings: dayActivities.filter((a: any) => a.activity_type === "meeting").length,
+      });
+    }
 
-      // OPTIMIZATION: Process activities in memory instead of 21 database queries
-      const activities: ActivityData[] = [];
-      for (let i = 6; i >= 0; i--) {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
-        date.setHours(0, 0, 0, 0);
-        const nextDay = new Date(date);
-        nextDay.setDate(nextDay.getDate() + 1);
-
-        // Filter activities in memory
-        const dayActivities = activityStats?.filter(activity => {
-          const activityDate = new Date(activity.created_at);
-          return activityDate >= date && activityDate < nextDay;
-        }) || [];
-
-        activities.push({
-          date: date.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-          calls: dayActivities.filter(a => a.activity_type === "call").length,
-          emails: dayActivities.filter(a => a.activity_type === "email").length,
-          meetings: dayActivities.filter(a => a.activity_type === "meeting").length,
-        });
-      }
-
-      // Calculate growth percentages
-      const contactGrowth = contactsLastWeek && contactsLastWeek > 0
-        ? Math.round(((totalContacts || 0) - contactsLastWeek) / contactsLastWeek * 100)
-        : 0;
-      
-      const dealGrowth = activeDealsLastMonth && activeDealsLastMonth > 0
-        ? Math.round(((activeDeals || 0) - activeDealsLastMonth) / activeDealsLastMonth * 100)
-        : 0;
-
-      setStats({
-        totalContacts: totalContacts || 0,
-        activeDeals: activeDeals || 0,
-        callsToday: callsToday || 0,
+    return {
+      stats: {
+        totalContacts,
+        activeDeals,
+        callsToday,
         conversionRate,
-        newContactsThisWeek: newContactsThisWeek || 0,
-        dealsWonThisMonth: dealsWonThisMonth || 0,
+        newContactsThisWeek,
+        dealsWonThisMonth,
         contactGrowth,
         dealGrowth,
-      });
-      setPipelineData(pipeline);
-      setActivityData(activities);
-    } catch (error) {
-      console.error("Error fetching dashboard data:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+      },
+      pipelineData: pipeline,
+      activityData: activityArray,
+      loading: false,
+    };
+  }, [contacts, stages, activities, effectiveOrgId]);
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <LoadingState message="Loading dashboard data..." />
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -262,7 +194,7 @@ export default function Dashboard() {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{loading ? "..." : stats.totalContacts}</div>
+              <div className="text-2xl font-bold">{stats.totalContacts}</div>
               <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
                 {stats.contactGrowth >= 0 ? (
                   <>
@@ -286,7 +218,7 @@ export default function Dashboard() {
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{loading ? "..." : stats.activeDeals}</div>
+              <div className="text-2xl font-bold">{stats.activeDeals}</div>
               <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
                 {stats.dealGrowth >= 0 ? (
                   <>
@@ -310,7 +242,7 @@ export default function Dashboard() {
               <Phone className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{loading ? "..." : stats.callsToday}</div>
+              <div className="text-2xl font-bold">{stats.callsToday}</div>
               <p className="text-xs text-muted-foreground mt-1">
                 {stats.newContactsThisWeek} new contacts this week
               </p>
@@ -323,7 +255,7 @@ export default function Dashboard() {
               <Target className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{loading ? "..." : `${stats.conversionRate}%`}</div>
+              <div className="text-2xl font-bold">{`${stats.conversionRate}%`}</div>
               <p className="text-xs text-muted-foreground mt-1">
                 {stats.dealsWonThisMonth} deals won this month
               </p>
@@ -339,7 +271,7 @@ export default function Dashboard() {
               <CardDescription>Contacts across pipeline stages</CardDescription>
             </CardHeader>
             <CardContent>
-              {loading || pipelineData.length === 0 ? (
+              {pipelineData.length === 0 ? (
                 <div className="h-[300px] flex items-center justify-center text-muted-foreground">
                   No pipeline data yet
                 </div>
@@ -373,7 +305,7 @@ export default function Dashboard() {
               <CardDescription>Last 7 days activity breakdown</CardDescription>
             </CardHeader>
             <CardContent>
-              {loading || activityData.length === 0 ? (
+              {activityData.length === 0 ? (
                 <div className="h-[300px] flex items-center justify-center text-muted-foreground">
                   No activity data yet
                 </div>
@@ -402,7 +334,7 @@ export default function Dashboard() {
             <CardDescription>Activities completed over the past week</CardDescription>
           </CardHeader>
           <CardContent>
-            {loading || activityData.length === 0 ? (
+            {activityData.length === 0 ? (
               <div className="h-[300px] flex items-center justify-center text-muted-foreground">
                 No activity data yet
               </div>

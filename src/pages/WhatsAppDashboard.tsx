@@ -1,12 +1,13 @@
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useMemo } from "react";
 import { useOrgContext } from "@/hooks/useOrgContext";
+import { useOrgData } from "@/hooks/useOrgData";
 import { DashboardLayout } from "@/components/Layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useNotification } from "@/hooks/useNotification";
-import { Loader2, MessageSquare, CheckCircle2, XCircle, Clock, Send, RefreshCw, Download } from "lucide-react";
+import { LoadingState } from "@/components/common/LoadingState";
+import { MessageSquare, CheckCircle2, XCircle, Clock, Send, RefreshCw, Download } from "lucide-react";
 import { format } from "date-fns";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useAutoRefresh } from "@/hooks/useAutoRefresh";
@@ -32,69 +33,44 @@ interface WhatsAppMessage {
   } | null;
 }
 
-interface MessageStats {
-  total: number;
-  sent: number;
-  delivered: number;
-  read: number;
-  failed: number;
-}
-
 const WhatsAppDashboard = () => {
   const { effectiveOrgId } = useOrgContext();
   const notify = useNotification();
 
-  const fetchMessages = async () => {
-    const { data, error } = await supabase
-      .from("whatsapp_messages")
-      .select(`
+  // Fetch messages using useOrgData for automatic caching
+  const { data: messages = [], isLoading, refetch: refetchMessages } = useOrgData<WhatsAppMessage>(
+    'whatsapp_messages',
+    {
+      select: `
         *,
         contacts (first_name, last_name),
         sent_by_profile:profiles!sent_by (first_name, last_name)
-      `)
-      .eq("org_id", effectiveOrgId)
-      .order("sent_at", { ascending: false })
-      .limit(100);
+      `,
+      orderBy: { column: 'sent_at', ascending: false },
+      enabled: !!effectiveOrgId,
+    }
+  );
 
-    if (error) throw error;
-    return (data || []) as unknown as WhatsAppMessage[];
-  };
-
-  const fetchStats = async () => {
-    const [
-      { count: total },
-      { count: sent },
-      { count: delivered },
-      { count: read },
-      { count: failed }
-    ] = await Promise.all([
-      supabase.from("whatsapp_messages").select("*", { count: "exact", head: true }).eq("org_id", effectiveOrgId),
-      supabase.from("whatsapp_messages").select("*", { count: "exact", head: true }).eq("org_id", effectiveOrgId).eq("status", "sent"),
-      supabase.from("whatsapp_messages").select("*", { count: "exact", head: true }).eq("org_id", effectiveOrgId).eq("status", "delivered"),
-      supabase.from("whatsapp_messages").select("*", { count: "exact", head: true }).eq("org_id", effectiveOrgId).eq("status", "read"),
-      supabase.from("whatsapp_messages").select("*", { count: "exact", head: true }).eq("org_id", effectiveOrgId).eq("status", "failed"),
-    ]);
+  // Calculate stats in memory instead of 5 separate queries
+  const stats = useMemo(() => {
+    if (!messages || messages.length === 0) {
+      return {
+        total: 0,
+        sent: 0,
+        delivered: 0,
+        read: 0,
+        failed: 0,
+      };
+    }
 
     return {
-      total: total || 0,
-      sent: sent || 0,
-      delivered: delivered || 0,
-      read: read || 0,
-      failed: failed || 0,
+      total: messages.length,
+      sent: messages.filter((m: any) => m.status === 'sent').length,
+      delivered: messages.filter((m: any) => m.status === 'delivered').length,
+      read: messages.filter((m: any) => m.status === 'read').length,
+      failed: messages.filter((m: any) => m.status === 'failed').length,
     };
-  };
-
-  const { data: messages = [], isLoading: messagesLoading, refetch: refetchMessages } = useQuery({
-    queryKey: ['whatsapp-messages', effectiveOrgId],
-    queryFn: fetchMessages,
-    enabled: !!effectiveOrgId,
-  });
-
-  const { data: stats, isLoading: statsLoading } = useQuery({
-    queryKey: ['whatsapp-stats', effectiveOrgId],
-    queryFn: fetchStats,
-    enabled: !!effectiveOrgId,
-  });
+  }, [messages]);
 
   const { lastRefresh, manualRefresh } = useAutoRefresh({
     onRefresh: () => {
@@ -153,12 +129,10 @@ const WhatsAppDashboard = () => {
     }
   };
 
-  if (messagesLoading || statsLoading) {
+  if (isLoading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin" />
-        </div>
+        <LoadingState message="Loading WhatsApp messages..." />
       </DashboardLayout>
     );
   }
@@ -195,7 +169,7 @@ const WhatsAppDashboard = () => {
               <MessageSquare className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats?.total || 0}</div>
+              <div className="text-2xl font-bold">{stats.total}</div>
             </CardContent>
           </Card>
 
@@ -205,7 +179,7 @@ const WhatsAppDashboard = () => {
               <Send className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats?.sent || 0}</div>
+              <div className="text-2xl font-bold">{stats.sent}</div>
             </CardContent>
           </Card>
 
@@ -215,7 +189,7 @@ const WhatsAppDashboard = () => {
               <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats?.delivered || 0}</div>
+              <div className="text-2xl font-bold">{stats.delivered}</div>
             </CardContent>
           </Card>
 
@@ -225,7 +199,7 @@ const WhatsAppDashboard = () => {
               <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats?.read || 0}</div>
+              <div className="text-2xl font-bold">{stats.read}</div>
             </CardContent>
           </Card>
 
@@ -235,7 +209,7 @@ const WhatsAppDashboard = () => {
               <XCircle className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats?.failed || 0}</div>
+              <div className="text-2xl font-bold">{stats.failed}</div>
             </CardContent>
           </Card>
         </div>

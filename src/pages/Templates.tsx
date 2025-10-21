@@ -82,8 +82,11 @@ const Templates = () => {
 
   const fetchTemplates = async () => {
     setLoading(true);
-    await Promise.all([fetchWhatsAppTemplates(), fetchEmailTemplates()]);
-    setLoading(false);
+    try {
+      await Promise.all([fetchWhatsAppTemplates(), fetchEmailTemplates()]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const fetchWhatsAppTemplates = async () => {

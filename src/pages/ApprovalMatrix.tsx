@@ -9,7 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { toast } from "sonner";
+import { LoadingState } from "@/components/common/LoadingState";
+import { useNotification } from "@/hooks/useNotification";
 import { Plus, Trash2, Edit } from "lucide-react";
 
 interface ApprovalType {
@@ -40,6 +41,7 @@ const ROLE_HIERARCHY = [
 ];
 
 export default function ApprovalMatrix() {
+  const notify = useNotification();
   const [approvalTypes, setApprovalTypes] = useState<ApprovalType[]>([]);
   const [approvalRules, setApprovalRules] = useState<ApprovalRule[]>([]);
   const [loading, setLoading] = useState(true);
@@ -87,9 +89,9 @@ export default function ApprovalMatrix() {
 
       if (typesRes.data) setApprovalTypes(typesRes.data as any);
       if (rulesRes.data) setApprovalRules(rulesRes.data as any);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching data:", error);
-      toast.error("Failed to load approval matrix");
+      notify.error("Error", "Failed to load approval matrix");
     } finally {
       setLoading(false);
     }
@@ -127,22 +129,22 @@ export default function ApprovalMatrix() {
           .eq("id", editingRule.id);
 
         if (error) throw error;
-        toast.success("Approval rule updated successfully");
+        notify.success("Success", "Approval rule updated successfully");
       } else {
         const { error } = await supabase
           .from("approval_rules" as any)
           .insert(payload);
 
         if (error) throw error;
-        toast.success("Approval rule created successfully");
+        notify.success("Success", "Approval rule created successfully");
       }
 
       setIsDialogOpen(false);
       resetForm();
       fetchData();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving approval rule:", error);
-      toast.error("Failed to save approval rule");
+      notify.error("Error", "Failed to save approval rule");
     }
   };
 
@@ -156,11 +158,11 @@ export default function ApprovalMatrix() {
         .eq("id", id);
 
       if (error) throw error;
-      toast.success("Approval rule deleted successfully");
+      notify.success("Success", "Approval rule deleted successfully");
       fetchData();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting approval rule:", error);
-      toast.error("Failed to delete approval rule");
+      notify.error("Error", "Failed to delete approval rule");
     }
   };
 
@@ -203,9 +205,7 @@ export default function ApprovalMatrix() {
   if (loading) {
     return (
       <DashboardLayout>
-        <div className="flex justify-center items-center h-64">
-          <div className="text-lg">Loading...</div>
-        </div>
+        <LoadingState message="Loading approval matrix..." />
       </DashboardLayout>
     );
   }
