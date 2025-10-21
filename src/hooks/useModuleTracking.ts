@@ -2,6 +2,30 @@ import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 
+/**
+ * Automatic module usage tracking hook
+ * 
+ * Tracks user navigation across application modules for analytics and personalization.
+ * Automatically logs visits to the user_module_usage table with timestamps and visit counts.
+ * 
+ * @remarks
+ * - Runs automatically on route changes via useLocation
+ * - Only tracks routes defined in MODULE_MAP
+ * - Requires authenticated user with org_id
+ * - Updates existing records or creates new ones
+ * 
+ * @example
+ * ```tsx
+ * // Add to root layout component
+ * function DashboardLayout() {
+ *   useModuleTracking(); // No parameters needed
+ *   return <Outlet />;
+ * }
+ * ```
+ * 
+ * @see {@link useTopModules} To retrieve most visited modules
+ */
+
 // Map of routes to module information
 const MODULE_MAP: Record<string, { key: string; name: string; icon: string; featureKey?: string }> = {
   '/dashboard': { key: 'dashboard', name: 'Dashboard', icon: 'LayoutDashboard', featureKey: 'dashboard' },

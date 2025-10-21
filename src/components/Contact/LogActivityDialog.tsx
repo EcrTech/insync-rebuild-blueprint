@@ -13,6 +13,7 @@ import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { ParticipantSelector } from "./ParticipantSelector";
 import { useNotification } from "@/hooks/useNotification";
 import { Plus, X } from "lucide-react";
+import { ActivityData } from "@/types/common";
 
 interface CallDisposition {
   id: string;
@@ -144,7 +145,7 @@ export function LogActivityDialog({
 
       if (!profile?.org_id) throw new Error("Organization not found");
 
-      const activityData: any = {
+      const activityData: any = { // Database insert allows flexible schema
         contact_id: contactId,
         org_id: profile.org_id,
         activity_type: formData.activity_type,

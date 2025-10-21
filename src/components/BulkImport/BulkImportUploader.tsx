@@ -7,6 +7,7 @@ import { Upload, Download, Loader2 } from "lucide-react";
 import { ImportProgressCard } from "./ImportProgressCard";
 import { ImportHistoryTable } from "./ImportHistoryTable";
 import { useOrgContext } from "@/hooks/useOrgContext";
+import { ImportErrorDetails, ImportStageDetails } from "@/types/common";
 
 interface BulkImportUploaderProps {
   importType: 'contacts' | 'email_recipients' | 'whatsapp_recipients' | 'redefine_repository' | 'inventory';
@@ -28,8 +29,8 @@ interface ImportJob {
   processed_rows: number;
   success_count: number;
   error_count: number;
-  error_details: any;
-  stage_details: any;
+  error_details: ImportErrorDetails | null;
+  stage_details: ImportStageDetails | null;
   created_at: string;
   started_at: string;
   completed_at: string;

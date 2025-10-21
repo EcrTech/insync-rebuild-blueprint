@@ -1,6 +1,28 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
+/**
+ * Organization context hook for multi-tenant applications
+ * 
+ * Manages user's organization context, platform admin status, and impersonation.
+ * Automatically listens for context changes via storage and custom events.
+ * 
+ * @returns Organization context state
+ * @property {string | null} userOrgId - User's actual organization ID
+ * @property {string | null} effectiveOrgId - Active org ID (considers impersonation)
+ * @property {boolean | null} isPlatformAdmin - Whether user has platform admin privileges
+ * @property {boolean} isImpersonating - Whether admin is impersonating another org
+ * @property {boolean} isLoading - Loading state during context initialization
+ * 
+ * @example
+ * ```tsx
+ * const { effectiveOrgId, isPlatformAdmin } = useOrgContext();
+ * if (!effectiveOrgId) return <LoadingState />;
+ * ```
+ * 
+ * @see {@link setImpersonation} For admin impersonation
+ * @see {@link clearImpersonation} To exit impersonation mode
+ */
 export function useOrgContext() {
   const [userOrgId, setUserOrgId] = useState<string | null>(null);
   const [effectiveOrgId, setEffectiveOrgId] = useState<string | null>(null);

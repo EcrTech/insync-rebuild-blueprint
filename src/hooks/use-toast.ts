@@ -2,6 +2,28 @@ import * as React from "react";
 
 import type { ToastActionElement, ToastProps } from "@/components/ui/toast";
 
+/**
+ * Toast notification state management
+ * 
+ * Low-level hook for managing toast notifications queue. For most use cases,
+ * prefer the {@link useNotification} hook which provides a simpler API.
+ * 
+ * @returns Toast management state and actions
+ * 
+ * @example
+ * ```tsx
+ * const { toast, toasts, dismiss } = useToast();
+ * 
+ * toast({
+ *   title: "Success",
+ *   description: "Operation completed",
+ *   variant: "default"
+ * });
+ * ```
+ * 
+ * @see {@link useNotification} For simpler notification API
+ */
+
 const TOAST_LIMIT = 1;
 const TOAST_REMOVE_DELAY = 1000000;
 

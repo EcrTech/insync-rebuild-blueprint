@@ -1,6 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
+/**
+ * Module usage data for personalized navigation
+ */
 export interface TopModule {
   module_key: string;
   module_name: string;
@@ -9,6 +12,29 @@ export interface TopModule {
   visit_count: number;
 }
 
+/**
+ * Fetch user's most frequently visited modules
+ * 
+ * Retrieves top N modules based on visit count and recency, useful for
+ * quick access navigation and personalized dashboards.
+ * 
+ * @param {number} [limit=6] - Maximum number of modules to return
+ * 
+ * @returns React Query result with module data
+ * 
+ * @example
+ * ```tsx
+ * const { data: topModules, isLoading } = useTopModules(8);
+ * 
+ * return (
+ *   <div>
+ *     {topModules?.map(mod => (
+ *       <Link to={mod.module_path}>{mod.module_name}</Link>
+ *     ))}
+ *   </div>
+ * );
+ * ```
+ */
 export const useTopModules = (limit: number = 6) => {
   return useQuery({
     queryKey: ['top-modules', limit],
