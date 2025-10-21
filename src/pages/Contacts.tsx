@@ -583,7 +583,6 @@ Jane,Smith,jane.smith@example.com,+0987654321,Tech Inc,CEO,contacted,Referral`;
                     <TableHead>Company</TableHead>
                     <TableHead>Contact Info</TableHead>
                     <TableHead>Pipeline Stage</TableHead>
-                    <TableHead>Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -631,11 +630,6 @@ Jane,Smith,jane.smith@example.com,+0987654321,Tech Inc,CEO,contacted,Referral`;
                             {contact.pipeline_stages.name}
                           </Badge>
                         )}
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={getStatusColor(contact.status)}>
-                          {contact.status}
-                        </Badge>
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
