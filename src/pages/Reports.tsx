@@ -138,22 +138,16 @@ export default function Reports() {
               Unified view of campaigns, AI insights, agent performance, and sales analytics
             </p>
           </div>
-          <div className="flex gap-2">
-            <Select value={dateRange} onValueChange={(value: any) => setDateRange(value)}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="week">Last Week</SelectItem>
-                <SelectItem value="month">Last Month</SelectItem>
-                <SelectItem value="quarter">Last Quarter</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button onClick={() => navigate('/reports/builder')}>
-              <Plus className="h-4 w-4 mr-2" />
-              Custom Report
-            </Button>
-          </div>
+          <Select value={dateRange} onValueChange={(value: any) => setDateRange(value)}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="week">Last Week</SelectItem>
+              <SelectItem value="month">Last Month</SelectItem>
+              <SelectItem value="quarter">Last Quarter</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
