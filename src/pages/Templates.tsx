@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgContext } from "@/hooks/useOrgContext";
 import { useNotification } from "@/hooks/useNotification";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import { DashboardLayout } from "@/components/Layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -49,50 +50,35 @@ const Templates = () => {
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [selectedEmailTemplate, setSelectedEmailTemplate] = useState<EmailTemplate | null>(null);
 
+  // Real-time sync for queue updates
+  useRealtimeSync({
+    table: 'operation_queue',
+    filter: queuedJobId ? `id=eq.${queuedJobId}` : undefined,
+    enabled: !!queuedJobId,
+    onUpdate: (payload) => {
+      const newStatus = payload.new.status;
+      setQueueStatus(newStatus);
+
+      if (newStatus === 'completed') {
+        notify.success("Sync Complete", "Templates have been synced successfully");
+        setQueuedJobId(null);
+        setQueueStatus(null);
+        setSyncing(false);
+        fetchTemplates();
+      } else if (newStatus === 'failed') {
+        notify.error("Sync Failed", payload.new.error || "Failed to sync templates");
+        setQueuedJobId(null);
+        setQueueStatus(null);
+        setSyncing(false);
+      }
+    },
+  });
+
   useEffect(() => {
     if (effectiveOrgId) {
       fetchTemplates();
     }
   }, [effectiveOrgId]);
-
-  useEffect(() => {
-    if (!queuedJobId) return;
-
-    // Subscribe to queue updates
-    const channel = supabase
-      .channel('queue-updates')
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'operation_queue',
-          filter: `id=eq.${queuedJobId}`,
-        },
-        (payload) => {
-          const newStatus = payload.new.status;
-          setQueueStatus(newStatus);
-
-          if (newStatus === 'completed') {
-            notify.success("Sync Complete", "Templates have been synced successfully");
-            setQueuedJobId(null);
-            setQueueStatus(null);
-            setSyncing(false);
-            fetchWhatsAppTemplates();
-          } else if (newStatus === 'failed') {
-            notify.error("Sync Failed", payload.new.error_message || "Failed to sync templates");
-            setQueuedJobId(null);
-            setQueueStatus(null);
-            setSyncing(false);
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [queuedJobId, notify]);
 
   const fetchTemplates = async () => {
     setLoading(true);

@@ -3,6 +3,7 @@ import { useOrgContext } from "@/hooks/useOrgContext";
 import { useNotification } from "@/hooks/useNotification";
 import { useOrgData } from "@/hooks/useOrgData";
 import { useCRUD } from "@/hooks/useCRUD";
+import { useInlineEdit } from "@/hooks/useInlineEdit";
 import DashboardLayout from "@/components/Layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,8 +25,8 @@ interface PipelineStage {
 export default function PipelineStages() {
   const { effectiveOrgId } = useOrgContext();
   const notify = useNotification();
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editedStages, setEditedStages] = useState<Record<string, PipelineStage>>({});
+  const inlineEdit = useInlineEdit<PipelineStage>();
+  
   const [newStage, setNewStage] = useState({
     name: "",
     description: "",
@@ -73,21 +74,8 @@ export default function PipelineStages() {
     deleteMutation(id);
   };
 
-  const handleUpdateStage = async (id: string, updates: Partial<PipelineStage>) => {
-    update({ id, data: updates });
-    setEditingId(null);
-    setEditedStages({});
-  };
-
-  const updateEditedStage = (id: string, updates: Partial<PipelineStage>) => {
-    setEditedStages(prev => ({
-      ...prev,
-      [id]: { ...(prev[id] || stages.find(s => s.id === id)!), ...updates }
-    }));
-  };
-
-  const getStageData = (stage: PipelineStage) => {
-    return editedStages[stage.id] || stage;
+  const handleSaveEdit = async (id: string, value: Partial<PipelineStage>) => {
+    await update({ id, data: value });
   };
 
   if (isLoading) {
@@ -186,39 +174,44 @@ export default function PipelineStages() {
                     style={{ backgroundColor: stage.color }}
                   />
                   
-                  {editingId === stage.id ? (
+                  {inlineEdit.isEditing(stage.id) ? (
                     <>
                       <div className="flex-1 grid gap-2 md:grid-cols-3">
                         <Input
-                          value={getStageData(stage).name}
-                          onChange={(e) => updateEditedStage(stage.id, { name: e.target.value })}
+                          value={(inlineEdit.editValue as PipelineStage).name || stage.name}
+                          onChange={(e) => inlineEdit.updateEdit({ name: e.target.value })}
+                          disabled={inlineEdit.isSaving}
                         />
                         <Input
                           type="number"
                           min="0"
                           max="100"
-                          value={getStageData(stage).probability}
-                          onChange={(e) => updateEditedStage(stage.id, { probability: parseInt(e.target.value) })}
+                          value={(inlineEdit.editValue as PipelineStage).probability ?? stage.probability}
+                          onChange={(e) => inlineEdit.updateEdit({ probability: parseInt(e.target.value) })}
                           placeholder="Probability %"
+                          disabled={inlineEdit.isSaving}
                         />
                         <Input
                           type="color"
-                          value={getStageData(stage).color}
-                          onChange={(e) => updateEditedStage(stage.id, { color: e.target.value })}
+                          value={(inlineEdit.editValue as PipelineStage).color || stage.color}
+                          onChange={(e) => inlineEdit.updateEdit({ color: e.target.value })}
+                          disabled={inlineEdit.isSaving}
                         />
                       </div>
-                      <Button size="sm" variant="ghost" onClick={() => handleUpdateStage(stage.id, {
-                        name: getStageData(stage).name,
-                        description: getStageData(stage).description,
-                        probability: getStageData(stage).probability,
-                        color: getStageData(stage).color,
-                      })}>
+                      <Button 
+                        size="sm" 
+                        variant="ghost" 
+                        onClick={() => inlineEdit.saveEdit(stage.id, handleSaveEdit)}
+                        disabled={inlineEdit.isSaving}
+                      >
                         <Check className="h-4 w-4" />
                       </Button>
-                      <Button size="sm" variant="ghost" onClick={() => {
-                        setEditingId(null);
-                        setEditedStages({});
-                      }}>
+                      <Button 
+                        size="sm" 
+                        variant="ghost" 
+                        onClick={inlineEdit.cancelEdit}
+                        disabled={inlineEdit.isSaving}
+                      >
                         <X className="h-4 w-4" />
                       </Button>
                     </>
@@ -231,10 +224,11 @@ export default function PipelineStages() {
                           {stage.description && ` • ${stage.description}`}
                         </div>
                       </div>
-                      <Button size="sm" variant="ghost" onClick={() => {
-                        setEditingId(stage.id);
-                        updateEditedStage(stage.id, stage);
-                      }}>
+                      <Button 
+                        size="sm" 
+                        variant="ghost" 
+                        onClick={() => inlineEdit.startEdit(stage.id, stage)}
+                      >
                         <Edit className="h-4 w-4" />
                       </Button>
                       <Button size="sm" variant="ghost" onClick={() => handleDeleteStage(stage.id)}>
