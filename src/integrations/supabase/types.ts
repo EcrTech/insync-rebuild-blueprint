@@ -4951,6 +4951,21 @@ export type Database = {
           whatsapp_cost_per_unit: number
         }[]
       }
+      get_agent_call_performance_report: {
+        Args: { p_end_date?: string; p_org_id: string; p_start_date: string }
+        Returns: {
+          agent_id: string
+          agent_name: string
+          answered_calls: number
+          avg_duration_seconds: number
+          disposition_breakdown: Json
+          inbound_calls: number
+          missed_calls: number
+          outbound_calls: number
+          total_calls: number
+          total_duration_seconds: number
+        }[]
+      }
       get_optimal_send_time: {
         Args: { _contact_id: string; _default_hour?: number; _org_id: string }
         Returns: Json
