@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgContext } from "@/hooks/useOrgContext";
-import { toast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/useNotification";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import DashboardLayout from "@/components/Layout/DashboardLayout";
@@ -31,6 +31,7 @@ export interface Filter {
 const PipelineAdvancedSearch = () => {
   const navigate = useNavigate();
   const { effectiveOrgId } = useOrgContext();
+  const { success: showSuccess, error: showError } = useNotification();
   const [fields, setFields] = useState<SearchableField[]>([]);
   const [filters, setFilters] = useState<Filter[]>([{ id: '1', fieldId: '', operator: '', value: '' }]);
   const [results, setResults] = useState<any[]>([]);
@@ -82,11 +83,7 @@ const PipelineAdvancedSearch = () => {
         setFields([...standardFields, ...customFieldsMapped]);
       } catch (error) {
         console.error('Error loading fields:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load search fields",
-          variant: "destructive",
-        });
+        showError("Failed to load search fields");
       } finally {
         setIsLoading(false);
       }
@@ -123,11 +120,7 @@ const PipelineAdvancedSearch = () => {
     ));
 
     if (validFilters.length === 0) {
-      toast({
-        title: "No filters",
-        description: "Please add at least one complete filter",
-        variant: "destructive",
-      });
+      showError("Please add at least one complete filter");
       return;
     }
 
@@ -241,17 +234,10 @@ const PipelineAdvancedSearch = () => {
       }
 
       setResults(filteredContacts);
-      toast({
-        title: "Search complete",
-        description: `Found ${filteredContacts.length} contacts`,
-      });
+      showSuccess(`Found ${filteredContacts.length} contacts`);
     } catch (error) {
       console.error('Search error:', error);
-      toast({
-        title: "Search failed",
-        description: "An error occurred while searching",
-        variant: "destructive",
-      });
+      showError("An error occurred while searching");
     } finally {
       setIsSearching(false);
     }

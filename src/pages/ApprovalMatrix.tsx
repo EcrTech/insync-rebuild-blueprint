@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 import DashboardLayout from "@/components/Layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -44,9 +45,9 @@ export default function ApprovalMatrix() {
   const notify = useNotification();
   const [approvalTypes, setApprovalTypes] = useState<ApprovalType[]>([]);
   const [approvalRules, setApprovalRules] = useState<ApprovalRule[]>([]);
-  const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<ApprovalRule | null>(null);
+  const [orgId, setOrgId] = useState<string | null>(null);
   
   const [formData, setFormData] = useState({
     approval_type_id: "",
@@ -57,12 +58,7 @@ export default function ApprovalMatrix() {
   });
 
   useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
-    try {
-      setLoading(true);
+    const fetchOrgId = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
@@ -72,30 +68,47 @@ export default function ApprovalMatrix() {
         .eq("id", user.id)
         .single();
 
-      if (!profile?.org_id) return;
+      if (profile?.org_id) setOrgId(profile.org_id);
+    };
+    fetchOrgId();
+  }, []);
 
-      const [typesRes, rulesRes] = await Promise.all([
-        supabase
-          .from("approval_types" as any)
-          .select("*")
-          .eq("org_id", profile.org_id)
-          .order("name"),
-        supabase
-          .from("approval_rules" as any)
-          .select("*, approval_types(name)")
-          .eq("org_id", profile.org_id)
-          .order("name"),
-      ]);
+  const { data: typesData, refetch: refetchTypes } = useQuery({
+    queryKey: ['approval-types', orgId],
+    queryFn: async () => {
+      if (!orgId) return [];
+      const { data, error } = await supabase
+        .from("approval_types" as any)
+        .select("*")
+        .eq("org_id", orgId)
+        .order("name");
+      if (error) throw error;
+      return (data || []) as any;
+    },
+    enabled: !!orgId,
+  });
 
-      if (typesRes.data) setApprovalTypes(typesRes.data as any);
-      if (rulesRes.data) setApprovalRules(rulesRes.data as any);
-    } catch (error: any) {
-      console.error("Error fetching data:", error);
-      notify.error("Error", "Failed to load approval matrix");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data: rulesData, refetch: refetchRules } = useQuery({
+    queryKey: ['approval-rules', orgId],
+    queryFn: async () => {
+      if (!orgId) return [];
+      const { data, error } = await supabase
+        .from("approval_rules" as any)
+        .select("*, approval_types(name)")
+        .eq("org_id", orgId)
+        .order("name");
+      if (error) throw error;
+      return (data || []) as any;
+    },
+    enabled: !!orgId,
+  });
+
+  useEffect(() => {
+    if (typesData) setApprovalTypes(typesData as ApprovalType[]);
+    if (rulesData) setApprovalRules(rulesData as ApprovalRule[]);
+  }, [typesData, rulesData]);
+
+  const loading = !orgId || !typesData || !rulesData;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -141,7 +154,7 @@ export default function ApprovalMatrix() {
 
       setIsDialogOpen(false);
       resetForm();
-      fetchData();
+      await Promise.all([refetchTypes(), refetchRules()]);
     } catch (error: any) {
       console.error("Error saving approval rule:", error);
       notify.error("Error", "Failed to save approval rule");
@@ -159,7 +172,7 @@ export default function ApprovalMatrix() {
 
       if (error) throw error;
       notify.success("Success", "Approval rule deleted successfully");
-      fetchData();
+      await refetchRules();
     } catch (error: any) {
       console.error("Error deleting approval rule:", error);
       notify.error("Error", "Failed to delete approval rule");

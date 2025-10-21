@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 import DashboardLayout from "@/components/Layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -42,10 +43,8 @@ interface Contact {
 }
 
 export default function PipelineBoard() {
-  const [stages, setStages] = useState<PipelineStage[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [allContacts, setAllContacts] = useState<Contact[]>([]);
-  const [loading, setLoading] = useState(true);
   const [draggedContact, setDraggedContact] = useState<string | null>(null);
   const [scoringLeadId, setScoringLeadId] = useState<string | null>(null);
   const [selectedLeadScore, setSelectedLeadScore] = useState<any>(null);
@@ -55,38 +54,41 @@ export default function PipelineBoard() {
   const notify = useNotification();
   const navigate = useNavigate();
 
+  const { data: stagesData } = useQuery({
+    queryKey: ['pipeline-stages'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("pipeline_stages")
+        .select("*")
+        .eq("is_active", true)
+        .order("stage_order");
+      if (error) throw error;
+      return data as PipelineStage[];
+    },
+  });
+
+  const { data: contactsData } = useQuery({
+    queryKey: ['pipeline-contacts'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("contacts")
+        .select("id, first_name, last_name, email, phone, company, pipeline_stage_id, job_title, source, status, notes, website, address, city, state, country, created_at")
+        .order("created_at", { ascending: false })
+        .limit(500);
+      if (error) throw error;
+      return data as Contact[];
+    },
+  });
+
   useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
-    try {
-      // PERFORMANCE: Limit contacts to prevent loading thousands of records
-      const [stagesRes, contactsRes] = await Promise.all([
-        supabase
-          .from("pipeline_stages")
-          .select("*")
-          .eq("is_active", true)
-          .order("stage_order"),
-        supabase
-          .from("contacts")
-          .select("id, first_name, last_name, email, phone, company, pipeline_stage_id, job_title, source, status, notes, website, address, city, state, country, created_at")
-          .order("created_at", { ascending: false })
-          .limit(500), // Limit to 500 most recent contacts
-      ]);
-
-      if (stagesRes.error) throw stagesRes.error;
-      if (contactsRes.error) throw contactsRes.error;
-
-      setStages(stagesRes.data || []);
-      setContacts(contactsRes.data || []);
-      setAllContacts(contactsRes.data || []);
-    } catch (error: any) {
-      notify.error("Error loading pipeline", error);
-    } finally {
-      setLoading(false);
+    if (contactsData) {
+      setContacts(contactsData);
+      setAllContacts(contactsData);
     }
-  };
+  }, [contactsData]);
+
+  const stages = stagesData || [];
+  const loading = !stagesData || !contactsData;
 
   const handleDragStart = (contactId: string) => {
     setDraggedContact(contactId);

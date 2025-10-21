@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -47,11 +48,6 @@ export function PostCallDispositionDialog({
     notes: "",
   });
 
-  useEffect(() => {
-    if (open) {
-      fetchDispositions();
-    }
-  }, [open]);
 
   useEffect(() => {
     if (formData.disposition_id) {
@@ -64,22 +60,36 @@ export function PostCallDispositionDialog({
     }
   }, [formData.disposition_id, subDispositions]);
 
-  const fetchDispositions = async () => {
-    try {
-      const [dispositionsRes, subDispositionsRes] = await Promise.all([
-        supabase.from("call_dispositions").select("id, name").eq("is_active", true),
-        supabase.from("call_sub_dispositions").select("*").eq("is_active", true),
-      ]);
+  const { data: dispositionsData } = useQuery({
+    queryKey: ['call-dispositions'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("call_dispositions")
+        .select("id, name")
+        .eq("is_active", true);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: open,
+  });
 
-      if (dispositionsRes.error) throw dispositionsRes.error;
-      if (subDispositionsRes.error) throw subDispositionsRes.error;
+  const { data: subDispositionsData } = useQuery({
+    queryKey: ['call-sub-dispositions'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("call_sub_dispositions")
+        .select("*")
+        .eq("is_active", true);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: open,
+  });
 
-      setDispositions(dispositionsRes.data || []);
-      setSubDispositions(subDispositionsRes.data || []);
-    } catch (error: any) {
-      console.error("Error fetching dispositions:", error);
-    }
-  };
+  useEffect(() => {
+    if (dispositionsData) setDispositions(dispositionsData);
+    if (subDispositionsData) setSubDispositions(subDispositionsData);
+  }, [dispositionsData, subDispositionsData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
