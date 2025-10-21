@@ -107,9 +107,9 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Build AI analysis prompt
+      // Build AI analysis prompt with structured tool calling
       const metricsArray = Array.from(stageMetrics.values());
-      const prompt = `Analyze this sales pipeline performance and provide actionable insights:
+      const prompt = `Analyze this sales pipeline performance and provide 2-3 actionable insights:
 
 PIPELINE OVERVIEW:
 ${metricsArray.map(m => `
@@ -123,30 +123,15 @@ ${m.stageName} (${m.probability}% probability):
 
 RECENT ACTIVITY (Last 30 days):
 - Total movements: ${movements?.length || 0}
-- Most common path: ${movements?.[0]?.from_stage?.name || 'N/A'} → ${movements?.[0]?.to_stage?.name || 'N/A'}
 
-Identify pipeline issues and opportunities:
+Identify the TOP 2-3 most critical pipeline issues and opportunities:
 1. BOTTLENECKS: Stages with high stuck count or low conversion
 2. AT-RISK DEALS: High-probability stages (>70%) with contacts stuck >14 days
-3. OPTIMIZATION: Lead scoring patterns that predict success
-4. VELOCITY: Stage-specific recommendations to speed up pipeline
+3. VELOCITY: Stage-specific recommendations to speed up pipeline
 
-Respond ONLY with valid JSON in this exact format:
-{
-  "priority": "high|medium|low",
-  "insight_type": "bottleneck|at_risk_deals|velocity_issue|optimization",
-  "title": "Clear action statement (max 60 chars)",
-  "description": "Why this matters (1 sentence)",
-  "impact": "Expected result (e.g., 'Close 5 deals faster')",
-  "supportingData": {
-    "stage": "stage name",
-    "metric": "specific number"
-  },
-  "analysis": "Your reasoning (2-3 sentences)",
-  "suggestedAction": "Specific action to take"
-}`;
+For each insight, provide clear actionable recommendations.`;
 
-      // Call Lovable AI
+      // Call Lovable AI with tool calling
       try {
         const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
           method: 'POST',
@@ -157,58 +142,127 @@ Respond ONLY with valid JSON in this exact format:
           body: JSON.stringify({
             model: 'google/gemini-2.5-flash',
             messages: [
-              { role: 'system', content: 'You are an expert sales operations analyst. Always respond with valid JSON only.' },
+              { role: 'system', content: 'You are an expert sales operations analyst. Provide actionable pipeline insights.' },
               { role: 'user', content: prompt }
             ],
-            temperature: 0.7,
+            tools: [{
+              type: 'function',
+              function: {
+                name: 'create_pipeline_insights',
+                description: 'Generate actionable pipeline insights',
+                parameters: {
+                  type: 'object',
+                  properties: {
+                    insights: {
+                      type: 'array',
+                      items: {
+                        type: 'object',
+                        properties: {
+                          priority: { type: 'string', enum: ['high', 'medium', 'low'] },
+                          insight_type: { type: 'string', enum: ['bottleneck', 'at_risk_deals', 'velocity_issue', 'optimization'] },
+                          title: { type: 'string', description: 'Clear action statement (max 60 chars)' },
+                          description: { type: 'string', description: 'Why this matters (1 sentence)' },
+                          impact: { type: 'string', description: 'Expected result' },
+                          supportingData: {
+                            type: 'object',
+                            properties: {
+                              stage: { type: 'string' },
+                              metric: { type: 'string' }
+                            }
+                          },
+                          analysis: { type: 'string', description: 'Your reasoning (2-3 sentences)' },
+                          suggestedAction: { type: 'string', description: 'Specific action to take' }
+                        },
+                        required: ['priority', 'insight_type', 'title', 'description', 'suggestedAction']
+                      }
+                    }
+                  },
+                  required: ['insights']
+                }
+              }
+            }],
+            tool_choice: { type: 'function', function: { name: 'create_pipeline_insights' } }
           }),
         });
 
         if (!aiResponse.ok) {
-          console.error(`AI API error for org ${org.id}:`, await aiResponse.text());
+          const errorText = await aiResponse.text();
+          console.error(`AI API error for org ${org.id}:`, errorText);
           continue;
         }
 
         const aiData = await aiResponse.json();
-        const responseText = aiData.choices[0].message.content;
+        console.log(`AI response for org ${org.id}:`, JSON.stringify(aiData));
         
-        // Extract JSON from response
-        let insights;
+        // Extract insights from tool call
+        let insightsArray = [];
         try {
-          insights = JSON.parse(responseText);
-        } catch {
-          const jsonMatch = responseText.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/);
-          if (jsonMatch) {
-            insights = JSON.parse(jsonMatch[1]);
+          const toolCall = aiData.choices[0].message.tool_calls?.[0];
+          if (toolCall && toolCall.function) {
+            const functionArgs = JSON.parse(toolCall.function.arguments);
+            insightsArray = functionArgs.insights || [];
           } else {
-            console.error(`Failed to parse AI response for org ${org.id}`);
-            continue;
+            // Fallback: try to parse direct response
+            const responseText = aiData.choices[0].message.content;
+            console.log(`Fallback parsing for org ${org.id}, response:`, responseText);
+            
+            // Try multiple extraction methods
+            let parsed;
+            try {
+              // Method 1: Direct JSON parse
+              parsed = JSON.parse(responseText);
+            } catch {
+              // Method 2: Extract JSON from markdown
+              const jsonMatch = responseText.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+              if (jsonMatch) {
+                parsed = JSON.parse(jsonMatch[1]);
+              } else {
+                // Method 3: Find any JSON object or array
+                const objectMatch = responseText.match(/\{[\s\S]*\}/);
+                if (objectMatch) {
+                  parsed = JSON.parse(objectMatch[0]);
+                }
+              }
+            }
+            
+            // Handle both single object and array responses
+            if (parsed) {
+              insightsArray = Array.isArray(parsed) ? parsed : 
+                             parsed.insights ? parsed.insights : [parsed];
+            }
           }
+        } catch (parseError) {
+          console.error(`Failed to parse AI response for org ${org.id}:`, parseError);
+          continue;
         }
 
-        // Store high and medium priority pipeline insights
-        if (insights.priority === 'high' || insights.priority === 'medium') {
-          const expiresAt = new Date();
-          expiresAt.setDate(expiresAt.getDate() + 7);
+        // Store insights
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + 7);
 
-          const { error: insertError } = await supabase
-            .from('campaign_insights')
-            .insert({
-              org_id: org.id,
-              campaign_id: null, // Pipeline insights don't have campaign_id
-              priority: insights.priority,
-              insight_type: insights.insight_type,
-              title: insights.title,
-              description: insights.description,
-              impact: insights.impact,
-              supporting_data: insights.supportingData,
-              analysis: insights.analysis,
-              suggested_action: insights.suggestedAction,
-              expires_at: expiresAt.toISOString(),
-            });
+        for (const insight of insightsArray) {
+          if (insight.priority === 'high' || insight.priority === 'medium') {
+            const { error: insertError } = await supabase
+              .from('campaign_insights')
+              .insert({
+                org_id: org.id,
+                campaign_id: null,
+                priority: insight.priority,
+                insight_type: insight.insight_type,
+                title: insight.title,
+                description: insight.description,
+                impact: insight.impact || null,
+                supporting_data: insight.supportingData || null,
+                analysis: insight.analysis || null,
+                suggested_action: insight.suggestedAction,
+                expires_at: expiresAt.toISOString(),
+              });
 
-          if (insertError) {
-            console.error(`Error inserting pipeline insight for org ${org.id}:`, insertError);
+            if (insertError) {
+              console.error(`Error inserting pipeline insight for org ${org.id}:`, insertError);
+            } else {
+              console.log(`Successfully inserted insight for org ${org.id}: ${insight.title}`);
+            }
           }
         }
 

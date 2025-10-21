@@ -1,19 +1,26 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Brain, MessageCircle, TrendingUp, GitBranch } from "lucide-react";
-import InsightCard from "@/components/Campaigns/Insights/InsightCard";
-import AIChatInterface from "./AIChatInterface";
-import PipelineInsightsCard from "./PipelineInsightsCard";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useOrgContext } from "@/hooks/useOrgContext";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Skeleton } from "@/components/ui/skeleton";
+import InsightCard from "@/components/Campaigns/Insights/InsightCard";
+import AIChatInterface from "./AIChatInterface";
+import PipelineInsightsCard from "./PipelineInsightsCard";
+import { Lightbulb, RefreshCw, ChevronDown, ChevronUp } from "lucide-react";
+import { useNotification } from "@/hooks/useNotification";
+import { useState } from "react";
 
 export default function AIInsightsTab() {
   const { effectiveOrgId } = useOrgContext();
+  const notify = useNotification();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [chatExpanded, setChatExpanded] = useState(false);
+  const [filter, setFilter] = useState<'all' | 'pipeline' | 'campaign'>('all');
 
-  // Fetch AI-generated insights from campaign_insights table
-  const { data: aiInsights = [], isLoading: insightsLoading, refetch } = useQuery({
+  // Fetch AI insights
+  const { data: aiInsights = [], isLoading, refetch } = useQuery({
     queryKey: ['campaign-insights', effectiveOrgId],
     queryFn: async () => {
       if (!effectiveOrgId) return [];
@@ -32,9 +39,19 @@ export default function AIInsightsTab() {
     enabled: !!effectiveOrgId,
   });
 
-  // Separate pipeline-specific insights from campaign insights
+  // Separate and filter insights
   const pipelineInsights = aiInsights.filter(i => !i.campaign_id);
   const campaignInsights = aiInsights.filter(i => i.campaign_id);
+  
+  const filteredInsights = filter === 'all' ? aiInsights :
+                          filter === 'pipeline' ? pipelineInsights : campaignInsights;
+
+  // Sort by priority (high > medium > low)
+  const sortedInsights = [...filteredInsights].sort((a, b) => {
+    const priorityOrder = { high: 0, medium: 1, low: 2 };
+    return priorityOrder[a.priority as keyof typeof priorityOrder] - 
+           priorityOrder[b.priority as keyof typeof priorityOrder];
+  });
 
   // Fetch pipeline metrics
   const { data: pipelineMetrics = [], isLoading: pipelineLoading } = useQuery({
@@ -83,99 +100,109 @@ export default function AIInsightsTab() {
     enabled: !!effectiveOrgId,
   });
 
-  const isLoading = insightsLoading || pipelineLoading;
+  const handleRefreshInsights = async () => {
+    setIsRefreshing(true);
+    try {
+      const { error } = await supabase.functions.invoke('analyze-pipeline-performance');
+      if (error) throw error;
+      
+      notify.success("Success", "Insights are being refreshed. Check back in a moment.");
+      setTimeout(() => refetch(), 3000);
+    } catch (error) {
+      notify.error("Error", "Failed to refresh insights");
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold">AI-Powered Insights</h2>
-        <p className="text-muted-foreground">Get intelligent recommendations for your campaigns</p>
+      {/* Header with refresh button */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold flex items-center gap-2">
+            <Lightbulb className="h-6 w-6" />
+            AI-Powered Insights
+          </h2>
+          <p className="text-muted-foreground">
+            Pipeline intelligence and campaign recommendations in one place
+          </p>
+        </div>
+        <Button onClick={handleRefreshInsights} disabled={isRefreshing}>
+          <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+          Refresh Insights
+        </Button>
       </div>
 
-      <Tabs defaultValue="insights" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="insights">
-            <Brain className="h-4 w-4 mr-2" />
-            AI Insights
+      {/* Pipeline Health Overview */}
+      {pipelineLoading ? (
+        <Card>
+          <CardContent className="py-12">
+            <Skeleton className="h-64" />
+          </CardContent>
+        </Card>
+      ) : pipelineMetrics.length > 0 && (
+        <PipelineInsightsCard metrics={pipelineMetrics} />
+      )}
+
+      {/* Filter tabs */}
+      <Tabs value={filter} onValueChange={(v) => setFilter(v as any)} className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="all">
+            All Insights ({aiInsights.length})
           </TabsTrigger>
           <TabsTrigger value="pipeline">
-            <GitBranch className="h-4 w-4 mr-2" />
-            Pipeline Intelligence
+            Pipeline ({pipelineInsights.length})
           </TabsTrigger>
-          <TabsTrigger value="chat">
-            <MessageCircle className="h-4 w-4 mr-2" />
-            AI Assistant
+          <TabsTrigger value="campaign">
+            Campaigns ({campaignInsights.length})
           </TabsTrigger>
         </TabsList>
-
-        <TabsContent value="insights" className="space-y-4">
-          {isLoading ? (
-            <div className="grid gap-4 md:grid-cols-2">
-              {[1, 2].map((i) => (
-                <Card key={i}>
-                  <CardHeader>
-                    <Skeleton className="h-6 w-3/4" />
-                    <Skeleton className="h-4 w-full mt-2" />
-                  </CardHeader>
-                  <CardContent>
-                    <Skeleton className="h-20 w-full" />
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : aiInsights.length === 0 ? (
-            <Card>
-              <CardContent className="text-center py-12">
-                <Brain className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">
-                  No AI insights available yet. Run analytics to generate insights!
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2">
-              {campaignInsights.map((insight) => (
-                <InsightCard key={insight.id} insight={insight} onUpdate={() => refetch()} />
-              ))}
-            </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="pipeline" className="space-y-4">
-          {isLoading ? (
-            <Skeleton className="h-96 w-full" />
-          ) : pipelineMetrics.length === 0 ? (
-            <Card>
-              <CardContent className="text-center py-12">
-                <GitBranch className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">
-                  No pipeline data available. Add contacts to your pipeline to see insights!
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-4">
-              <PipelineInsightsCard metrics={pipelineMetrics} />
-              
-              {/* AI-Generated Pipeline Recommendations */}
-              {pipelineInsights.length > 0 && (
-                <div>
-                  <h3 className="text-lg font-semibold mb-4">AI Recommendations</h3>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    {pipelineInsights.map((insight) => (
-                      <InsightCard key={insight.id} insight={insight} onUpdate={() => refetch()} />
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="chat">
-          <AIChatInterface />
-        </TabsContent>
       </Tabs>
+
+      {/* AI Recommendations */}
+      {isLoading ? (
+        <div className="grid gap-4 md:grid-cols-2">
+          <Skeleton className="h-48" />
+          <Skeleton className="h-48" />
+        </div>
+      ) : sortedInsights.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <Lightbulb className="h-12 w-12 text-muted-foreground mb-4" />
+            <p className="text-lg font-medium">No insights available yet</p>
+            <p className="text-muted-foreground">
+              AI insights will appear here based on your pipeline and campaign performance
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2">
+          {sortedInsights.map((insight) => (
+            <InsightCard key={insight.id} insight={insight} onUpdate={() => refetch()} />
+          ))}
+        </div>
+      )}
+
+      {/* Collapsible AI Assistant */}
+      <Card>
+        <CardHeader className="cursor-pointer" onClick={() => setChatExpanded(!chatExpanded)}>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>AI Assistant</CardTitle>
+              <CardDescription>
+                Ask questions about your pipeline and campaigns
+              </CardDescription>
+            </div>
+            {chatExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+          </div>
+        </CardHeader>
+        {chatExpanded && (
+          <CardContent>
+            <AIChatInterface />
+          </CardContent>
+        )}
+      </Card>
     </div>
   );
 }
