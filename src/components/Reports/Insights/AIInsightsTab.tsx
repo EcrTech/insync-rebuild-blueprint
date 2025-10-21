@@ -32,6 +32,10 @@ export default function AIInsightsTab() {
     enabled: !!effectiveOrgId,
   });
 
+  // Separate pipeline-specific insights from campaign insights
+  const pipelineInsights = aiInsights.filter(i => !i.campaign_id);
+  const campaignInsights = aiInsights.filter(i => i.campaign_id);
+
   // Fetch pipeline metrics
   const { data: pipelineMetrics = [], isLoading: pipelineLoading } = useQuery({
     queryKey: ['pipeline-metrics', effectiveOrgId],
@@ -130,7 +134,7 @@ export default function AIInsightsTab() {
             </Card>
           ) : (
             <div className="grid gap-4 md:grid-cols-2">
-              {aiInsights.map((insight) => (
+              {campaignInsights.map((insight) => (
                 <InsightCard key={insight.id} insight={insight} onUpdate={() => refetch()} />
               ))}
             </div>
@@ -150,7 +154,21 @@ export default function AIInsightsTab() {
               </CardContent>
             </Card>
           ) : (
-            <PipelineInsightsCard metrics={pipelineMetrics} />
+            <div className="space-y-4">
+              <PipelineInsightsCard metrics={pipelineMetrics} />
+              
+              {/* AI-Generated Pipeline Recommendations */}
+              {pipelineInsights.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">AI Recommendations</h3>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {pipelineInsights.map((insight) => (
+                      <InsightCard key={insight.id} insight={insight} onUpdate={() => refetch()} />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           )}
         </TabsContent>
 
