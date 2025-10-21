@@ -403,10 +403,10 @@ export default function Reports() {
       </div>
     </TabsContent>
 
-          <TabsContent value="custom" className="space-y-4">
-            <CustomReportsList onViewReport={setViewingReportId} />
-          </TabsContent>
-        </Tabs>
+    <TabsContent value="custom" className="space-y-4">
+      <CustomReportsList onViewReport={setViewingReportId} />
+    </TabsContent>
+  </Tabs>
 
         <ReportViewer
           reportId={viewingReportId}
