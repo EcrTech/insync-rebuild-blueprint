@@ -1,10 +1,11 @@
 import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import DashboardLayout from "@/components/Layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, TrendingUp, Phone, Target, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { Bar, BarChart, Line, LineChart, Pie, PieChart, Cell, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from "recharts";
 import { useOrgContext } from "@/hooks/useOrgContext";
-import { useOrgData } from "@/hooks/useOrgData";
 import { LoadingState } from "@/components/common/LoadingState";
 
 interface DashboardStats {
@@ -36,139 +37,135 @@ const COLORS = ['#01B8AA', '#168980', '#8AD4EB', '#F2C80F', '#A66999', '#FE9666'
 export default function Dashboard() {
   const { effectiveOrgId } = useOrgContext();
 
-  // Fetch all data using useOrgData hook for better caching
-  const { data: contacts = [] } = useOrgData('contacts', { enabled: !!effectiveOrgId });
-  const { data: stages = [] } = useOrgData('pipeline_stages', {
-    orderBy: { column: 'stage_order', ascending: true },
+  // Fetch optimized dashboard stats using database function
+  const { data: rawStats, isLoading: statsLoading } = useQuery<any>({
+    queryKey: ["dashboard-stats", effectiveOrgId],
+    queryFn: async () => {
+      if (!effectiveOrgId) throw new Error("No organization context");
+      const { data, error } = await supabase.rpc("get_dashboard_stats", {
+        p_org_id: effectiveOrgId,
+      });
+      if (error) throw error;
+      return data;
+    },
     enabled: !!effectiveOrgId,
-  });
-  const { data: activities = [] } = useOrgData('contact_activities', {
-    select: 'activity_type, created_at',
-    enabled: !!effectiveOrgId,
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
-  // Calculate all stats in memory using useMemo
-  const { stats, pipelineData, activityData, loading } = useMemo(() => {
-    if (!contacts || contacts.length === 0) {
+  // Fetch pipeline distribution
+  const { data: pipelineRaw = [], isLoading: pipelineLoading } = useQuery({
+    queryKey: ["pipeline-distribution", effectiveOrgId],
+    queryFn: async () => {
+      if (!effectiveOrgId) throw new Error("No organization context");
+      const { data, error } = await supabase.rpc("get_pipeline_distribution", {
+        p_org_id: effectiveOrgId,
+      });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!effectiveOrgId,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Fetch activity trends
+  const { data: activityRaw = [], isLoading: activitiesLoading } = useQuery({
+    queryKey: ["activity-trends", effectiveOrgId],
+    queryFn: async () => {
+      if (!effectiveOrgId) throw new Error("No organization context");
+      const { data, error } = await supabase.rpc("get_activity_trends", {
+        p_org_id: effectiveOrgId,
+        p_days: 7,
+      });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!effectiveOrgId,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const loading = statsLoading || pipelineLoading || activitiesLoading;
+
+  // Process stats from database function
+  const stats: DashboardStats = useMemo(() => {
+    if (!rawStats) {
       return {
-        stats: {
-          totalContacts: 0,
-          activeDeals: 0,
-          callsToday: 0,
-          conversionRate: 0,
-          newContactsThisWeek: 0,
-          dealsWonThisMonth: 0,
-          contactGrowth: 0,
-          dealGrowth: 0,
-        },
-        pipelineData: [],
-        activityData: [],
-        loading: !effectiveOrgId,
+        totalContacts: 0,
+        activeDeals: 0,
+        callsToday: 0,
+        conversionRate: 0,
+        newContactsThisWeek: 0,
+        dealsWonThisMonth: 0,
+        contactGrowth: 0,
+        dealGrowth: 0,
       };
     }
 
-    // Calculate date ranges
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const weekAgo = new Date();
-    weekAgo.setDate(weekAgo.getDate() - 7);
-    const monthStart = new Date();
-    monthStart.setDate(1);
-    monthStart.setHours(0, 0, 0, 0);
-    const lastMonthStart = new Date();
-    lastMonthStart.setMonth(lastMonthStart.getMonth() - 1);
-    lastMonthStart.setDate(1);
+    const {
+      total_contacts,
+      active_deals,
+      calls_today,
+      prev_month_contacts,
+      conversion_rate,
+    } = rawStats;
 
-    // Find won stage
-    const wonStage = stages.find((s: any) => s.name?.toLowerCase() === 'won');
-    const activeStageIds = stages
-      .filter((s: any) => !['won', 'lost'].includes(s.name?.toLowerCase()))
-      .map((s: any) => s.id);
-
-    // Calculate stats
-    const totalContacts = contacts.length;
-    const contactsLastWeek = contacts.filter((c: any) => new Date(c.created_at) < weekAgo).length;
-    const newContactsThisWeek = contacts.filter((c: any) => new Date(c.created_at) >= weekAgo).length;
-    
-    const activeDeals = contacts.filter((c: any) => activeStageIds.includes(c.pipeline_stage_id)).length;
-    const activeDealsLastMonth = contacts.filter((c: any) => 
-      activeStageIds.includes(c.pipeline_stage_id) && new Date(c.created_at) < lastMonthStart
-    ).length;
-    
-    const dealsWonThisMonth = wonStage 
-      ? contacts.filter((c: any) => 
-          c.pipeline_stage_id === wonStage.id && new Date(c.updated_at) >= monthStart
-        ).length
-      : 0;
-
-    const callsToday = activities.filter((a: any) => 
-      a.activity_type === 'call' && new Date(a.created_at) >= today
-    ).length;
-
-    const conversionRate = totalContacts && dealsWonThisMonth
-      ? Math.round((dealsWonThisMonth / totalContacts) * 100)
-      : 0;
-
-    const contactGrowth = contactsLastWeek > 0
-      ? Math.round(((totalContacts - contactsLastWeek) / contactsLastWeek) * 100)
-      : 0;
-
-    const dealGrowth = activeDealsLastMonth > 0
-      ? Math.round(((activeDeals - activeDealsLastMonth) / activeDealsLastMonth) * 100)
-      : 0;
-
-    // Process pipeline distribution
-    const pipelineMap = new Map<string, number>();
-    contacts.forEach((contact: any) => {
-      const stage = stages.find((s: any) => s.id === contact.pipeline_stage_id);
-      const stageName = stage?.name || "Unassigned";
-      pipelineMap.set(stageName, (pipelineMap.get(stageName) || 0) + 1);
-    });
-
-    const pipeline: PipelineData[] = Array.from(pipelineMap.entries()).map(([stage, count]) => ({
-      stage,
-      count,
-      value: count,
-    }));
-
-    // Process activity trends (last 7 days)
-    const activityArray: ActivityData[] = [];
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
-      date.setHours(0, 0, 0, 0);
-      const nextDay = new Date(date);
-      nextDay.setDate(nextDay.getDate() + 1);
-
-      const dayActivities = activities.filter((activity: any) => {
-        const activityDate = new Date(activity.created_at);
-        return activityDate >= date && activityDate < nextDay;
-      });
-
-      activityArray.push({
-        date: date.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-        calls: dayActivities.filter((a: any) => a.activity_type === "call").length,
-        emails: dayActivities.filter((a: any) => a.activity_type === "email").length,
-        meetings: dayActivities.filter((a: any) => a.activity_type === "meeting").length,
-      });
-    }
+    // Calculate growth percentages
+    const currentMonthContacts = total_contacts - prev_month_contacts;
+    const contactGrowth =
+      prev_month_contacts > 0
+        ? Math.round(((currentMonthContacts - prev_month_contacts) / prev_month_contacts) * 100)
+        : 0;
 
     return {
-      stats: {
-        totalContacts,
-        activeDeals,
-        callsToday,
-        conversionRate,
-        newContactsThisWeek,
-        dealsWonThisMonth,
-        contactGrowth,
-        dealGrowth,
-      },
-      pipelineData: pipeline,
-      activityData: activityArray,
-      loading: false,
+      totalContacts: total_contacts,
+      activeDeals: active_deals,
+      callsToday: calls_today,
+      conversionRate: conversion_rate || 0,
+      newContactsThisWeek: 0, // Placeholder
+      dealsWonThisMonth: 0, // Placeholder
+      contactGrowth,
+      dealGrowth: 0, // Placeholder
     };
-  }, [contacts, stages, activities, effectiveOrgId]);
+  }, [rawStats]);
+
+  // Process pipeline data
+  const pipelineData: PipelineData[] = useMemo(() => {
+    if (!pipelineRaw || pipelineRaw.length === 0) return [];
+
+    return pipelineRaw.map((item: any) => ({
+      stage: item.stage_name,
+      count: Number(item.contact_count),
+      value: Number(item.contact_count),
+    }));
+  }, [pipelineRaw]);
+
+  // Process activity data
+  const activityData: ActivityData[] = useMemo(() => {
+    if (!activityRaw || activityRaw.length === 0) return [];
+
+    // Group by date
+    const dateMap = new Map<string, { calls: number; emails: number; meetings: number }>();
+    
+    activityRaw.forEach((item: any) => {
+      const date = new Date(item.activity_date).toLocaleDateString("en-US", { 
+        month: "short", 
+        day: "numeric" 
+      });
+      
+      if (!dateMap.has(date)) {
+        dateMap.set(date, { calls: 0, emails: 0, meetings: 0 });
+      }
+      
+      const counts = dateMap.get(date)!;
+      if (item.activity_type === "call") counts.calls += Number(item.activity_count);
+      else if (item.activity_type === "email") counts.emails += Number(item.activity_count);
+      else if (item.activity_type === "meeting") counts.meetings += Number(item.activity_count);
+    });
+
+    return Array.from(dateMap.entries()).map(([date, counts]) => ({
+      date,
+      ...counts,
+    }));
+  }, [activityRaw]);
 
   if (loading) {
     return (

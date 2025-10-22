@@ -149,128 +149,36 @@ export default function PlatformAdmin() {
     try {
       setLoading(true);
 
-      // Calculate time thresholds once
-      const now = new Date();
-      const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-
-      // Fetch all data in parallel for better performance
+      // Use database function for platform stats
       const [
         { data: orgs, error: orgsError },
-        { data: userCounts },
-        { data: contactCounts },
-        { data: profilesData },
-        { data: activityData }
+        { data: platformStats }
       ] = await Promise.all([
         supabase.from("organizations").select("*").order("created_at", { ascending: false }),
-        supabase.from("user_roles").select("org_id"),
-        supabase.from("contacts").select("org_id"),
-        supabase.from("profiles").select("org_id, updated_at"),
-        supabase.from("contact_activities").select("org_id, activity_type")
+        supabase.rpc("get_platform_admin_stats")
       ]);
 
       if (orgsError) throw orgsError;
 
-      // Initialize default counts structure
-      const getDefaultCounts = () => ({ 
-        users: 0, 
-        contacts: 0,
-        usersActive1Day: 0,
-        usersActive7Days: 0,
-        usersActive30Days: 0,
-        calls: 0,
-        emails: 0
-      });
+      setOrganizations(orgs?.map(org => ({
+        ...org,
+        is_active: (org.settings as any)?.is_active !== false,
+      })) || []);
 
-      // Build counts map efficiently in a single pass per data type
-      const orgCountsMap = new Map();
-      
-      userCounts?.forEach(({ org_id }) => {
-        const current = orgCountsMap.get(org_id) || getDefaultCounts();
-        current.users++;
-        orgCountsMap.set(org_id, current);
-      });
-      
-      contactCounts?.forEach(({ org_id }) => {
-        const current = orgCountsMap.get(org_id) || getDefaultCounts();
-        current.contacts++;
-        orgCountsMap.set(org_id, current);
-      });
-
-      // Process profiles - count users and active users in one pass
-      let totalUsersActive1Day = 0;
-      let totalUsersActive7Days = 0;
-      let totalUsersActive30Days = 0;
-
-      profilesData?.forEach(({ org_id, updated_at }) => {
-        const current = orgCountsMap.get(org_id) || getDefaultCounts();
-        const updatedDate = new Date(updated_at);
-        
-        if (updatedDate > oneDayAgo) {
-          current.usersActive1Day++;
-          totalUsersActive1Day++;
-        }
-        if (updatedDate > sevenDaysAgo) {
-          current.usersActive7Days++;
-          totalUsersActive7Days++;
-        }
-        if (updatedDate > thirtyDaysAgo) {
-          current.usersActive30Days++;
-          totalUsersActive30Days++;
-        }
-        
-        orgCountsMap.set(org_id, current);
-      });
-
-      // Process activities - calls and emails in one pass
-      let totalCalls = 0;
-      let totalEmails = 0;
-
-      activityData?.forEach(({ org_id, activity_type }) => {
-        const current = orgCountsMap.get(org_id) || getDefaultCounts();
-        
-        if (activity_type === "call") {
-          current.calls++;
-          totalCalls++;
-        } else if (activity_type === "email") {
-          current.emails++;
-          totalEmails++;
-        }
-        
-        orgCountsMap.set(org_id, current);
-      });
-
-      // Enrich organizations with counts
-      const enrichedOrgs = orgs?.map(org => {
-        const counts = orgCountsMap.get(org.id) || getDefaultCounts();
-        return {
-          ...org,
-          userCount: counts.users,
-          contactCount: counts.contacts,
-          usersActive1Day: counts.usersActive1Day,
-          usersActive7Days: counts.usersActive7Days,
-          usersActive30Days: counts.usersActive30Days,
-          callVolume: counts.calls,
-          emailVolume: counts.emails,
-          is_active: (org.settings as any)?.is_active !== false,
-        };
-      }) || [];
-
-      setOrganizations(enrichedOrgs);
-
-      // Set stats - all data already calculated
-      setStats({
-        totalOrgs: enrichedOrgs.length,
-        activeOrgs: enrichedOrgs.filter(o => o.is_active).length,
-        totalUsers: userCounts?.length || 0,
-        totalContacts: contactCounts?.length || 0,
-        usersLast1Day: totalUsersActive1Day,
-        usersLast7Days: totalUsersActive7Days,
-        usersLast30Days: totalUsersActive30Days,
-        callVolume: totalCalls,
-        emailVolume: totalEmails,
-      });
+      // Use stats from database function
+      if (platformStats) {
+        setStats({
+          totalOrgs: (platformStats as any).total_organizations || 0,
+          activeOrgs: orgs?.filter(o => (o.settings as any)?.is_active !== false).length || 0,
+          totalUsers: (platformStats as any).total_users || 0,
+          totalContacts: (platformStats as any).total_contacts || 0,
+          usersLast1Day: 0,
+          usersLast7Days: (platformStats as any).active_users || 0,
+          usersLast30Days: 0,
+          callVolume: 0,
+          emailVolume: 0,
+        });
+      }
     } catch (error: any) {
       notify.error("Error loading organizations", error);
     } finally{

@@ -67,6 +67,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "activity_participants_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts_with_stages"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "activity_participants_org_id_fkey"
             columns: ["org_id"]
             isOneToOne: false
@@ -122,6 +129,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "agent_call_sessions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts_with_stages"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "agent_call_sessions_org_id_fkey"
             columns: ["org_id"]
             isOneToOne: false
@@ -137,7 +151,7 @@ export type Database = {
           endpoint: string
           error_message: string | null
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           method: string
           org_id: string
           response_time_ms: number | null
@@ -150,7 +164,7 @@ export type Database = {
           endpoint: string
           error_message?: string | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           method: string
           org_id: string
           response_time_ms?: number | null
@@ -163,7 +177,7 @@ export type Database = {
           endpoint?: string
           error_message?: string | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           method?: string
           org_id?: string
           response_time_ms?: number | null
@@ -751,6 +765,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "call_logs_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts_with_stages"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "call_logs_disposition_id_fkey"
             columns: ["disposition_id"]
             isOneToOne: false
@@ -1033,7 +1054,7 @@ export type Database = {
           form_id: string | null
           http_status_code: number
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           org_id: string
           request_id: string
           request_payload: Json
@@ -1047,7 +1068,7 @@ export type Database = {
           form_id?: string | null
           http_status_code: number
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           org_id: string
           request_id: string
           request_payload?: Json
@@ -1061,7 +1082,7 @@ export type Database = {
           form_id?: string | null
           http_status_code?: number
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           org_id?: string
           request_id?: string
           request_payload?: Json
@@ -1074,6 +1095,13 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "connector_logs_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts_with_stages"
             referencedColumns: ["id"]
           },
           {
@@ -1197,6 +1225,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "contact_activities_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts_with_stages"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "contact_activities_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
@@ -1286,6 +1321,13 @@ export type Database = {
             referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "contact_emails_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts_with_stages"
+            referencedColumns: ["id"]
+          },
         ]
       }
       contact_enrichment_logs: {
@@ -1334,6 +1376,13 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_enrichment_logs_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts_with_stages"
             referencedColumns: ["id"]
           },
           {
@@ -1439,6 +1488,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "contact_lead_scores_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: true
+            referencedRelation: "contacts_with_stages"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "contact_lead_scores_org_id_fkey"
             columns: ["org_id"]
             isOneToOne: false
@@ -1486,6 +1542,13 @@ export type Database = {
             referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "contact_phones_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts_with_stages"
+            referencedColumns: ["id"]
+          },
         ]
       }
       contact_tag_assignments: {
@@ -1519,6 +1582,13 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_tag_assignments_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts_with_stages"
             referencedColumns: ["id"]
           },
           {
@@ -1924,6 +1994,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "email_automation_cooldowns_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts_with_stages"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "email_automation_cooldowns_org_id_fkey"
             columns: ["org_id"]
             isOneToOne: false
@@ -1970,6 +2047,13 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_automation_daily_limits_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts_with_stages"
             referencedColumns: ["id"]
           },
           {
@@ -2070,6 +2154,13 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_automation_executions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts_with_stages"
             referencedColumns: ["id"]
           },
           {
@@ -2459,6 +2550,13 @@ export type Database = {
             referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "email_campaign_recipients_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts_with_stages"
+            referencedColumns: ["id"]
+          },
         ]
       }
       email_conversations: {
@@ -2579,6 +2677,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "email_conversations_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts_with_stages"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "email_conversations_org_id_fkey"
             columns: ["org_id"]
             isOneToOne: false
@@ -2634,6 +2739,13 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_engagement_patterns_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts_with_stages"
             referencedColumns: ["id"]
           },
           {
@@ -2803,7 +2915,7 @@ export type Database = {
           contact_id: string | null
           email: string
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           org_id: string
           source: string
           unsubscribe_token: string
@@ -2814,7 +2926,7 @@ export type Database = {
           contact_id?: string | null
           email: string
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           org_id: string
           source: string
           unsubscribe_token: string
@@ -2825,7 +2937,7 @@ export type Database = {
           contact_id?: string | null
           email?: string
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           org_id?: string
           source?: string
           unsubscribe_token?: string
@@ -2838,6 +2950,13 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_unsubscribes_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts_with_stages"
             referencedColumns: ["id"]
           },
           {
@@ -3859,6 +3978,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "pipeline_movement_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts_with_stages"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "pipeline_movement_history_from_stage_id_fkey"
             columns: ["from_stage_id"]
             isOneToOne: false
@@ -4087,7 +4213,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           operation: string
           org_id: string
           user_id: string | null
@@ -4095,7 +4221,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           operation: string
           org_id: string
           user_id?: string | null
@@ -4103,7 +4229,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           operation?: string
           org_id?: string
           user_id?: string | null
@@ -4986,6 +5112,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "whatsapp_campaign_recipients_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts_with_stages"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "whatsapp_campaign_recipients_message_id_fkey"
             columns: ["message_id"]
             isOneToOne: false
@@ -5076,6 +5209,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "whatsapp_messages_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts_with_stages"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "whatsapp_messages_org_id_fkey"
             columns: ["org_id"]
             isOneToOne: false
@@ -5144,17 +5284,55 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      contacts_with_stages: {
+        Row: {
+          assigned_to: string | null
+          company: string | null
+          created_at: string | null
+          email: string | null
+          first_name: string | null
+          id: string | null
+          job_title: string | null
+          last_name: string | null
+          org_id: string | null
+          phone: string | null
+          pipeline_stage_id: string | null
+          stage_name: string | null
+          stage_order: number | null
+          status: string | null
+          updated_at: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contacts_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contacts_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contacts_pipeline_stage_id_fkey"
+            columns: ["pipeline_stage_id"]
+            isOneToOne: false
+            referencedRelation: "pipeline_stages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       aggregate_automation_performance_daily: {
         Args: { _date: string }
         Returns: undefined
       }
-      calculate_monthly_amount: {
-        Args: { _org_id: string }
-        Returns: number
-      }
+      calculate_monthly_amount: { Args: { _org_id: string }; Returns: number }
       check_and_increment_daily_limit: {
         Args: { _contact_id: string; _max_per_day: number; _org_id: string }
         Returns: boolean
@@ -5171,10 +5349,7 @@ export type Database = {
         Args: { _form_id: string; _limit: number }
         Returns: boolean
       }
-      check_inactive_contacts: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      check_inactive_contacts: { Args: never; Returns: undefined }
       cleanup_orphaned_profile: {
         Args: { user_id: string }
         Returns: undefined
@@ -5203,10 +5378,7 @@ export type Database = {
         }
         Returns: Json
       }
-      delete_user_data: {
-        Args: { user_email: string }
-        Returns: undefined
-      }
+      delete_user_data: { Args: { user_email: string }; Returns: undefined }
       designation_has_feature_access: {
         Args: {
           _designation_id: string
@@ -5215,20 +5387,11 @@ export type Database = {
         }
         Returns: boolean
       }
-      generate_api_key: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
-      generate_unique_slug: {
-        Args: { base_slug: string }
-        Returns: string
-      }
-      generate_webhook_token: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
+      generate_api_key: { Args: never; Returns: string }
+      generate_unique_slug: { Args: { base_slug: string }; Returns: string }
+      generate_webhook_token: { Args: never; Returns: string }
       get_active_pricing: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           auto_topup_amount: number
           call_cost_per_call: number
@@ -5239,6 +5402,14 @@ export type Database = {
           one_time_setup_cost: number
           per_user_monthly_cost: number
           whatsapp_cost_per_unit: number
+        }[]
+      }
+      get_activity_trends: {
+        Args: { p_days?: number; p_org_id: string }
+        Returns: {
+          activity_count: number
+          activity_date: string
+          activity_type: string
         }[]
       }
       get_agent_call_performance_report: {
@@ -5256,18 +5427,26 @@ export type Database = {
           total_duration_seconds: number
         }[]
       }
+      get_dashboard_stats: { Args: { p_org_id: string }; Returns: Json }
       get_optimal_send_time: {
         Args: { _contact_id: string; _default_hour?: number; _org_id: string }
         Returns: Json
       }
       get_orphaned_profiles: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           created_at: string
           email: string
           first_name: string
           last_name: string
           user_id: string
+        }[]
+      }
+      get_pipeline_distribution: {
+        Args: { p_org_id: string }
+        Returns: {
+          contact_count: number
+          stage_name: string
         }[]
       }
       get_pipeline_performance_report: {
@@ -5280,6 +5459,7 @@ export type Database = {
           stage_order: number
         }[]
       }
+      get_platform_admin_stats: { Args: never; Returns: Json }
       get_reporting_chain: {
         Args: { p_designation_id: string }
         Returns: {
@@ -5331,10 +5511,7 @@ export type Database = {
           sent_at: string
         }[]
       }
-      get_user_org_id: {
-        Args: { _user_id: string }
-        Returns: string
-      }
+      get_user_org_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -5380,10 +5557,7 @@ export type Database = {
         Args: { _feature_key: string; _org_id: string }
         Returns: boolean
       }
-      is_platform_admin: {
-        Args: { _user_id: string }
-        Returns: boolean
-      }
+      is_platform_admin: { Args: { _user_id: string }; Returns: boolean }
       is_within_business_hours: {
         Args: { _check_time: string; _org_id: string }
         Returns: boolean
@@ -5396,18 +5570,10 @@ export type Database = {
         }
         Returns: undefined
       }
-      process_time_based_triggers: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      sync_platform_email_list: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      trigger_retry_failed_whatsapp: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      process_time_based_triggers: { Args: never; Returns: undefined }
+      refresh_contacts_with_stages: { Args: never; Returns: undefined }
+      sync_platform_email_list: { Args: never; Returns: undefined }
+      trigger_retry_failed_whatsapp: { Args: never; Returns: undefined }
       update_lead_score: {
         Args: {
           _contact_id: string
