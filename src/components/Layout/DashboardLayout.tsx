@@ -307,14 +307,14 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                 </div>
               )}
               
-              {canAccessFeature("communications") && (
+              {canAccessFeature("pipeline_stages") && (
                 <Link
-                  to="/communications"
+                  to="/pipeline"
                   className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
                   onClick={() => setSidebarOpen(false)}
                 >
-                  <MessageSquare size={20} />
-                  <span>Communications</span>
+                  <GitBranch size={20} />
+                  <span>Pipeline</span>
                 </Link>
               )}
               
@@ -329,14 +329,14 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                 </Link>
               )}
 
-              {canAccessFeature("pipeline_stages") && (
+              {canAccessFeature("communications") && (
                 <Link
-                  to="/pipeline"
+                  to="/communications"
                   className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
                   onClick={() => setSidebarOpen(false)}
                 >
-                  <GitBranch size={20} />
-                  <span>Pipeline</span>
+                  <MessageSquare size={20} />
+                  <span>Campaigns</span>
                 </Link>
               )}
 
