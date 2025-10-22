@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNotification } from "@/hooks/useNotification";
 import { 
   ArrowLeft, Mail, Phone as PhoneIcon, Building, MapPin, Calendar,
-  Edit, Plus, MessageSquare, PhoneCall, Video, FileText, Linkedin, MessageCircle
+  Edit, Plus, MessageSquare, PhoneCall, Video, FileText, Linkedin, MessageCircle, Sparkles
 } from "lucide-react";
 import { CustomerJourney } from "@/components/Contact/CustomerJourney";
 import { LogActivityDialog } from "@/components/Contact/LogActivityDialog";
@@ -23,6 +23,8 @@ import { WhatsAppHistory } from "@/components/Contact/WhatsAppHistory";
 import { ClickToCall } from "@/components/Contact/ClickToCall";
 import { EmailAutomationJourney } from "@/components/Contact/EmailAutomationJourney";
 import { LeadScoreCard } from "@/components/Contact/LeadScoreCard";
+import { EnrichedFieldsSection } from "@/components/Contact/EnrichedFieldsSection";
+import { useContactEnrichment } from "@/hooks/useContactEnrichment";
 
 interface Contact {
   id: string;
@@ -42,6 +44,24 @@ interface Contact {
   postal_code: string | null;
   website: string | null;
   linkedin_url: string | null;
+  twitter_url?: string | null;
+  github_url?: string | null;
+  facebook_url?: string | null;
+  photo_url?: string | null;
+  headline?: string | null;
+  seniority?: string | null;
+  departments?: string[] | null;
+  person_locations?: any;
+  employment_history?: any[] | null;
+  education?: any[] | null;
+  phone_numbers?: any[] | null;
+  organization_name?: string | null;
+  organization_founded_year?: number | null;
+  organization_industry?: string | null;
+  organization_keywords?: string[] | null;
+  last_enriched_at?: string | null;
+  enrichment_status?: string | null;
+  apollo_person_id?: string | null;
   notes: string | null;
   pipeline_stage_id: string | null;
   created_at: string;
@@ -61,6 +81,7 @@ export default function ContactDetail() {
   const [isWhatsAppOpen, setIsWhatsAppOpen] = useState(false);
   const [isEmailOpen, setIsEmailOpen] = useState(false);
   const [activityType, setActivityType] = useState<string>("note");
+  const { enriching, enrichContact } = useContactEnrichment();
 
   useEffect(() => {
     if (id) {
@@ -124,6 +145,14 @@ export default function ContactDetail() {
     fetchContact();
   };
 
+  const handleEnrichContact = async () => {
+    if (!id) return;
+    const result = await enrichContact(id);
+    if (result.success) {
+      fetchContact(); // Refresh contact data to show enriched fields
+    }
+  };
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -158,6 +187,14 @@ export default function ContactDetail() {
             </div>
           </div>
           <div className="flex gap-2 flex-wrap">
+            <Button 
+              variant="outline" 
+              onClick={handleEnrichContact}
+              disabled={enriching || !contact.email}
+            >
+              <Sparkles className="mr-2 h-4 w-4" />
+              {enriching ? "Enriching..." : "Enrich with Apollo"}
+            </Button>
             <Button variant="outline" onClick={() => setIsEditOpen(true)}>
               <Edit className="mr-2 h-4 w-4" />
               Edit
@@ -258,6 +295,8 @@ export default function ContactDetail() {
           </Card>
 
           <LeadScoreCard contactId={id!} orgId={contact.org_id} />
+          
+          <EnrichedFieldsSection contact={contact} />
         </div>
 
         <Card className="md:col-span-2">

@@ -107,3 +107,9 @@ verify_jwt = false
 
 [functions.analyze-pipeline-performance]
 verify_jwt = false
+
+[functions.enrich-contact]
+verify_jwt = true
+
+[functions.bulk-enrich-contacts]
+verify_jwt = true

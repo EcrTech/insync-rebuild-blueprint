@@ -14,8 +14,10 @@ import { Badge } from "@/components/ui/badge";
 import { LoadingState } from "@/components/common/LoadingState";
 import { useNotification } from "@/hooks/useNotification";
 import { useBulkUpload } from "@/hooks/useBulkUpload";
-import { Plus, Pencil, Trash2, Mail, Phone as PhoneIcon, Building, Upload, Download, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Mail, Phone as PhoneIcon, Building, Upload, Download, Loader2, Sparkles } from "lucide-react";
 import { useOrgContext } from "@/hooks/useOrgContext";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useContactEnrichment } from "@/hooks/useContactEnrichment";
 
 interface Contact {
   id: string;
@@ -29,6 +31,8 @@ interface Contact {
   source: string | null;
   assigned_to: string | null;
   pipeline_stage_id: string | null;
+  enrichment_status?: string | null;
+  last_enriched_at?: string | null;
   pipeline_stages?: {
     name: string;
     color: string;
@@ -60,6 +64,8 @@ export default function Contacts() {
   const notify = useNotification();
   const bulkUpload = useBulkUpload();
   const navigate = useNavigate();
+  const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
+  const { enriching, bulkEnrichContacts } = useContactEnrichment();
 
   const [formData, setFormData] = useState({
     first_name: "",
@@ -232,8 +238,38 @@ export default function Contacts() {
 
       notify.success("Contact deleted", "Contact has been removed successfully");
       fetchContacts(true);
+      setSelectedContacts(prev => prev.filter(cid => cid !== id));
     } catch (error: any) {
       notify.error("Error deleting contact", error);
+    }
+  };
+
+  const toggleContactSelection = (contactId: string) => {
+    setSelectedContacts(prev =>
+      prev.includes(contactId)
+        ? prev.filter(id => id !== contactId)
+        : [...prev, contactId]
+    );
+  };
+
+  const toggleAllSelection = () => {
+    if (selectedContacts.length === contacts.length) {
+      setSelectedContacts([]);
+    } else {
+      setSelectedContacts(contacts.map(c => c.id));
+    }
+  };
+
+  const handleBulkEnrich = async () => {
+    if (selectedContacts.length === 0) {
+      notify.error("Please select contacts to enrich");
+      return;
+    }
+
+    const result = await bulkEnrichContacts(selectedContacts);
+    if (result.success) {
+      fetchContacts(true);
+      setSelectedContacts([]);
     }
   };
 
@@ -579,16 +615,29 @@ Jane,Smith,jane.smith@example.com,+0987654321,Tech Inc,CEO,contacted,Referral`;
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-12">
+                      <Checkbox 
+                        checked={selectedContacts.length === contacts.length && contacts.length > 0}
+                        onCheckedChange={toggleAllSelection}
+                      />
+                    </TableHead>
                     <TableHead>Name</TableHead>
                     <TableHead>Company</TableHead>
                     <TableHead>Contact Info</TableHead>
                     <TableHead>Pipeline Stage</TableHead>
+                    <TableHead>Enrichment</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {contacts.map((contact) => (
                     <TableRow key={contact.id}>
+                      <TableCell>
+                        <Checkbox 
+                          checked={selectedContacts.includes(contact.id)}
+                          onCheckedChange={() => toggleContactSelection(contact.id)}
+                        />
+                      </TableCell>
                       <TableCell className="font-medium">
                         {contact.first_name} {contact.last_name}
                         {contact.job_title && (
@@ -629,6 +678,26 @@ Jane,Smith,jane.smith@example.com,+0987654321,Tech Inc,CEO,contacted,Referral`;
                           >
                             {contact.pipeline_stages.name}
                           </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {contact.enrichment_status === 'enriched' && (
+                          <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300">
+                            ✓ Enriched
+                          </Badge>
+                        )}
+                        {contact.enrichment_status === 'failed' && (
+                          <Badge variant="outline" className="bg-red-100 text-red-800 border-red-300">
+                            ✗ Failed
+                          </Badge>
+                        )}
+                        {contact.enrichment_status === 'pending' && (
+                          <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300">
+                            ⏳ Pending
+                          </Badge>
+                        )}
+                        {!contact.enrichment_status && (
+                          <span className="text-xs text-muted-foreground">Not enriched</span>
                         )}
                       </TableCell>
                       <TableCell className="text-right">

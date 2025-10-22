@@ -1288,6 +1288,70 @@ export type Database = {
           },
         ]
       }
+      contact_enrichment_logs: {
+        Row: {
+          contact_id: string
+          created_at: string | null
+          credits_used: number | null
+          enriched_by: string | null
+          enriched_data: Json | null
+          enrichment_source: string
+          error_message: string | null
+          fields_enriched: string[] | null
+          id: string
+          org_id: string
+          success: boolean
+        }
+        Insert: {
+          contact_id: string
+          created_at?: string | null
+          credits_used?: number | null
+          enriched_by?: string | null
+          enriched_data?: Json | null
+          enrichment_source?: string
+          error_message?: string | null
+          fields_enriched?: string[] | null
+          id?: string
+          org_id: string
+          success: boolean
+        }
+        Update: {
+          contact_id?: string
+          created_at?: string | null
+          credits_used?: number | null
+          enriched_by?: string | null
+          enriched_data?: Json | null
+          enrichment_source?: string
+          error_message?: string | null
+          fields_enriched?: string[] | null
+          id?: string
+          org_id?: string
+          success?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_enrichment_logs_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_enrichment_logs_enriched_by_fkey"
+            columns: ["enriched_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_enrichment_logs_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contact_lead_scores: {
         Row: {
           contact_id: string
@@ -1461,6 +1525,7 @@ export type Database = {
       contacts: {
         Row: {
           address: string | null
+          apollo_person_id: string | null
           assigned_team_id: string | null
           assigned_to: string | null
           city: string | null
@@ -1468,10 +1533,18 @@ export type Database = {
           country: string | null
           created_at: string | null
           created_by: string | null
+          departments: string[] | null
+          education: Json | null
           email: string | null
+          employment_history: Json | null
+          enrichment_status: string | null
+          facebook_url: string | null
           first_name: string
+          github_url: string | null
+          headline: string | null
           id: string
           job_title: string | null
+          last_enriched_at: string | null
           last_name: string | null
           last_verified_location_at: string | null
           latitude: number | null
@@ -1479,18 +1552,28 @@ export type Database = {
           longitude: number | null
           notes: string | null
           org_id: string
+          organization_founded_year: number | null
+          organization_industry: string | null
+          organization_keywords: string[] | null
+          organization_name: string | null
+          person_locations: Json | null
           phone: string | null
+          phone_numbers: Json | null
+          photo_url: string | null
           pipeline_stage_id: string | null
           postal_code: string | null
           referred_by: string | null
+          seniority: string | null
           source: string | null
           state: string | null
           status: string | null
+          twitter_url: string | null
           updated_at: string | null
           website: string | null
         }
         Insert: {
           address?: string | null
+          apollo_person_id?: string | null
           assigned_team_id?: string | null
           assigned_to?: string | null
           city?: string | null
@@ -1498,10 +1581,18 @@ export type Database = {
           country?: string | null
           created_at?: string | null
           created_by?: string | null
+          departments?: string[] | null
+          education?: Json | null
           email?: string | null
+          employment_history?: Json | null
+          enrichment_status?: string | null
+          facebook_url?: string | null
           first_name: string
+          github_url?: string | null
+          headline?: string | null
           id?: string
           job_title?: string | null
+          last_enriched_at?: string | null
           last_name?: string | null
           last_verified_location_at?: string | null
           latitude?: number | null
@@ -1509,18 +1600,28 @@ export type Database = {
           longitude?: number | null
           notes?: string | null
           org_id: string
+          organization_founded_year?: number | null
+          organization_industry?: string | null
+          organization_keywords?: string[] | null
+          organization_name?: string | null
+          person_locations?: Json | null
           phone?: string | null
+          phone_numbers?: Json | null
+          photo_url?: string | null
           pipeline_stage_id?: string | null
           postal_code?: string | null
           referred_by?: string | null
+          seniority?: string | null
           source?: string | null
           state?: string | null
           status?: string | null
+          twitter_url?: string | null
           updated_at?: string | null
           website?: string | null
         }
         Update: {
           address?: string | null
+          apollo_person_id?: string | null
           assigned_team_id?: string | null
           assigned_to?: string | null
           city?: string | null
@@ -1528,10 +1629,18 @@ export type Database = {
           country?: string | null
           created_at?: string | null
           created_by?: string | null
+          departments?: string[] | null
+          education?: Json | null
           email?: string | null
+          employment_history?: Json | null
+          enrichment_status?: string | null
+          facebook_url?: string | null
           first_name?: string
+          github_url?: string | null
+          headline?: string | null
           id?: string
           job_title?: string | null
+          last_enriched_at?: string | null
           last_name?: string | null
           last_verified_location_at?: string | null
           latitude?: number | null
@@ -1539,13 +1648,22 @@ export type Database = {
           longitude?: number | null
           notes?: string | null
           org_id?: string
+          organization_founded_year?: number | null
+          organization_industry?: string | null
+          organization_keywords?: string[] | null
+          organization_name?: string | null
+          person_locations?: Json | null
           phone?: string | null
+          phone_numbers?: Json | null
+          photo_url?: string | null
           pipeline_stage_id?: string | null
           postal_code?: string | null
           referred_by?: string | null
+          seniority?: string | null
           source?: string | null
           state?: string | null
           status?: string | null
+          twitter_url?: string | null
           updated_at?: string | null
           website?: string | null
         }
