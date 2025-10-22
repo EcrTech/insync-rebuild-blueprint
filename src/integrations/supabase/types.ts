@@ -3591,6 +3591,7 @@ export type Database = {
       }
       organizations: {
         Row: {
+          apollo_config: Json | null
           created_at: string | null
           id: string
           logo_url: string | null
@@ -3605,6 +3606,7 @@ export type Database = {
           usage_limits: Json | null
         }
         Insert: {
+          apollo_config?: Json | null
           created_at?: string | null
           id?: string
           logo_url?: string | null
@@ -3619,6 +3621,7 @@ export type Database = {
           usage_limits?: Json | null
         }
         Update: {
+          apollo_config?: Json | null
           created_at?: string | null
           id?: string
           logo_url?: string | null
