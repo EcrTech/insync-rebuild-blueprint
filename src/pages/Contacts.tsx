@@ -14,10 +14,9 @@ import { Badge } from "@/components/ui/badge";
 import { LoadingState } from "@/components/common/LoadingState";
 import { useNotification } from "@/hooks/useNotification";
 import { useBulkUpload } from "@/hooks/useBulkUpload";
-import { Plus, Pencil, Trash2, Mail, Phone as PhoneIcon, Building, Upload, Download, Loader2, Sparkles } from "lucide-react";
+import { Plus, Pencil, Trash2, Mail, Phone as PhoneIcon, Building, Upload, Download, Loader2 } from "lucide-react";
 import { useOrgContext } from "@/hooks/useOrgContext";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useContactEnrichment } from "@/hooks/useContactEnrichment";
 
 interface Contact {
   id: string;
@@ -65,7 +64,6 @@ export default function Contacts() {
   const bulkUpload = useBulkUpload();
   const navigate = useNavigate();
   const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
-  const { enriching, bulkEnrichContacts } = useContactEnrichment();
 
   const [formData, setFormData] = useState({
     first_name: "",
@@ -257,19 +255,6 @@ export default function Contacts() {
       setSelectedContacts([]);
     } else {
       setSelectedContacts(contacts.map(c => c.id));
-    }
-  };
-
-  const handleBulkEnrich = async () => {
-    if (selectedContacts.length === 0) {
-      notify.error("Please select contacts to enrich");
-      return;
-    }
-
-    const result = await bulkEnrichContacts(selectedContacts);
-    if (result.success) {
-      fetchContacts(true);
-      setSelectedContacts([]);
     }
   };
 

@@ -1352,6 +1352,56 @@ export type Database = {
           },
         ]
       }
+      contact_enrichment_runs: {
+        Row: {
+          completed_at: string | null
+          contacts_enriched: number | null
+          contacts_failed: number | null
+          contacts_processed: number | null
+          created_at: string
+          credits_used: number | null
+          error_message: string | null
+          id: string
+          org_id: string | null
+          started_at: string
+          status: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          contacts_enriched?: number | null
+          contacts_failed?: number | null
+          contacts_processed?: number | null
+          created_at?: string
+          credits_used?: number | null
+          error_message?: string | null
+          id?: string
+          org_id?: string | null
+          started_at?: string
+          status?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          contacts_enriched?: number | null
+          contacts_failed?: number | null
+          contacts_processed?: number | null
+          created_at?: string
+          credits_used?: number | null
+          error_message?: string | null
+          id?: string
+          org_id?: string | null
+          started_at?: string
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_enrichment_runs_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contact_lead_scores: {
         Row: {
           contact_id: string

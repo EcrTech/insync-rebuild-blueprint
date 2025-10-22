@@ -24,7 +24,6 @@ import { ClickToCall } from "@/components/Contact/ClickToCall";
 import { EmailAutomationJourney } from "@/components/Contact/EmailAutomationJourney";
 import { LeadScoreCard } from "@/components/Contact/LeadScoreCard";
 import { EnrichedFieldsSection } from "@/components/Contact/EnrichedFieldsSection";
-import { useContactEnrichment } from "@/hooks/useContactEnrichment";
 
 interface Contact {
   id: string;
@@ -81,7 +80,7 @@ export default function ContactDetail() {
   const [isWhatsAppOpen, setIsWhatsAppOpen] = useState(false);
   const [isEmailOpen, setIsEmailOpen] = useState(false);
   const [activityType, setActivityType] = useState<string>("note");
-  const { enriching, enrichContact } = useContactEnrichment();
+  const [enriching, setEnriching] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -147,9 +146,27 @@ export default function ContactDetail() {
 
   const handleEnrichContact = async () => {
     if (!id) return;
-    const result = await enrichContact(id);
-    if (result.success) {
-      fetchContact(); // Refresh contact data to show enriched fields
+    setEnriching(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('enrich-contact', {
+        body: { contactId: id },
+      });
+
+      if (error) throw error;
+
+      if (data.error) {
+        notify.error("Enrichment failed", data.error);
+      } else {
+        notify.success(
+          "Contact enriched successfully",
+          `Updated ${data.fieldsEnriched} fields`
+        );
+        fetchContact(); // Refresh contact data
+      }
+    } catch (error: any) {
+      notify.error("Enrichment failed", error.message);
+    } finally {
+      setEnriching(false);
     }
   };
 

@@ -38,7 +38,6 @@ import BulkWhatsAppSender from "./pages/BulkWhatsAppSender";
 import EmailSettings from "./pages/EmailSettings";
 import WhatsAppCampaigns from "./pages/WhatsAppCampaigns";
 import WhatsAppCampaignDetail from "./pages/WhatsAppCampaignDetail";
-import ApolloEnrichment from "./pages/ApolloEnrichment";
 import ApolloSettings from "./pages/ApolloSettings";
 import QueueStatus from "./pages/QueueStatus";
 import Communications from "./pages/Communications";
@@ -332,12 +331,6 @@ const App = () => (
           <Route path="/platform-admin/subscriptions" element={
             <ProtectedRoute>
               <Subscriptions />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/apollo-enrichment" element={
-            <ProtectedRoute>
-              <ApolloEnrichment />
             </ProtectedRoute>
           } />
           

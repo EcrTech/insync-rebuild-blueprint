@@ -1,78 +1,141 @@
 import { useState, useEffect } from "react";
-import { DashboardLayout } from "@/components/Layout/DashboardLayout";
+import { supabase } from "@/integrations/supabase/client";
+import DashboardLayout from "@/components/Layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { supabase } from "@/integrations/supabase/client";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
 import { useOrgContext } from "@/hooks/useOrgContext";
 import { LoadingState } from "@/components/common/LoadingState";
-import { toast } from "sonner";
-import { Save, Key, Shield, Zap } from "lucide-react";
+import { Save, Key, Shield, Zap, Calendar, BarChart3 } from "lucide-react";
 
 interface ApolloConfig {
-  auto_enrich_enabled: boolean;
-  enrich_on_create: boolean;
-  enrich_on_email_change: boolean;
-  reveal_phone_by_default: boolean;
-  reveal_email_by_default: boolean;
+  auto_enrich_enabled?: boolean;
+  enrich_on_create?: boolean;
+  enrich_on_email_change?: boolean;
+  default_reveal_phone?: boolean;
+  default_reveal_email?: boolean;
+  scheduled_enrichment_enabled?: boolean;
+  enrichment_frequency?: 'daily' | 'weekly' | 'monthly';
+  enrichment_strategy?: 'new_only' | 'all' | 're_enrich_after_days';
+  re_enrich_after_days?: number;
+  daily_enrichment_limit?: number;
+}
+
+interface EnrichmentRun {
+  id: string;
+  started_at: string;
+  completed_at: string | null;
+  contacts_processed: number;
+  contacts_enriched: number;
+  contacts_failed: number;
+  status: string;
 }
 
 export default function ApolloSettings() {
   const { effectiveOrgId } = useOrgContext();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [lastRun, setLastRun] = useState<EnrichmentRun | null>(null);
   const [config, setConfig] = useState<ApolloConfig>({
     auto_enrich_enabled: false,
     enrich_on_create: false,
     enrich_on_email_change: false,
-    reveal_phone_by_default: false,
-    reveal_email_by_default: false
+    default_reveal_phone: false,
+    default_reveal_email: false,
+    scheduled_enrichment_enabled: false,
+    enrichment_frequency: 'daily',
+    enrichment_strategy: 'new_only',
+    re_enrich_after_days: 30,
+    daily_enrichment_limit: 100,
   });
 
   useEffect(() => {
-    fetchSettings();
+    if (effectiveOrgId) {
+      fetchSettings();
+    }
   }, [effectiveOrgId]);
 
   const fetchSettings = async () => {
-    if (!effectiveOrgId) return;
-
-    setLoading(true);
     try {
-      // Fetch org settings
-      const { data: orgData } = await supabase
-        .from("organizations")
-        .select("apollo_config")
-        .eq("id", effectiveOrgId)
+      // Fetch settings
+      const settingsRes = await supabase
+        .from('organizations')
+        .select('apollo_config')
+        .eq('id', effectiveOrgId)
         .single();
 
-      if (orgData?.apollo_config) {
-        const configData = orgData.apollo_config as unknown as ApolloConfig;
-        setConfig(configData);
+      if (settingsRes.error) throw settingsRes.error;
+
+      if (settingsRes.data?.apollo_config) {
+        const apolloConfig = settingsRes.data.apollo_config as any;
+        setConfig({
+          auto_enrich_enabled: false,
+          enrich_on_create: false,
+          enrich_on_email_change: false,
+          default_reveal_phone: false,
+          default_reveal_email: false,
+          scheduled_enrichment_enabled: false,
+          enrichment_frequency: 'daily',
+          enrichment_strategy: 'new_only',
+          re_enrich_after_days: 30,
+          daily_enrichment_limit: 100,
+          ...apolloConfig,
+        });
       }
-    } catch (error) {
-      console.error("Error fetching settings:", error);
+
+      // Try to fetch last enrichment run (table may not exist yet)
+      try {
+        const runRes = await supabase
+          .from('contact_enrichment_runs')
+          .select('*')
+          .eq('org_id', effectiveOrgId)
+          .order('started_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (runRes.data) {
+          setLastRun(runRes.data as any);
+        }
+      } catch (runError) {
+        // Table doesn't exist yet, ignore
+        console.log('Enrichment runs table not available yet');
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
   };
 
   const handleSave = async () => {
-    if (!effectiveOrgId) return;
-
     setSaving(true);
     try {
       const { error } = await supabase
-        .from("organizations")
+        .from('organizations')
         .update({ apollo_config: config as any })
-        .eq("id", effectiveOrgId);
+        .eq('id', effectiveOrgId);
 
       if (error) throw error;
 
-      toast.success("Settings saved successfully");
-    } catch (error) {
-      console.error("Error saving settings:", error);
-      toast.error("Failed to save settings");
+      toast({
+        title: "Settings saved",
+        description: "Your Apollo settings have been updated successfully.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
     } finally {
       setSaving(false);
     }
@@ -81,7 +144,7 @@ export default function ApolloSettings() {
   if (loading) {
     return (
       <DashboardLayout>
-        <LoadingState message="Loading settings..." />
+        <LoadingState message="Loading Apollo settings..." />
       </DashboardLayout>
     );
   }
@@ -90,13 +153,12 @@ export default function ApolloSettings() {
     <DashboardLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold">Apollo Settings</h1>
+          <h1 className="text-3xl font-bold">Apollo Data Enrichment Settings</h1>
           <p className="text-muted-foreground">
-            Configure Apollo.io data enrichment preferences
+            Configure Apollo.io automatic data enrichment and scheduling
           </p>
         </div>
 
-        {/* API Configuration */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -104,7 +166,7 @@ export default function ApolloSettings() {
               API Configuration
             </CardTitle>
             <CardDescription>
-              Your Apollo.io API credentials are securely stored
+              Your Apollo.io API key is securely stored as a secret
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -112,7 +174,7 @@ export default function ApolloSettings() {
               <div className="space-y-1">
                 <p className="font-medium">API Key Status</p>
                 <p className="text-sm text-muted-foreground">
-                  API key is configured via secrets
+                  Configured via environment secrets
                 </p>
               </div>
               <span className="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-800 dark:bg-green-900 dark:text-green-200">
@@ -122,7 +184,6 @@ export default function ApolloSettings() {
           </CardContent>
         </Card>
 
-        {/* Auto-Enrichment Settings */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -135,14 +196,14 @@ export default function ApolloSettings() {
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <Label htmlFor="auto-enrich">Enable Auto-Enrichment</Label>
+              <div className="space-y-0.5">
+                <Label htmlFor="auto_enrich_enabled">Enable Auto-Enrichment</Label>
                 <p className="text-sm text-muted-foreground">
-                  Automatically trigger enrichment based on rules below
+                  Trigger enrichment automatically based on rules below
                 </p>
               </div>
               <Switch
-                id="auto-enrich"
+                id="auto_enrich_enabled"
                 checked={config.auto_enrich_enabled}
                 onCheckedChange={(checked) =>
                   setConfig({ ...config, auto_enrich_enabled: checked })
@@ -151,14 +212,14 @@ export default function ApolloSettings() {
             </div>
 
             <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <Label htmlFor="enrich-create">Enrich on Contact Creation</Label>
+              <div className="space-y-0.5">
+                <Label htmlFor="enrich_on_create">Enrich on Contact Creation</Label>
                 <p className="text-sm text-muted-foreground">
-                  Enrich new contacts automatically when created
+                  Enrich contacts automatically when they are created
                 </p>
               </div>
               <Switch
-                id="enrich-create"
+                id="enrich_on_create"
                 checked={config.enrich_on_create}
                 onCheckedChange={(checked) =>
                   setConfig({ ...config, enrich_on_create: checked })
@@ -168,14 +229,14 @@ export default function ApolloSettings() {
             </div>
 
             <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <Label htmlFor="enrich-email">Enrich on Email Change</Label>
+              <div className="space-y-0.5">
+                <Label htmlFor="enrich_on_email_change">Enrich on Email Change</Label>
                 <p className="text-sm text-muted-foreground">
-                  Re-enrich when contact email is updated
+                  Re-enrich contacts when their email address is updated
                 </p>
               </div>
               <Switch
-                id="enrich-email"
+                id="enrich_on_email_change"
                 checked={config.enrich_on_email_change}
                 onCheckedChange={(checked) =>
                   setConfig({ ...config, enrich_on_email_change: checked })
@@ -186,7 +247,6 @@ export default function ApolloSettings() {
           </CardContent>
         </Card>
 
-        {/* Default Reveal Settings */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -194,43 +254,168 @@ export default function ApolloSettings() {
               Default Reveal Settings
             </CardTitle>
             <CardDescription>
-              Configure default behavior for revealing contact information
+              Configure what information to reveal during enrichment (uses additional credits)
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <Label htmlFor="reveal-phone">Reveal Phone Numbers</Label>
+              <div className="space-y-0.5">
+                <Label htmlFor="default_reveal_phone">Reveal Phone Numbers by Default</Label>
                 <p className="text-sm text-muted-foreground">
-                  Use extra credits to reveal phone numbers by default
+                  When enabled, phone numbers will be revealed during enrichment (uses additional credits)
                 </p>
               </div>
               <Switch
-                id="reveal-phone"
-                checked={config.reveal_phone_by_default}
+                id="default_reveal_phone"
+                checked={config.default_reveal_phone}
                 onCheckedChange={(checked) =>
-                  setConfig({ ...config, reveal_phone_by_default: checked })
+                  setConfig({ ...config, default_reveal_phone: checked })
                 }
               />
             </div>
 
             <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <Label htmlFor="reveal-email">Reveal Personal Emails</Label>
+              <div className="space-y-0.5">
+                <Label htmlFor="default_reveal_email">Reveal Personal Emails by Default</Label>
                 <p className="text-sm text-muted-foreground">
-                  Use extra credits to reveal personal emails by default
+                  When enabled, personal emails will be revealed during enrichment (uses additional credits)
                 </p>
               </div>
               <Switch
-                id="reveal-email"
-                checked={config.reveal_email_by_default}
+                id="default_reveal_email"
+                checked={config.default_reveal_email}
                 onCheckedChange={(checked) =>
-                  setConfig({ ...config, reveal_email_by_default: checked })
+                  setConfig({ ...config, default_reveal_email: checked })
                 }
               />
             </div>
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              Scheduled Enrichment
+            </CardTitle>
+            <CardDescription>
+              Automatically enrich contacts in the background on a schedule
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label htmlFor="scheduled_enrichment_enabled">Enable Scheduled Enrichment</Label>
+                <p className="text-sm text-muted-foreground">
+                  Automatically enrich contacts daily without manual intervention
+                </p>
+              </div>
+              <Switch
+                id="scheduled_enrichment_enabled"
+                checked={config.scheduled_enrichment_enabled}
+                onCheckedChange={(checked) =>
+                  setConfig({ ...config, scheduled_enrichment_enabled: checked })
+                }
+              />
+            </div>
+
+            {config.scheduled_enrichment_enabled && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="enrichment_strategy">Enrichment Strategy</Label>
+                  <Select
+                    value={config.enrichment_strategy}
+                    onValueChange={(value: any) =>
+                      setConfig({ ...config, enrichment_strategy: value })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="new_only">New contacts only</SelectItem>
+                      <SelectItem value="re_enrich_after_days">Re-enrich after X days</SelectItem>
+                      <SelectItem value="all">All contacts</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-sm text-muted-foreground">
+                    {config.enrichment_strategy === 'new_only' && 'Only enrich contacts that have never been enriched'}
+                    {config.enrichment_strategy === 're_enrich_after_days' && 'Re-enrich contacts after a specified number of days'}
+                    {config.enrichment_strategy === 'all' && 'Enrich all contacts every time (uses most credits)'}
+                  </p>
+                </div>
+
+                {config.enrichment_strategy === 're_enrich_after_days' && (
+                  <div className="space-y-2">
+                    <Label htmlFor="re_enrich_after_days">Re-enrich After Days</Label>
+                    <Input
+                      id="re_enrich_after_days"
+                      type="number"
+                      min="1"
+                      value={config.re_enrich_after_days}
+                      onChange={(e) =>
+                        setConfig({ ...config, re_enrich_after_days: parseInt(e.target.value) || 30 })
+                      }
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      Re-enrich contacts after this many days since last enrichment
+                    </p>
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <Label htmlFor="daily_enrichment_limit">Daily Enrichment Limit</Label>
+                  <Input
+                    id="daily_enrichment_limit"
+                    type="number"
+                    min="1"
+                    value={config.daily_enrichment_limit}
+                    onChange={(e) =>
+                      setConfig({ ...config, daily_enrichment_limit: parseInt(e.target.value) || 100 })
+                    }
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    Maximum number of contacts to enrich per day (to control costs)
+                  </p>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        {lastRun && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5" />
+                Last Enrichment Run
+              </CardTitle>
+              <CardDescription>
+                Status of the most recent scheduled enrichment
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Started</p>
+                  <p className="font-medium">{new Date(lastRun.started_at).toLocaleString()}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Status</p>
+                  <p className="font-medium capitalize">{lastRun.status}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Contacts Enriched</p>
+                  <p className="font-medium">{lastRun.contacts_enriched}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Failed</p>
+                  <p className="font-medium">{lastRun.contacts_failed}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="flex justify-end">
           <Button onClick={handleSave} disabled={saving}>

@@ -602,6 +602,17 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                       <span>API Keys</span>
                     </Link>
                   )}
+                  
+                  {userRole === "admin" && (
+                    <Link
+                      to="/apollo-settings"
+                      className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
+                      onClick={() => setSidebarOpen(false)}
+                    >
+                      <Sparkles size={20} />
+                      <span>Apollo Settings</span>
+                    </Link>
+                  )}
                 </>
               )}
             </nav>
