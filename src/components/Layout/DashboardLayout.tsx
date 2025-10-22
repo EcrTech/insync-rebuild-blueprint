@@ -168,31 +168,11 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
     <div className="min-h-screen bg-background">
       {/* Mobile header */}
       <div className="lg:hidden bg-card border-b border-border px-4 py-3 flex items-center justify-between">
-        <div style={{ perspective: '1000px' }}>
-          {orgLogo ? (
-            <img 
-              src={orgLogo} 
-              alt="Organization Logo" 
-              className="h-12 object-contain transition-transform duration-300 hover:scale-110" 
-              style={{
-                transform: 'rotateX(10deg) rotateY(-10deg)',
-                transformStyle: 'preserve-3d',
-                filter: 'drop-shadow(4px 4px 8px rgba(0,0,0,0.3)) drop-shadow(8px 8px 16px rgba(0,0,0,0.15))',
-              }}
-            />
-          ) : (
-            <h1 
-              className="text-xl font-bold text-primary transition-transform duration-300 hover:scale-110"
-              style={{
-                transform: 'rotateX(10deg) rotateY(-10deg)',
-                transformStyle: 'preserve-3d',
-                textShadow: '2px 2px 4px rgba(0,0,0,0.3), 4px 4px 8px rgba(0,0,0,0.15), 6px 6px 12px rgba(0,0,0,0.1)',
-              }}
-            >
-              In-Sync
-            </h1>
-          )}
-        </div>
+        {orgLogo ? (
+          <img src={orgLogo} alt="Organization Logo" className="h-12 object-contain" />
+        ) : (
+          <h1 className="text-xl font-bold text-primary">In-Sync</h1>
+        )}
         <Button
           variant="ghost"
           size="icon"
@@ -214,29 +194,11 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
         >
           <div className="h-full lg:h-screen flex flex-col overflow-y-auto">
             {/* Logo */}
-            <div className="p-6 border-b border-border flex flex-col items-center bg-gradient-to-br from-primary/5 to-transparent" style={{ perspective: '1000px' }}>
+            <div className="p-6 border-b border-border flex flex-col items-center bg-gradient-to-br from-primary/5 to-transparent">
               {orgLogo ? (
-                <img 
-                  src={orgLogo} 
-                  alt="Organization Logo" 
-                  className="h-16 object-contain mb-3 transition-transform duration-500 hover:scale-110 hover:rotate-y-12" 
-                  style={{
-                    transform: 'rotateX(15deg) rotateY(-15deg)',
-                    transformStyle: 'preserve-3d',
-                    filter: 'drop-shadow(6px 6px 12px rgba(0,0,0,0.3)) drop-shadow(12px 12px 24px rgba(0,0,0,0.15)) drop-shadow(0 0 20px rgba(1,184,170,0.2))',
-                  }}
-                />
+                <img src={orgLogo} alt="Organization Logo" className="h-16 object-contain mb-3" />
               ) : (
-                <h1 
-                  className="text-2xl font-bold gradient-text-primary mb-3 transition-transform duration-500 hover:scale-110"
-                  style={{
-                    transform: 'rotateX(15deg) rotateY(-15deg)',
-                    transformStyle: 'preserve-3d',
-                    textShadow: '3px 3px 6px rgba(0,0,0,0.3), 6px 6px 12px rgba(0,0,0,0.2), 9px 9px 18px rgba(0,0,0,0.1), 0 0 20px rgba(1,184,170,0.3)',
-                  }}
-                >
-                  In-Sync
-                </h1>
+                <h1 className="text-2xl font-bold gradient-text-primary">In-Sync</h1>
               )}
               <p className="text-sm text-muted-foreground text-center">{userName}</p>
             </div>

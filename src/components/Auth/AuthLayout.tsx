@@ -22,22 +22,20 @@ export function AuthLayout({ children, title, subtitle }: AuthLayoutProps) {
       {/* Login Form */}
       <div className="relative z-10 w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="relative inline-block mx-auto mb-6" style={{ perspective: '1000px' }}>
+          <div className="relative inline-block mx-auto mb-6">
             <img 
               src={logo} 
               alt="In-Sync Logo" 
-              className="w-[168px] h-[168px] object-contain transition-all duration-500 hover:scale-110 relative z-10" 
+              className="w-[168px] h-[168px] object-contain transition-all duration-500 hover:scale-105 relative z-10" 
               style={{ 
-                transform: 'rotateX(10deg) rotateY(-10deg)',
-                transformStyle: 'preserve-3d',
-                filter: 'drop-shadow(8px 8px 16px rgba(0,0,0,0.3)) drop-shadow(16px 16px 32px rgba(0,0,0,0.15)) drop-shadow(0 0 30px rgba(1,184,170,0.3)) brightness(1.05)',
+                filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.15)) brightness(1.05)',
               }} 
             />
             <div 
-              className="absolute inset-0 -z-10 blur-xl opacity-30"
+              className="absolute inset-0 -z-10 blur-xl opacity-20"
               style={{
-                background: 'radial-gradient(circle, rgba(1,184,170,0.4) 0%, transparent 70%)',
-                transform: 'scale(1.2) translateY(20px) translateX(10px)',
+                background: 'radial-gradient(circle, rgba(1,184,170,0.3) 0%, transparent 70%)',
+                transform: 'scale(1.1) translateY(10px)',
               }}
             />
           </div>
