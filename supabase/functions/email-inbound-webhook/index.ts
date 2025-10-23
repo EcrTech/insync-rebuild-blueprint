@@ -37,9 +37,32 @@ Deno.serve(async (req) => {
     // Check if this is a Resend webhook event (has 'type' field)
     if (payload.type) {
       console.log(`Received Resend webhook event: ${payload.type}`);
-      // These are delivery status events, not inbound emails - acknowledge and ignore
+      
+      // Handle domain verification updates
+      if (payload.type === 'domain.updated' && payload.data) {
+        const domainData = payload.data;
+        console.log('Processing domain update:', domainData);
+        
+        // Update email_settings with latest verification status
+        const { error: updateError } = await supabaseClient
+          .from('email_settings')
+          .update({
+            verification_status: domainData.status === 'verified' ? 'verified' : 'pending',
+            dns_records: domainData.records ? JSON.stringify(domainData.records) : null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('resend_domain_id', domainData.id);
+        
+        if (updateError) {
+          console.error('Error updating domain status:', updateError);
+        } else {
+          console.log(`Domain ${domainData.name} status updated to: ${domainData.status}`);
+        }
+      }
+      
+      // Acknowledge webhook
       return new Response(
-        JSON.stringify({ success: true, message: 'Webhook event acknowledged' }),
+        JSON.stringify({ success: true, message: 'Webhook event processed' }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
