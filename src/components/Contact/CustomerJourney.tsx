@@ -66,6 +66,7 @@ export const CustomerJourney = ({ contactId }: CustomerJourneyProps) => {
   const [timeline, setTimeline] = useState<TimelineItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedEmails, setExpandedEmails] = useState<Set<string>>(new Set());
+  const [displayCount, setDisplayCount] = useState(3);
   const notify = useNotification();
 
   useEffect(() => {
@@ -258,13 +259,20 @@ export const CustomerJourney = ({ contactId }: CustomerJourneyProps) => {
     );
   }
 
+  const visibleTimeline = timeline.slice(0, displayCount);
+  const hasMore = timeline.length > displayCount;
+
+  const handleLoadMore = () => {
+    setDisplayCount(prev => prev + 10);
+  };
+
   return (
     <div className="relative">
       {/* Vertical timeline line */}
       <div className="absolute left-8 top-0 bottom-0 w-0.5 bg-border" />
 
       <div className="space-y-6">
-        {timeline.map((item, index) => {
+        {visibleTimeline.map((item, index) => {
           if (item.type === 'activity' && item.activity) {
             const activity = item.activity;
             const Icon = getActivityIcon(activity.activity_type);
@@ -441,7 +449,7 @@ export const CustomerJourney = ({ contactId }: CustomerJourneyProps) => {
                 </Card>
 
                 {/* Connector line to next item */}
-                {index < timeline.length - 1 && (
+                {index < visibleTimeline.length - 1 && (
                   <div className="absolute left-8 top-12 w-0.5 h-6 bg-border" />
                 )}
               </div>
@@ -450,6 +458,21 @@ export const CustomerJourney = ({ contactId }: CustomerJourneyProps) => {
 
           return null;
         })}
+
+        {/* Load More Button */}
+        {hasMore && (
+          <div className="relative pl-20">
+            <Card className="p-4 text-center">
+              <Button
+                variant="outline"
+                onClick={handleLoadMore}
+                className="w-full"
+              >
+                Load More ({timeline.length - displayCount} more activities)
+              </Button>
+            </Card>
+          </div>
+        )}
       </div>
     </div>
   );
