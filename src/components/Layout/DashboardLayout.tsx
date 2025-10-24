@@ -488,31 +488,6 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                     </Link>
                   )}
                   
-                  {/* Data Enrichment Section */}
-                  <div className="pt-4 pb-2 section-accent-accent pl-4">
-                    <p className="px-4 text-xs font-semibold uppercase tracking-wider gradient-text-accent">
-                      Data Enrichment
-                    </p>
-                  </div>
-                  
-                  <Link
-                    to="/apollo-enrichment"
-                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-                    onClick={() => setSidebarOpen(false)}
-                  >
-                    <Sparkles size={20} />
-                    <span>Apollo Enrichment</span>
-                  </Link>
-                  
-                  <Link
-                    to="/apollo-settings"
-                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
-                    onClick={() => setSidebarOpen(false)}
-                  >
-                    <Settings size={20} />
-                    <span>Apollo Settings</span>
-                  </Link>
-                  
                   {showAdminCommunicationSection && (
                     <div className="pt-4 pb-2 section-accent-accent pl-4">
                       <p className="px-4 text-xs font-semibold uppercase tracking-wider gradient-text-accent">
@@ -531,6 +506,15 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                       <span>Communication Settings</span>
                     </Link>
                   )}
+                  
+                  <Link
+                    to="/apollo-settings"
+                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200"
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    <Settings size={20} />
+                    <span>Apollo Settings</span>
+                  </Link>
                   
                   {canAccessFeature("templates") && (
                     <Link
