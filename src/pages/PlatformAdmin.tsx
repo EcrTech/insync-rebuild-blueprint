@@ -172,11 +172,11 @@ export default function PlatformAdmin() {
           activeOrgs: orgs?.filter(o => (o.settings as any)?.is_active !== false).length || 0,
           totalUsers: (platformStats as any).total_users || 0,
           totalContacts: (platformStats as any).total_contacts || 0,
-          usersLast1Day: 0,
-          usersLast7Days: (platformStats as any).active_users || 0,
-          usersLast30Days: 0,
-          callVolume: 0,
-          emailVolume: 0,
+          usersLast1Day: (platformStats as any).active_users_1d || 0,
+          usersLast7Days: (platformStats as any).active_users_7d || 0,
+          usersLast30Days: (platformStats as any).active_users_30d || 0,
+          callVolume: (platformStats as any).call_volume || 0,
+          emailVolume: (platformStats as any).email_volume || 0,
         });
       }
     } catch (error: any) {
