@@ -160,10 +160,28 @@ export default function PlatformAdmin() {
 
       if (orgsError) throw orgsError;
 
-      setOrganizations(orgs?.map(org => ({
-        ...org,
-        is_active: (org.settings as any)?.is_active !== false,
-      })) || []);
+      // Fetch statistics for each organization
+      const orgsWithStats = await Promise.all(
+        (orgs || []).map(async (org) => {
+          const { data: orgStats } = await supabase.rpc("get_org_statistics", { 
+            p_org_id: org.id 
+          });
+
+          return {
+            ...org,
+            is_active: (org.settings as any)?.is_active !== false,
+            userCount: (orgStats as any)?.user_count || 0,
+            contactCount: (orgStats as any)?.contact_count || 0,
+            usersActive1Day: (orgStats as any)?.active_users_1d || 0,
+            usersActive7Days: (orgStats as any)?.active_users_7d || 0,
+            usersActive30Days: (orgStats as any)?.active_users_30d || 0,
+            callVolume: (orgStats as any)?.call_volume || 0,
+            emailVolume: (orgStats as any)?.email_volume || 0,
+          };
+        })
+      );
+
+      setOrganizations(orgsWithStats);
 
       // Use stats from database function
       if (platformStats) {

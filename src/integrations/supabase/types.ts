@@ -5432,6 +5432,7 @@ export type Database = {
         Args: { _contact_id: string; _default_hour?: number; _org_id: string }
         Returns: Json
       }
+      get_org_statistics: { Args: { p_org_id: string }; Returns: Json }
       get_orphaned_profiles: {
         Args: never
         Returns: {
