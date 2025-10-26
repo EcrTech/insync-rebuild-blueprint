@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
+import { getSupabaseClient } from '../_shared/supabaseClient.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -34,9 +34,7 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-  const supabase = createClient(supabaseUrl, supabaseKey);
+  const supabase = getSupabaseClient();
 
   try {
     const payload: WebhookPayload = await req.json();
@@ -146,12 +144,13 @@ async function processWebhook(
       webhook_id: webhook.id,
       org_id: webhook.org_id,
       trigger_event: payload.triggerEvent,
-      request_payload: transformedPayload,
+      trigger_data: payload.triggerData,
+      payload_sent: transformedPayload,
       response_status: result.status,
-      response_body: result.body,
+      response_body: JSON.stringify(result.body),
       execution_time_ms: duration,
-      attempt_count: result.attempts,
-      status: 'success',
+      retry_count: result.attempts - 1,
+      succeeded: true,
     });
 
     console.log(`[OutboundWebhook] Webhook ${webhook.name} executed successfully in ${duration}ms`);
@@ -181,13 +180,14 @@ async function processWebhook(
       webhook_id: webhook.id,
       org_id: webhook.org_id,
       trigger_event: payload.triggerEvent,
-      request_payload: payload.triggerData,
+      trigger_data: payload.triggerData,
+      payload_sent: payload.triggerData,
       response_status: error.status || null,
       response_body: error.message,
-      execution_time_ms: duration,
-      attempt_count: error.attempts || 1,
-      status: 'failed',
       error_message: error.message,
+      execution_time_ms: duration,
+      retry_count: error.attempts || 1,
+      succeeded: false,
     });
 
     // Update failure stats

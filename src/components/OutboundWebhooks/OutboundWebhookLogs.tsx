@@ -37,6 +37,22 @@ interface OutboundWebhookLogsProps {
   webhookId: string;
 }
 
+interface WebhookLog {
+  id: string;
+  webhook_id: string;
+  org_id: string;
+  trigger_event: string;
+  trigger_data: any;
+  payload_sent: any;
+  response_status: number | null;
+  response_body: string | null;
+  error_message: string | null;
+  retry_count: number;
+  sent_at: string;
+  succeeded: boolean;
+  execution_time_ms: number | null;
+}
+
 export const OutboundWebhookLogs = ({
   open,
   onOpenChange,
@@ -45,40 +61,43 @@ export const OutboundWebhookLogs = ({
   const notify = useNotification();
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState("all");
-  const [selectedLog, setSelectedLog] = useState<any>(null);
+  const [selectedLog, setSelectedLog] = useState<WebhookLog | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
 
-  const { data: logs = [], isLoading } = useQuery({
+  const { data: logs = [], isLoading } = useQuery<WebhookLog[]>({
     queryKey: ["webhook-logs", webhookId, statusFilter],
     queryFn: async () => {
       let query = supabase
         .from("outbound_webhook_logs")
         .select("*")
-        .eq("webhook_id", webhookId)
-        .order("created_at", { ascending: false })
-        .limit(100);
+        .eq("webhook_id", webhookId);
 
-      if (statusFilter !== "all") {
-        query = query.eq("status", statusFilter);
+      if (statusFilter === "success") {
+        query = query.eq("succeeded", true) as any;
+      } else if (statusFilter === "failed") {
+        query = query.eq("succeeded", false) as any;
       }
 
-      const { data, error } = await query;
+      const { data, error } = await query
+        .order("sent_at", { ascending: false })
+        .limit(100);
+      
       if (error) throw error;
-      return data;
+      return data as any as WebhookLog[];
     },
     enabled: open && !!webhookId,
   });
 
   const retryMutation = useMutation({
     mutationFn: async (logId: string) => {
-      const log = logs.find((l: any) => l.id === logId);
+      const log = logs.find((l) => l.id === logId);
       if (!log) throw new Error("Log not found");
 
       const { data, error } = await supabase.functions.invoke("outbound-webhook-handler", {
         body: {
           orgId: log.org_id,
           triggerEvent: log.trigger_event,
-          triggerData: log.request_payload,
+          triggerData: log.trigger_data,
         },
       });
 
@@ -94,7 +113,7 @@ export const OutboundWebhookLogs = ({
     },
   });
 
-  const viewDetails = (log: any) => {
+  const viewDetails = (log: WebhookLog) => {
     setSelectedLog(log);
     setDetailsOpen(true);
   };
@@ -136,7 +155,7 @@ export const OutboundWebhookLogs = ({
               </div>
             ) : (
               <div className="space-y-2">
-                {logs.map((log: any) => (
+                {logs.map((log) => (
                   <div
                     key={log.id}
                     className="border rounded-lg p-4 hover:bg-accent/50 transition-colors"
@@ -144,23 +163,23 @@ export const OutboundWebhookLogs = ({
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
-                          {log.status === "success" ? (
+                          {log.succeeded ? (
                             <CheckCircle2 className="h-4 w-4 text-green-500" />
                           ) : (
                             <XCircle className="h-4 w-4 text-red-500" />
                           )}
                           <Badge
-                            variant={log.status === "success" ? "default" : "destructive"}
+                            variant={log.succeeded ? "default" : "destructive"}
                           >
-                            {log.status}
+                            {log.succeeded ? "success" : "failed"}
                           </Badge>
                           <Badge variant="outline">HTTP {log.response_status || "N/A"}</Badge>
                           <span className="text-xs text-muted-foreground">
-                            {log.execution_time_ms}ms
+                            {log.execution_time_ms || 0}ms
                           </span>
-                          {log.attempt_count > 1 && (
+                          {log.retry_count > 0 && (
                             <Badge variant="secondary">
-                              {log.attempt_count} attempts
+                              {log.retry_count + 1} attempts
                             </Badge>
                           )}
                         </div>
@@ -168,7 +187,7 @@ export const OutboundWebhookLogs = ({
                         <div className="text-sm space-y-1">
                           <div className="flex items-center gap-2 text-muted-foreground">
                             <Clock className="h-3 w-3" />
-                            {new Date(log.created_at).toLocaleString()}
+                            {new Date(log.sent_at).toLocaleString()}
                           </div>
                           <div className="font-medium">{log.trigger_event}</div>
                           {log.error_message && (
@@ -187,7 +206,7 @@ export const OutboundWebhookLogs = ({
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
-                        {log.status === "failed" && (
+                        {!log.succeeded && (
                           <Button
                             variant="outline"
                             size="sm"
@@ -222,7 +241,7 @@ export const OutboundWebhookLogs = ({
               <div>
                 <h4 className="font-semibold mb-2">Request Payload</h4>
                 <pre className="bg-muted p-4 rounded text-xs overflow-x-auto">
-                  {JSON.stringify(selectedLog.request_payload, null, 2)}
+                  {JSON.stringify(selectedLog.trigger_data, null, 2)}
                 </pre>
               </div>
 
@@ -238,8 +257,8 @@ export const OutboundWebhookLogs = ({
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <span className="text-muted-foreground">Status:</span>{" "}
-                  <Badge variant={selectedLog.status === "success" ? "default" : "destructive"}>
-                    {selectedLog.status}
+                  <Badge variant={selectedLog.succeeded ? "default" : "destructive"}>
+                    {selectedLog.succeeded ? "success" : "failed"}
                   </Badge>
                 </div>
                 <div>
@@ -248,11 +267,11 @@ export const OutboundWebhookLogs = ({
                 </div>
                 <div>
                   <span className="text-muted-foreground">Execution Time:</span>{" "}
-                  {selectedLog.execution_time_ms}ms
+                  {selectedLog.execution_time_ms || 0}ms
                 </div>
                 <div>
                   <span className="text-muted-foreground">Attempts:</span>{" "}
-                  {selectedLog.attempt_count}
+                  {selectedLog.retry_count + 1}
                 </div>
               </div>
             </div>
