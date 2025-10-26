@@ -130,6 +130,15 @@ async function processWebhook(
     }
 
     // Execute webhook with retry logic
+    console.log(`[OutboundWebhook] Executing webhook ${webhook.name}:`, {
+      url: webhook.webhook_url,
+      method: webhook.http_method,
+      hasAuth: !!webhook.authentication_type,
+      payloadSize: JSON.stringify(transformedPayload).length,
+      maxRetries: webhook.retry_config?.max_retries || 3,
+      timeout: webhook.retry_config?.timeout_seconds || 30,
+    });
+    
     const result = await executeWithRetry(
       webhook.webhook_url,
       webhook.http_method,
@@ -175,19 +184,58 @@ async function processWebhook(
     });
   } catch (error: any) {
     const duration = Date.now() - startTime;
-    console.error(`[OutboundWebhook] Webhook ${webhook.name} failed:`, error.message);
+    
+    // Determine error type and details
+    let errorType = 'unknown';
+    let errorDetails = error.message || 'Unknown error';
+    
+    if (error.name === 'AbortError' || errorDetails.includes('aborted')) {
+      errorType = 'timeout';
+      errorDetails = `Request timeout after ${webhook.retry_config?.timeout_seconds || 30} seconds`;
+    } else if (errorDetails.includes('ECONNREFUSED') || errorDetails.includes('Connection refused')) {
+      errorType = 'connection_refused';
+      errorDetails = 'Connection refused - target server not reachable or not accepting connections';
+    } else if (errorDetails.includes('ENOTFOUND') || errorDetails.includes('getaddrinfo')) {
+      errorType = 'dns_error';
+      errorDetails = 'DNS resolution failed - hostname not found';
+    } else if (errorDetails.includes('ETIMEDOUT')) {
+      errorType = 'connection_timeout';
+      errorDetails = 'Connection timeout - target server did not respond in time';
+    } else if (errorDetails.includes('ECONNRESET')) {
+      errorType = 'connection_reset';
+      errorDetails = 'Connection reset by target server';
+    } else if (error.status >= 400 && error.status < 500) {
+      errorType = 'client_error';
+      errorDetails = `HTTP ${error.status}: ${error.message}`;
+    } else if (error.status >= 500) {
+      errorType = 'server_error';
+      errorDetails = `HTTP ${error.status}: ${error.message}`;
+    }
 
-    // Log failure
+    console.error(`[OutboundWebhook] Webhook ${webhook.name} failed:`, {
+      errorType,
+      errorDetails,
+      url: webhook.webhook_url,
+      method: webhook.http_method,
+      attempts: error.attempts || 1,
+      duration: `${duration}ms`,
+      fullError: error,
+    });
+
+    // Transform payload for logging
+    const transformedPayload = transformPayload(webhook.payload_template, payload.triggerData);
+
+    // Log failure with detailed information
     await supabase.from('outbound_webhook_logs').insert({
       id: logId,
       webhook_id: webhook.id,
       org_id: webhook.org_id,
       trigger_event: payload.triggerEvent,
       trigger_data: payload.triggerData,
-      payload_sent: payload.triggerData,
+      payload_sent: transformedPayload,
       response_status: error.status || null,
-      response_body: error.message,
-      error_message: error.message,
+      response_body: error.body ? JSON.stringify(error.body) : errorDetails,
+      error_message: `[${errorType}] ${errorDetails}`,
       execution_time_ms: duration,
       retry_count: error.attempts || 1,
       succeeded: false,
@@ -361,8 +409,30 @@ async function executeWithRetry(
         attempts: attempt,
       };
     } catch (error: any) {
-      lastError = error;
-      console.error(`[OutboundWebhook] Attempt ${attempt} failed:`, error.message);
+      // Enhanced error information
+      const errorInfo: any = {
+        message: error.message || 'Unknown error',
+        name: error.name,
+        attempts: attempt,
+      };
+
+      // Categorize error for better debugging
+      if (error.name === 'AbortError') {
+        errorInfo.type = 'timeout';
+        errorInfo.message = `Request timed out after ${timeoutSeconds} seconds`;
+      } else if (error.message?.includes('fetch')) {
+        errorInfo.type = 'network';
+        errorInfo.details = 'Network request failed - check if URL is accessible from internet';
+      }
+
+      lastError = errorInfo;
+      
+      console.error(`[OutboundWebhook] Attempt ${attempt} failed:`, {
+        url,
+        method,
+        error: errorInfo,
+        timestamp: new Date().toISOString(),
+      });
 
       if (attempt < attempts) {
         // Exponential backoff: 1s, 2s, 4s
