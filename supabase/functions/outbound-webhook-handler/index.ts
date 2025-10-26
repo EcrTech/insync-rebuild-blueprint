@@ -24,8 +24,11 @@ interface OutboundWebhook {
   authentication_type: string | null;
   authentication_config: any;
   is_active: boolean;
-  retry_count: number;
-  timeout_seconds: number;
+  retry_config: {
+    max_retries: number;
+    retry_delay_seconds: number;
+    timeout_seconds: number;
+  };
 }
 
 Deno.serve(async (req) => {
@@ -132,8 +135,8 @@ async function processWebhook(
       webhook.http_method,
       headers,
       transformedPayload,
-      webhook.retry_count,
-      webhook.timeout_seconds
+      webhook.retry_config?.max_retries || 3,
+      webhook.retry_config?.timeout_seconds || 30
     );
 
     const duration = Date.now() - startTime;
