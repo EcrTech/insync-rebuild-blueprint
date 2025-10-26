@@ -168,20 +168,13 @@ async function processWebhook(
     console.log(`[OutboundWebhook] Webhook ${webhook.name} executed successfully in ${duration}ms`);
 
     // Update success stats
-    await supabase.rpc('increment', {
-      table_name: 'outbound_webhooks',
-      id: webhook.id,
-      column_name: 'total_executions',
-    }).catch(() => {
-      // Fallback: direct update
-      supabase
-        .from('outbound_webhooks')
-        .update({
-          total_executions: (webhook as any).total_executions + 1,
-          last_executed_at: new Date().toISOString(),
-        })
-        .eq('id', webhook.id);
-    });
+    await supabase
+      .from('outbound_webhooks')
+      .update({
+        total_executions: ((webhook as any).total_executions || 0) + 1,
+        last_executed_at: new Date().toISOString(),
+      })
+      .eq('id', webhook.id);
   } catch (error: any) {
     const duration = Date.now() - startTime;
     
