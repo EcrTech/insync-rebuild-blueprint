@@ -245,7 +245,7 @@ export default function Connectors() {
               <Webhook className="mr-2 h-4 w-4" />
               View Connectors
             </Button>
-            <Dialog open={dialog.isOpen} onOpenChange={dialog.closeDialog}>
+            <Dialog open={dialog.isOpen} onOpenChange={(open) => open ? dialog.openDialog() : dialog.closeDialog()}>
               <DialogTrigger asChild>
                 <Button onClick={() => dialog.openDialog()}>
                   <Plus className="mr-2 h-4 w-4" />
@@ -364,8 +364,8 @@ export default function Connectors() {
                             )}
                           </CardTitle>
                           <CardDescription>
-                            <div className="mb-2">{connector.description || "No description"}</div>
-                            <div className="flex items-center gap-2 text-xs flex-wrap">
+                            <span className="block mb-2">{connector.description || "No description"}</span>
+                            <span className="flex items-center gap-2 text-xs flex-wrap">
                               <span className="text-primary">{connector.log_count || 0} requests</span>
                               <span>•</span>
                               <span className="text-green-600">{connector.success_count || 0} success</span>
@@ -381,7 +381,7 @@ export default function Connectors() {
                                   <span>Source: {connector.webhook_config.source_name}</span>
                                 </>
                               )}
-                            </div>
+                            </span>
                           </CardDescription>
                         </div>
                       </div>
