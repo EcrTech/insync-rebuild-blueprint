@@ -1,5 +1,8 @@
 project_id = "aizgpxaqvtvvqarzjmze"
 
+[functions.outbound-webhook-handler]
+verify_jwt = false
+
 [functions.manage-user]
 verify_jwt = true
 

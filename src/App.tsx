@@ -55,6 +55,7 @@ import CommunicationSettings from "./pages/CommunicationSettings";
 import Inventory from "./pages/Inventory";
 import ApiKeys from "./pages/ApiKeys";
 import GoogleCalendarCallback from "./pages/GoogleCalendarCallback";
+import OutboundWebhooks from "./pages/OutboundWebhooks";
 import ProtectedRoute from "./components/Auth/ProtectedRoute";
 
 const App = () => (
@@ -181,6 +182,12 @@ const App = () => (
           <Route path="/admin/api-keys" element={
             <ProtectedRoute requiredRole="admin">
               <ApiKeys />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/admin/outbound-webhooks" element={
+            <ProtectedRoute requiredRole="admin">
+              <OutboundWebhooks />
             </ProtectedRoute>
           } />
           
