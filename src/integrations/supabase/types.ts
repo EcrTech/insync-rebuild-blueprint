@@ -3806,6 +3806,137 @@ export type Database = {
         }
         Relationships: []
       }
+      outbound_webhook_logs: {
+        Row: {
+          error_message: string | null
+          execution_time_ms: number | null
+          id: string
+          org_id: string
+          payload_sent: Json
+          response_body: string | null
+          response_status: number | null
+          retry_count: number | null
+          sent_at: string | null
+          succeeded: boolean | null
+          trigger_data: Json
+          trigger_event: string
+          webhook_id: string
+        }
+        Insert: {
+          error_message?: string | null
+          execution_time_ms?: number | null
+          id?: string
+          org_id: string
+          payload_sent: Json
+          response_body?: string | null
+          response_status?: number | null
+          retry_count?: number | null
+          sent_at?: string | null
+          succeeded?: boolean | null
+          trigger_data: Json
+          trigger_event: string
+          webhook_id: string
+        }
+        Update: {
+          error_message?: string | null
+          execution_time_ms?: number | null
+          id?: string
+          org_id?: string
+          payload_sent?: Json
+          response_body?: string | null
+          response_status?: number | null
+          retry_count?: number | null
+          sent_at?: string | null
+          succeeded?: boolean | null
+          trigger_data?: Json
+          trigger_event?: string
+          webhook_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "outbound_webhook_logs_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outbound_webhook_logs_webhook_id_fkey"
+            columns: ["webhook_id"]
+            isOneToOne: false
+            referencedRelation: "outbound_webhooks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      outbound_webhooks: {
+        Row: {
+          authentication_config: Json | null
+          authentication_type: string | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          filter_conditions: Json | null
+          headers: Json | null
+          http_method: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          org_id: string
+          payload_template: Json | null
+          retry_config: Json | null
+          trigger_event: string
+          updated_at: string | null
+          webhook_url: string
+        }
+        Insert: {
+          authentication_config?: Json | null
+          authentication_type?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          filter_conditions?: Json | null
+          headers?: Json | null
+          http_method?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          org_id: string
+          payload_template?: Json | null
+          retry_config?: Json | null
+          trigger_event: string
+          updated_at?: string | null
+          webhook_url: string
+        }
+        Update: {
+          authentication_config?: Json | null
+          authentication_type?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          filter_conditions?: Json | null
+          headers?: Json | null
+          http_method?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          org_id?: string
+          payload_template?: Json | null
+          retry_config?: Json | null
+          trigger_event?: string
+          updated_at?: string | null
+          webhook_url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "outbound_webhooks_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_transactions: {
         Row: {
           amount: number
