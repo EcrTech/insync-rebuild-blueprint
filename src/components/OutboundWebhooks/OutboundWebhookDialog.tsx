@@ -50,8 +50,11 @@ export const OutboundWebhookDialog = ({
   const [filterConditions, setFilterConditions] = useState<any>({});
   const [authType, setAuthType] = useState<string>("none");
   const [authConfig, setAuthConfig] = useState<any>({});
-  const [retryCount, setRetryCount] = useState(3);
-  const [timeoutSeconds, setTimeoutSeconds] = useState(30);
+  const [retryConfig, setRetryConfig] = useState({ 
+    max_retries: 3, 
+    retry_delay_seconds: 2, 
+    timeout_seconds: 30 
+  });
 
   useEffect(() => {
     if (webhook) {
@@ -65,8 +68,11 @@ export const OutboundWebhookDialog = ({
       setFilterConditions(webhook.filter_conditions || {});
       setAuthType(webhook.authentication_type || "none");
       setAuthConfig(webhook.authentication_config || {});
-      setRetryCount(webhook.retry_count || 3);
-      setTimeoutSeconds(webhook.timeout_seconds || 30);
+      setRetryConfig(webhook.retry_config || { 
+        max_retries: 3, 
+        retry_delay_seconds: 2, 
+        timeout_seconds: 30 
+      });
     } else {
       resetForm();
     }
@@ -83,8 +89,11 @@ export const OutboundWebhookDialog = ({
     setFilterConditions({});
     setAuthType("none");
     setAuthConfig({});
-    setRetryCount(3);
-    setTimeoutSeconds(30);
+    setRetryConfig({ 
+      max_retries: 3, 
+      retry_delay_seconds: 2, 
+      timeout_seconds: 30 
+    });
   };
 
   const saveMutation = useMutation({
@@ -101,8 +110,7 @@ export const OutboundWebhookDialog = ({
         filter_conditions: filterConditions,
         authentication_type: authType === "none" ? null : authType,
         authentication_config: authType === "none" ? null : authConfig,
-        retry_count: retryCount,
-        timeout_seconds: timeoutSeconds,
+        retry_config: retryConfig,
         is_active: true,
       };
 
@@ -326,8 +334,8 @@ export const OutboundWebhookDialog = ({
                   type="number"
                   min="0"
                   max="5"
-                  value={retryCount}
-                  onChange={(e) => setRetryCount(parseInt(e.target.value))}
+                  value={retryConfig.max_retries}
+                  onChange={(e) => setRetryConfig({...retryConfig, max_retries: parseInt(e.target.value)})}
                 />
               </div>
 
@@ -338,8 +346,8 @@ export const OutboundWebhookDialog = ({
                   type="number"
                   min="5"
                   max="300"
-                  value={timeoutSeconds}
-                  onChange={(e) => setTimeoutSeconds(parseInt(e.target.value))}
+                  value={retryConfig.timeout_seconds}
+                  onChange={(e) => setRetryConfig({...retryConfig, timeout_seconds: parseInt(e.target.value)})}
                 />
               </div>
             </div>
