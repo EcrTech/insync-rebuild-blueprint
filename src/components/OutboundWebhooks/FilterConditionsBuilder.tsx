@@ -1,21 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Trash2, Info } from "lucide-react";
-
-interface FilterConditionsBuilderProps {
-  conditions: any;
-  onChange: (conditions: any) => void;
-  triggerEvent: string;
-}
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 
 interface FilterRule {
   field: string;
@@ -23,60 +13,69 @@ interface FilterRule {
   value: string;
 }
 
+interface FilterConditionsBuilderProps {
+  conditions: any;
+  onChange: (conditions: any) => void;
+  targetTable: string;
+  targetOperation: string;
+}
+
 export const FilterConditionsBuilder = ({
   conditions,
   onChange,
-  triggerEvent,
+  targetTable,
+  targetOperation,
 }: FilterConditionsBuilderProps) => {
-  const [rules, setRules] = useState<FilterRule[]>(() => {
-    if (!conditions || Object.keys(conditions).length === 0) {
-      return [];
-    }
-    return Object.entries(conditions).map(([field, condition]: [string, any]) => ({
-      field,
-      operator: condition.operator || "equals",
-      value: condition.value || "",
-    }));
+  const [rules, setRules] = useState<FilterRule[]>([]);
+
+  // Fetch table columns dynamically
+  const { data: tableColumns } = useQuery({
+    queryKey: ['table-columns-filter', targetTable],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('information_schema.columns' as any)
+        .select('column_name')
+        .eq('table_name', targetTable)
+        .eq('table_schema', 'public')
+        .order('ordinal_position');
+      
+      if (error) throw error;
+      return data.map((col: any) => ({
+        value: col.column_name,
+        label: col.column_name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+      }));
+    },
+    enabled: !!targetTable
   });
 
-  const getAvailableFields = () => {
-    const fieldsByEvent: Record<string, Array<{ value: string; label: string }>> = {
-      contact_created: [
-        { value: "contact.company", label: "Company" },
-        { value: "contact.job_title", label: "Job Title" },
-        { value: "contact.email", label: "Email" },
-        { value: "contact.phone", label: "Phone" },
-      ],
-      contact_updated: [
-        { value: "contact.company", label: "Company" },
-        { value: "contact.status", label: "Status" },
-      ],
-      stage_changed: [
-        { value: "new_stage.name", label: "New Stage" },
-        { value: "old_stage.name", label: "Old Stage" },
-      ],
-      activity_logged: [
-        { value: "activity.type", label: "Activity Type" },
-        { value: "activity.subject", label: "Subject" },
-      ],
-    };
-
-    return fieldsByEvent[triggerEvent] || [];
-  };
+  useEffect(() => {
+    if (conditions?.rules) {
+      setRules(conditions.rules);
+    }
+  }, [conditions]);
 
   const operators = [
-    { value: "equals", label: "Equals" },
-    { value: "not_equals", label: "Not Equals" },
+    { value: "eq", label: "Equals" },
+    { value: "neq", label: "Not Equals" },
+    { value: "gt", label: "Greater Than" },
+    { value: "lt", label: "Less Than" },
+    { value: "gte", label: "Greater or Equal" },
+    { value: "lte", label: "Less or Equal" },
     { value: "contains", label: "Contains" },
-    { value: "not_contains", label: "Does Not Contain" },
-    { value: "greater_than", label: "Greater Than" },
-    { value: "less_than", label: "Less Than" },
-    { value: "is_empty", label: "Is Empty" },
-    { value: "is_not_empty", label: "Is Not Empty" },
+    { value: "not_contains", label: "Not Contains" },
+    { value: "is_null", label: "Is Null" },
+    { value: "is_not_null", label: "Is Not Null" },
   ];
 
   const addRule = () => {
-    setRules([...rules, { field: "", operator: "equals", value: "" }]);
+    const newRule: FilterRule = {
+      field: tableColumns?.[0]?.value || "",
+      operator: "eq",
+      value: "",
+    };
+    const newRules = [...rules, newRule];
+    setRules(newRules);
+    updateConditions(newRules);
   };
 
   const removeRule = (index: number) => {
@@ -86,23 +85,18 @@ export const FilterConditionsBuilder = ({
   };
 
   const updateRule = (index: number, updates: Partial<FilterRule>) => {
-    const newRules = [...rules];
-    newRules[index] = { ...newRules[index], ...updates };
+    const newRules = rules.map((rule, i) =>
+      i === index ? { ...rule, ...updates } : rule
+    );
     setRules(newRules);
     updateConditions(newRules);
   };
 
   const updateConditions = (newRules: FilterRule[]) => {
-    const newConditions: any = {};
-    newRules.forEach((rule) => {
-      if (rule.field) {
-        newConditions[rule.field] = {
-          operator: rule.operator,
-          value: rule.value,
-        };
-      }
+    onChange({
+      logic: "AND",
+      rules: newRules,
     });
-    onChange(newConditions);
   };
 
   return (
@@ -112,92 +106,96 @@ export const FilterConditionsBuilder = ({
         <div className="text-sm text-muted-foreground">
           <p className="font-medium mb-1">Filter Conditions</p>
           <p>
-            Only send webhooks when ALL conditions are met. Leave empty to send for every event.
+            Only trigger the webhook when records match these conditions.
+            All conditions must be true (AND logic).
           </p>
+          {targetOperation === 'UPDATE' && (
+            <p className="mt-2 text-xs text-amber-600">
+              <strong>Note:</strong> For UPDATE operations, filters check the NEW values.
+            </p>
+          )}
         </div>
       </div>
 
       {rules.length === 0 ? (
-        <div className="text-center p-8 border-2 border-dashed rounded-lg">
-          <p className="text-sm text-muted-foreground mb-4">
-            No filters configured. Webhook will trigger for every event.
+        <div className="text-center py-8 border border-dashed rounded-lg">
+          <p className="text-muted-foreground mb-4">
+            No filters configured. Webhook will trigger for all {targetTable} events.
           </p>
-          <Button variant="outline" size="sm" onClick={addRule}>
-            <Plus className="mr-2 h-4 w-4" />
+          <Button onClick={addRule} variant="outline" size="sm">
+            <Plus className="h-4 w-4 mr-2" />
             Add Filter
           </Button>
         </div>
       ) : (
         <div className="space-y-3">
           {rules.map((rule, index) => (
-            <div key={index} className="flex gap-2 items-start">
-              <div className="flex-1 grid grid-cols-3 gap-2">
-                <div className="space-y-2">
-                  <Label className="text-xs">Field</Label>
-                  <Select
-                    value={rule.field}
-                    onValueChange={(value) => updateRule(index, { field: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select field" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {getAvailableFields().map((field) => (
-                        <SelectItem key={field.value} value={field.value}>
-                          {field.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+            <div key={index} className="flex items-end gap-2 p-4 border rounded-lg">
+              <div className="flex-1 space-y-2">
+                <Label>Field</Label>
+                <Select
+                  value={rule.field}
+                  onValueChange={(value) => updateRule(index, { field: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {tableColumns?.map((field: any) => (
+                      <SelectItem key={field.value} value={field.value}>
+                        {field.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-                <div className="space-y-2">
-                  <Label className="text-xs">Operator</Label>
-                  <Select
-                    value={rule.operator}
-                    onValueChange={(value) => updateRule(index, { operator: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {operators.map((op) => (
-                        <SelectItem key={op.value} value={op.value}>
-                          {op.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div className="flex-1 space-y-2">
+                <Label>Operator</Label>
+                <Select
+                  value={rule.operator}
+                  onValueChange={(value) => updateRule(index, { operator: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {operators.map((op) => (
+                      <SelectItem key={op.value} value={op.value}>
+                        {op.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-                <div className="space-y-2">
-                  <Label className="text-xs">Value</Label>
-                  <Input
-                    value={rule.value}
-                    onChange={(e) => updateRule(index, { value: e.target.value })}
-                    placeholder="Enter value..."
-                    disabled={rule.operator === "is_empty" || rule.operator === "is_not_empty"}
-                  />
-                </div>
+              <div className="flex-1 space-y-2">
+                <Label>Value</Label>
+                <Input
+                  value={rule.value}
+                  onChange={(e) => updateRule(index, { value: e.target.value })}
+                  placeholder="Enter value..."
+                  disabled={rule.operator === "is_null" || rule.operator === "is_not_null"}
+                />
               </div>
 
               <Button
-                variant="outline"
+                variant="ghost"
                 size="icon"
                 onClick={() => removeRule(index)}
-                className="mt-7"
+                className="text-destructive hover:text-destructive"
               >
-                <Trash2 className="h-4 w-4 text-destructive" />
+                <Trash2 className="h-4 w-4" />
               </Button>
             </div>
           ))}
 
-          <Button variant="outline" size="sm" onClick={addRule}>
-            <Plus className="mr-2 h-4 w-4" />
+          <Button onClick={addRule} variant="outline" size="sm" className="w-full">
+            <Plus className="h-4 w-4 mr-2" />
             Add Another Filter
           </Button>
         </div>
       )}
     </div>
   );
-};
+}

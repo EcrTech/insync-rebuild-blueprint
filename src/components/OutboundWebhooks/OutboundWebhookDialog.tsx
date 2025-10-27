@@ -43,7 +43,8 @@ export const OutboundWebhookDialog = ({
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [webhookUrl, setWebhookUrl] = useState("");
-  const [triggerEvent, setTriggerEvent] = useState("contact_created");
+  const [targetTable, setTargetTable] = useState("contacts");
+  const [targetOperation, setTargetOperation] = useState("INSERT");
   const [httpMethod, setHttpMethod] = useState("POST");
   const [headers, setHeaders] = useState<Record<string, string>>({});
   const [payloadTemplate, setPayloadTemplate] = useState<any>({});
@@ -61,7 +62,8 @@ export const OutboundWebhookDialog = ({
       setName(webhook.name || "");
       setDescription(webhook.description || "");
       setWebhookUrl(webhook.webhook_url || "");
-      setTriggerEvent(webhook.trigger_event || "contact_created");
+      setTargetTable(webhook.target_table || "contacts");
+      setTargetOperation(webhook.target_operation || "INSERT");
       setHttpMethod(webhook.http_method || "POST");
       setHeaders(webhook.headers || {});
       setPayloadTemplate(webhook.payload_template || {});
@@ -82,7 +84,8 @@ export const OutboundWebhookDialog = ({
     setName("");
     setDescription("");
     setWebhookUrl("");
-    setTriggerEvent("contact_created");
+    setTargetTable("contacts");
+    setTargetOperation("INSERT");
     setHttpMethod("POST");
     setHeaders({});
     setPayloadTemplate({});
@@ -103,7 +106,9 @@ export const OutboundWebhookDialog = ({
         name,
         description,
         webhook_url: webhookUrl,
-        trigger_event: triggerEvent,
+        target_table: targetTable,
+        target_operation: targetOperation,
+        trigger_event: `${targetTable}_${targetOperation.toLowerCase() === 'insert' ? 'created' : targetOperation.toLowerCase() === 'delete' ? 'deleted' : 'updated'}`,
         http_method: httpMethod,
         headers,
         payload_template: payloadTemplate,
@@ -125,7 +130,18 @@ export const OutboundWebhookDialog = ({
         if (error) throw error;
       }
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      // Create database trigger for the webhook
+      try {
+        await supabase.rpc('manage_webhook_trigger', {
+          p_table_name: targetTable,
+          p_operation: targetOperation,
+          p_action: 'create'
+        });
+      } catch (error) {
+        console.error("Failed to create trigger:", error);
+      }
+      
       queryClient.invalidateQueries({ queryKey: ["outbound-webhooks"] });
       notify.success(webhook ? "Webhook updated" : "Webhook created");
       onOpenChange(false);
@@ -193,20 +209,38 @@ export const OutboundWebhookDialog = ({
               />
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="table">Target Table *</Label>
+              <Select value={targetTable} onValueChange={setTargetTable}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="contacts">Contacts</SelectItem>
+                  <SelectItem value="contact_activities">Contact Activities</SelectItem>
+                  <SelectItem value="email_bulk_campaigns">Email Campaigns</SelectItem>
+                  <SelectItem value="whatsapp_bulk_campaigns">WhatsApp Campaigns</SelectItem>
+                  <SelectItem value="call_logs">Call Logs</SelectItem>
+                  <SelectItem value="email_conversations">Email Conversations</SelectItem>
+                  <SelectItem value="whatsapp_messages">WhatsApp Messages</SelectItem>
+                  <SelectItem value="pipeline_stages">Pipeline Stages</SelectItem>
+                  <SelectItem value="teams">Teams</SelectItem>
+                  <SelectItem value="profiles">Users/Profiles</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="trigger">Trigger Event</Label>
-                <Select value={triggerEvent} onValueChange={setTriggerEvent}>
+                <Label htmlFor="operation">Operation *</Label>
+                <Select value={targetOperation} onValueChange={setTargetOperation}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="contact_created">Contact Created</SelectItem>
-                    <SelectItem value="contact_updated">Contact Updated</SelectItem>
-                    <SelectItem value="stage_changed">Stage Changed</SelectItem>
-                    <SelectItem value="activity_logged">Activity Logged</SelectItem>
-                    <SelectItem value="disposition_set">Disposition Set</SelectItem>
-                    <SelectItem value="assignment_changed">Assignment Changed</SelectItem>
+                    <SelectItem value="INSERT">Create (INSERT)</SelectItem>
+                    <SelectItem value="UPDATE">Update (UPDATE)</SelectItem>
+                    <SelectItem value="DELETE">Delete (DELETE)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -231,7 +265,8 @@ export const OutboundWebhookDialog = ({
             <PayloadTemplateBuilder
               template={payloadTemplate}
               onChange={setPayloadTemplate}
-              triggerEvent={triggerEvent}
+              targetTable={targetTable}
+              targetOperation={targetOperation}
             />
           </TabsContent>
 
@@ -239,7 +274,8 @@ export const OutboundWebhookDialog = ({
             <FilterConditionsBuilder
               conditions={filterConditions}
               onChange={setFilterConditions}
-              triggerEvent={triggerEvent}
+              targetTable={targetTable}
+              targetOperation={targetOperation}
             />
           </TabsContent>
 

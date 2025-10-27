@@ -3881,10 +3881,15 @@ export type Database = {
           http_method: string | null
           id: string
           is_active: boolean | null
+          last_executed_at: string | null
           name: string
           org_id: string
           payload_template: Json | null
           retry_config: Json | null
+          target_operation: string
+          target_table: string
+          total_executions: number | null
+          total_failures: number | null
           trigger_event: string
           updated_at: string | null
           webhook_url: string
@@ -3900,10 +3905,15 @@ export type Database = {
           http_method?: string | null
           id?: string
           is_active?: boolean | null
+          last_executed_at?: string | null
           name: string
           org_id: string
           payload_template?: Json | null
           retry_config?: Json | null
+          target_operation?: string
+          target_table?: string
+          total_executions?: number | null
+          total_failures?: number | null
           trigger_event: string
           updated_at?: string | null
           webhook_url: string
@@ -3919,10 +3929,15 @@ export type Database = {
           http_method?: string | null
           id?: string
           is_active?: boolean | null
+          last_executed_at?: string | null
           name?: string
           org_id?: string
           payload_template?: Json | null
           retry_config?: Json | null
+          target_operation?: string
+          target_table?: string
+          total_executions?: number | null
+          total_failures?: number | null
           trigger_event?: string
           updated_at?: string | null
           webhook_url?: string
@@ -5693,6 +5708,10 @@ export type Database = {
       is_within_business_hours: {
         Args: { _check_time: string; _org_id: string }
         Returns: boolean
+      }
+      manage_webhook_trigger: {
+        Args: { p_action: string; p_operation: string; p_table_name: string }
+        Returns: undefined
       }
       mark_automation_conversion: {
         Args: {

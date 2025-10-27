@@ -9,6 +9,8 @@ interface WebhookPayload {
   orgId: string;
   triggerEvent: string;
   triggerData: any;
+  tableName?: string;
+  operation?: string;
 }
 
 interface OutboundWebhook {
@@ -41,13 +43,14 @@ Deno.serve(async (req) => {
 
   try {
     const payload: WebhookPayload = await req.json();
-    console.log('[OutboundWebhook] Received trigger:', payload.triggerEvent, 'for org:', payload.orgId);
+    console.log('[OutboundWebhook] Received trigger:', payload.triggerEvent, 'for org:', payload.orgId, 'table:', payload.tableName || 'unknown');
 
-    // Get all active webhooks for this org and trigger event
+    // Get all active webhooks for this org, table, and trigger event
     const { data: webhooks, error: webhooksError } = await supabase
       .from('outbound_webhooks')
       .select('*')
       .eq('org_id', payload.orgId)
+      .eq('target_table', payload.tableName || 'contacts')
       .eq('trigger_event', payload.triggerEvent)
       .eq('is_active', true);
 

@@ -18,6 +18,7 @@ import {
   CheckCircle2,
   XCircle,
   Edit,
+  Database,
 } from "lucide-react";
 import { OutboundWebhookDialog } from "@/components/OutboundWebhooks/OutboundWebhookDialog";
 import { OutboundWebhookLogs } from "@/components/OutboundWebhooks/OutboundWebhookLogs";
@@ -222,10 +223,18 @@ const OutboundWebhooks = () => {
                       </div>
 
                       <div className="flex items-center gap-2">
+                        <Database className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-muted-foreground">Table:</span>
+                        <Badge variant="outline">{webhook.target_table || 'contacts'}</Badge>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
                         <Activity className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-muted-foreground">Trigger:</span>
+                        <span className="text-muted-foreground">Operation:</span>
                         <Badge variant="outline">
-                          {getTriggerEventLabel(webhook.trigger_event)}
+                          {webhook.target_operation === 'INSERT' && 'Create'}
+                          {webhook.target_operation === 'UPDATE' && 'Update'}
+                          {webhook.target_operation === 'DELETE' && 'Delete'}
                         </Badge>
                       </div>
 
