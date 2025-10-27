@@ -219,6 +219,7 @@ export const OutboundWebhookDialog = ({
                   <SelectItem value="contacts">Contacts</SelectItem>
                   <SelectItem value="contact_activities">Contact Activities</SelectItem>
                   <SelectItem value="email_bulk_campaigns">Email Campaigns</SelectItem>
+                  <SelectItem value="blog_posts">Blog Posts</SelectItem>
                   <SelectItem value="whatsapp_bulk_campaigns">WhatsApp Campaigns</SelectItem>
                   <SelectItem value="call_logs">Call Logs</SelectItem>
                   <SelectItem value="email_conversations">Email Conversations</SelectItem>
