@@ -11,7 +11,7 @@ const corsHeaders = {
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const BATCH_SIZE = 50; // Process 50 emails in parallel
 
-const sendEmail = async (to: string, subject: string, html: string, fromEmail: string, fromName: string) => {
+const sendEmail = async (to: string, subject: string, html: string, fromEmail: string, fromName: string, unsubscribeUrl: string) => {
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
@@ -23,6 +23,10 @@ const sendEmail = async (to: string, subject: string, html: string, fromEmail: s
       to: [to],
       subject: subject,
       html: html,
+      headers: {
+        'List-Unsubscribe': `<${unsubscribeUrl}>`,
+        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click'
+      }
     }),
   });
 
@@ -201,6 +205,21 @@ serve(async (req) => {
             // Prepend attachments before content
             personalizedHtml = attachmentsHtml + personalizedHtml;
 
+            // Generate unique unsubscribe token for this recipient
+            const unsubscribeToken = crypto.randomUUID();
+            const supabaseUrl = Deno.env.get('SUPABASE_URL');
+            const unsubscribeUrl = `${supabaseUrl}/functions/v1/unsubscribe?token=${unsubscribeToken}`;
+
+            // Add unsubscribe footer
+            const unsubscribeFooter = `
+              <div style="margin: 40px 0 20px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
+                <p style="margin: 0; font-size: 12px; color: #6b7280; line-height: 1.5;">
+                  You're receiving this email as part of a campaign.<br>
+                  <a href="${unsubscribeUrl}" style="color: #6b7280; text-decoration: underline;">Unsubscribe</a> from marketing emails
+                </p>
+              </div>
+            `;
+
             // Wrap in email template
             personalizedHtml = `
               <!DOCTYPE html>
@@ -211,6 +230,7 @@ serve(async (req) => {
                 </head>
                 <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
                   ${personalizedHtml}
+                  ${unsubscribeFooter}
                 </body>
               </html>
             `;
@@ -229,7 +249,8 @@ serve(async (req) => {
               personalizedSubject,
               personalizedHtml,
               fromEmail,
-              fromName
+              fromName,
+              unsubscribeUrl
             );
 
             return {
@@ -239,7 +260,8 @@ serve(async (req) => {
               email: recipient.email,
               subject: personalizedSubject,
               html: personalizedHtml,
-              emailResult
+              emailResult,
+              unsubscribeToken
             };
           } catch (error: any) {
             console.error(`Failed to send email to ${recipient.email}:`, error);
@@ -279,6 +301,7 @@ serve(async (req) => {
           direction: "outbound",
           status: "sent",
           sent_at: new Date().toISOString(),
+          unsubscribe_token: result.unsubscribeToken,
         }));
 
         await supabaseClient.from("email_conversations").insert(conversationsToInsert);

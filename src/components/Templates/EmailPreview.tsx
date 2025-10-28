@@ -120,6 +120,21 @@ export const EmailPreview = ({ subject, bodyContent, buttons, attachments }: Ema
                 ))}
               </div>
             )}
+
+            {/* Unsubscribe footer preview */}
+            <div className="mt-8 pt-4 border-t">
+              <p className="text-xs text-muted-foreground text-center mb-2">
+                <span className="font-medium">Auto-generated unsubscribe footer:</span>
+              </p>
+              <div className="text-center">
+                <p className="text-xs text-muted-foreground">
+                  You're receiving this email because you interacted with our platform.<br/>
+                  <a href="#" className="text-muted-foreground underline" onClick={(e) => e.preventDefault()}>
+                    Unsubscribe
+                  </a> from these emails
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </CardContent>

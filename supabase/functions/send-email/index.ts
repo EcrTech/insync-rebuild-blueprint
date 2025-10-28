@@ -10,7 +10,7 @@ const corsHeaders = {
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
-const sendEmail = async (to: string, subject: string, html: string, fromEmail: string, fromName: string, replyToEmail?: string) => {
+const sendEmail = async (to: string, subject: string, html: string, fromEmail: string, fromName: string, replyToEmail?: string, unsubscribeUrl?: string) => {
   const emailPayload: any = {
     from: `${fromName} <${fromEmail}>`,
     to: [to],
@@ -21,6 +21,14 @@ const sendEmail = async (to: string, subject: string, html: string, fromEmail: s
   // Add reply_to if provided and different from sender
   if (replyToEmail && replyToEmail !== fromEmail) {
     emailPayload.reply_to = [replyToEmail];
+  }
+
+  // Add List-Unsubscribe headers for RFC 8058 compliance
+  if (unsubscribeUrl) {
+    emailPayload.headers = {
+      'List-Unsubscribe': `<${unsubscribeUrl}>`,
+      'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click'
+    };
   }
 
   const response = await fetch("https://api.resend.com/emails", {
@@ -215,8 +223,26 @@ serve(async (req) => {
 
     console.log("Sending email to:", to, "from:", fromEmail, "reply-to:", replyToEmail);
 
+    // Generate unsubscribe token if not provided
+    const unsubToken = unsubscribeToken || crypto.randomUUID();
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const unsubscribeUrl = `${supabaseUrl}/functions/v1/unsubscribe?token=${unsubToken}`;
+
+    // Inject unsubscribe footer into email HTML
+    const unsubscribeFooter = `
+      <div style="margin: 40px 0 20px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
+        <p style="margin: 0; font-size: 12px; color: #6b7280; line-height: 1.5;">
+          You're receiving this email because you interacted with our platform.<br>
+          <a href="${unsubscribeUrl}" style="color: #6b7280; text-decoration: underline;">Unsubscribe</a> from these emails
+        </p>
+      </div>
+    `;
+    const finalHtml = emailHtml.includes('</body>') 
+      ? emailHtml.replace('</body>', `${unsubscribeFooter}</body>`)
+      : emailHtml + unsubscribeFooter;
+
     // Send email via Resend
-    const emailData = await sendEmail(to, subject, emailHtml, fromEmail, fromName, replyToEmail);
+    const emailData = await sendEmail(to, subject, finalHtml, fromEmail, fromName, replyToEmail, unsubscribeUrl);
 
     console.log("Email sent successfully:", emailData);
 
@@ -258,7 +284,7 @@ serve(async (req) => {
         status: "sent",
         sent_at: new Date().toISOString(),
         tracking_pixel_id: trackingPixelId,
-        unsubscribe_token: unsubscribeToken,
+        unsubscribe_token: unsubToken,
       });
 
     if (logError) {
