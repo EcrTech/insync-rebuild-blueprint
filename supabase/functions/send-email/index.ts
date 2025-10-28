@@ -266,6 +266,7 @@ serve(async (req) => {
     }
 
     // Log email to email_conversations table
+    console.log('[send-email] Logging email to database...');
     const { error: logError } = await supabaseClient
       .from("email_conversations")
       .insert({
@@ -288,8 +289,11 @@ serve(async (req) => {
       });
 
     if (logError) {
-      console.error("Error logging email:", logError);
+      console.error('[send-email] Error logging email to email_conversations:', logError);
+      console.error('[send-email] Email was sent but database logging failed');
       // Don't throw - email was sent successfully
+    } else {
+      console.log('[send-email] Email logged successfully to database');
     }
 
     return new Response(

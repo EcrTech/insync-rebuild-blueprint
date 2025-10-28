@@ -310,17 +310,28 @@ async function processExecution(
     if (sendError) throw sendError;
 
     // Update execution status
-    await supabase.from('email_automation_executions').update({ 
-      status: 'sent', 
-      sent_at: new Date().toISOString(),
-      email_subject: personalizedSubject
-    }).eq('id', execution.id);
+    const { error: updateError } = await supabase
+      .from('email_automation_executions')
+      .update({ 
+        status: 'sent', 
+        sent_at: new Date().toISOString(),
+        email_subject: personalizedSubject
+      })
+      .eq('id', execution.id);
+
+    if (updateError) {
+      console.error(`[automation-email-sender] Error updating execution status for ${execution.id}:`, updateError);
+    }
 
     // Update rule stats
-    await supabase.rpc('increment_automation_rule_stats', {
+    const { error: statsError } = await supabase.rpc('increment_automation_rule_stats', {
       _rule_id: execution.rule_id,
       _stat_type: 'sent',
     });
+
+    if (statsError) {
+      console.error(`[automation-email-sender] Error updating rule stats for ${execution.rule_id}:`, statsError);
+    }
 
     // Record cooldown using atomic function
     await supabase.rpc('increment_automation_cooldown', {

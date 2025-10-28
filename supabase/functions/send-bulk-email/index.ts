@@ -62,7 +62,9 @@ serve(async (req) => {
     const supabaseClient = getSupabaseClient();
     const { campaignId } = await req.json();
 
-    console.log("Starting bulk email send for campaign:", campaignId);
+    console.log('[send-bulk-email] ===== START =====');
+    console.log('[send-bulk-email] Campaign ID:', campaignId);
+    console.log('[send-bulk-email] Timestamp:', new Date().toISOString());
 
     // Fetch campaign details with variable mappings
     const { data: campaign, error: campaignError } = await supabaseClient
@@ -75,7 +77,8 @@ serve(async (req) => {
       throw new Error("Campaign not found");
     }
 
-    console.log("Processing campaign:", campaign.name);
+    console.log('[send-bulk-email] Campaign:', campaign.campaign_name || campaign.name);
+    console.log('[send-bulk-email] Status:', campaign.status);
 
     // Get email settings and verify domain
     const { data: emailSettings, error: settingsError } = await supabaseClient
@@ -110,7 +113,8 @@ serve(async (req) => {
     const fromEmail = `noreply@${emailSettings.sending_domain}`;
     const fromName = org?.name || "Your Organization";
 
-    console.log("Sending emails from:", fromEmail);
+    console.log('[send-bulk-email] From:', fromEmail);
+    console.log('[send-bulk-email] From Name:', fromName);
 
     // Fetch pending recipients
     const { data: recipients, error: recipientsError } = await supabaseClient
@@ -132,17 +136,19 @@ serve(async (req) => {
       throw recipientsError;
     }
 
-    console.log(`Found ${recipients?.length || 0} pending recipients`);
+    console.log(`[send-bulk-email] Found ${recipients?.length || 0} pending recipients`);
 
     let sentCount = 0;
     let failedCount = 0;
 
     // Process emails in batches for better performance
-    console.log(`Processing ${recipients?.length || 0} recipients in batches of ${BATCH_SIZE}`);
+    console.log(`[send-bulk-email] Processing ${recipients?.length || 0} recipients in batches of ${BATCH_SIZE}`);
     
     for (let i = 0; i < (recipients?.length || 0); i += BATCH_SIZE) {
       const batch = recipients!.slice(i, i + BATCH_SIZE);
-      console.log(`Processing batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(recipients!.length / BATCH_SIZE)}`);
+      const batchNum = Math.floor(i / BATCH_SIZE) + 1;
+      const totalBatches = Math.ceil(recipients!.length / BATCH_SIZE);
+      console.log(`[send-bulk-email] === Batch ${batchNum}/${totalBatches} ===`);
 
       // Process batch in parallel using Promise.allSettled
       const batchResults = await Promise.allSettled(
@@ -317,7 +323,15 @@ serve(async (req) => {
           tracking_pixel_id: result.trackingPixelId,
         }));
 
-        await supabaseClient.from("email_conversations").insert(conversationsToInsert);
+        const { error: conversationsError } = await supabaseClient
+          .from("email_conversations")
+          .insert(conversationsToInsert);
+
+        if (conversationsError) {
+          console.error('[send-bulk-email] Error inserting email conversations:', conversationsError);
+        } else {
+          console.log(`[send-bulk-email] Inserted ${conversationsToInsert.length} email conversation records`);
+        }
       }
 
       // Bulk update recipient statuses
@@ -335,24 +349,38 @@ serve(async (req) => {
       ];
 
       if (statusUpdates.length > 0) {
-        await supabaseClient
+        const { error: upsertError } = await supabaseClient
           .from("email_campaign_recipients")
           .upsert(statusUpdates, { onConflict: 'id' });
+        
+        if (upsertError) {
+          console.error('[send-bulk-email] Error updating recipient statuses:', upsertError);
+          console.error('[send-bulk-email] Failed updates:', JSON.stringify(statusUpdates, null, 2));
+        } else {
+          console.log(`[send-bulk-email] Updated ${statusUpdates.length} recipient statuses (${successfulResults.length} sent, ${failedResults.length} failed)`);
+        }
       }
 
       sentCount += successfulResults.length;
       failedCount += failedResults.length;
 
-      console.log(`Batch complete. Sent: ${successfulResults.length}, Failed: ${failedResults.length}`);
+      console.log(`[send-bulk-email] Batch complete. Sent: ${successfulResults.length}, Failed: ${failedResults.length}`);
     }
 
     // Update campaign stats
-    await supabaseClient.rpc("increment_email_campaign_stats", {
+    console.log(`[send-bulk-email] Updating campaign stats: sent=${sentCount}, failed=${failedCount}, pending=${-(sentCount + failedCount)}`);
+    const { error: rpcError } = await supabaseClient.rpc("increment_email_campaign_stats", {
       p_campaign_id: campaignId,
       p_sent_increment: sentCount,
       p_failed_increment: failedCount,
       p_pending_increment: -(sentCount + failedCount),
     });
+
+    if (rpcError) {
+      console.error('[send-bulk-email] Error updating campaign stats:', rpcError);
+    } else {
+      console.log('[send-bulk-email] Campaign stats updated successfully');
+    }
 
     // Check if campaign is complete
     const { data: updatedCampaign } = await supabaseClient
@@ -362,16 +390,24 @@ serve(async (req) => {
       .single();
 
     if (updatedCampaign && updatedCampaign.pending_count === 0) {
-      await supabaseClient
+      console.log('[send-bulk-email] All recipients processed, marking campaign as completed');
+      const { error: completeError } = await supabaseClient
         .from("email_bulk_campaigns")
         .update({
           status: "completed",
           completed_at: new Date().toISOString(),
         })
         .eq("id", campaignId);
+      
+      if (completeError) {
+        console.error('[send-bulk-email] Error marking campaign complete:', completeError);
+      }
+    } else {
+      console.log(`[send-bulk-email] Campaign has ${updatedCampaign?.pending_count || 0} recipients still pending`);
     }
 
-    console.log(`Batch complete. Sent: ${sentCount}, Failed: ${failedCount}`);
+    console.log('[send-bulk-email] ===== COMPLETE =====');
+    console.log(`[send-bulk-email] Total Sent: ${sentCount}, Total Failed: ${failedCount}`);
 
     return new Response(
       JSON.stringify({
