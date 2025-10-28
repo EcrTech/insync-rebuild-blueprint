@@ -173,6 +173,10 @@ serve(async (req) => {
 
             // Add CTA buttons if present
             if (campaign.buttons && campaign.buttons.length > 0) {
+              // Generate tracking pixel ID for this recipient
+              const trackingPixelId = `${recipient.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+              const supabaseUrl = Deno.env.get('SUPABASE_URL');
+              
               const buttonsHtml = await Promise.all(campaign.buttons.map(async (btn: any) => {
                 const buttonUrl = await replaceVariables(
                   btn.url,
@@ -181,6 +185,10 @@ serve(async (req) => {
                   supabaseClient,
                   campaign.variable_mappings
                 );
+                
+                // Wrap CTA button URL through tracking endpoint
+                const trackedUrl = `${supabaseUrl}/functions/v1/email-tracking/cta-click?id=${trackingPixelId}&button_id=${btn.id}&button_text=${encodeURIComponent(btn.text)}&url=${encodeURIComponent(buttonUrl)}`;
+                
                 const styles: Record<string, string> = {
                   primary: 'background: #2563eb; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; display: inline-block; margin: 10px 5px; font-weight: 500;',
                   secondary: 'background: #6b7280; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; display: inline-block; margin: 10px 5px; font-weight: 500;',
@@ -191,7 +199,7 @@ serve(async (req) => {
                   <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin: 20px auto;">
                     <tr>
                       <td style="border-radius: 6px; text-align: center;">
-                        <a href="${buttonUrl}" style="${btnStyle}">
+                        <a href="${trackedUrl}" style="${btnStyle}">
                           ${btn.text}
                         </a>
                       </td>
@@ -200,6 +208,9 @@ serve(async (req) => {
                 `;
               }));
               personalizedHtml += buttonsHtml.join('');
+              
+              // Store tracking pixel ID for later use in email_conversations
+              (recipient as any).trackingPixelId = trackingPixelId;
             }
 
             // Prepend attachments before content
@@ -261,7 +272,8 @@ serve(async (req) => {
               subject: personalizedSubject,
               html: personalizedHtml,
               emailResult,
-              unsubscribeToken
+              unsubscribeToken,
+              trackingPixelId: (recipient as any).trackingPixelId
             };
           } catch (error: any) {
             console.error(`Failed to send email to ${recipient.email}:`, error);
@@ -302,6 +314,7 @@ serve(async (req) => {
           status: "sent",
           sent_at: new Date().toISOString(),
           unsubscribe_token: result.unsubscribeToken,
+          tracking_pixel_id: result.trackingPixelId,
         }));
 
         await supabaseClient.from("email_conversations").insert(conversationsToInsert);

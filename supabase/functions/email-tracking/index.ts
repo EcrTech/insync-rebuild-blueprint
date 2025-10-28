@@ -21,7 +21,16 @@ serve(async (req) => {
 
   const url = new URL(req.url);
   const trackingId = url.searchParams.get("id");
-  const action = url.pathname.includes("/click") ? "click" : "open";
+  const buttonId = url.searchParams.get("button_id");
+  const buttonText = url.searchParams.get("button_text");
+  
+  // Determine action type
+  let action = "open";
+  if (url.pathname.includes("/cta-click")) {
+    action = "cta-click";
+  } else if (url.pathname.includes("/click")) {
+    action = "click";
+  }
 
   if (!trackingId) {
     return new Response("Invalid tracking ID", { status: 400 });
@@ -31,7 +40,7 @@ serve(async (req) => {
     // Look up the email conversation
     const { data: conversation, error: lookupError } = await supabase
       .from("email_conversations")
-      .select("id, open_count, click_count, opened_at, first_clicked_at")
+      .select("id, open_count, click_count, opened_at, first_clicked_at, button_clicks")
       .eq("tracking_pixel_id", trackingId)
       .single();
 
@@ -46,7 +55,7 @@ serve(async (req) => {
       return new Response(null, { status: 302, headers: { Location: "/" } });
     }
 
-    // Update tracking data
+    // Update tracking data based on action type
     if (action === "open") {
       const updates: any = {
         open_count: (conversation.open_count || 0) + 1,
@@ -65,7 +74,43 @@ serve(async (req) => {
       return new Response(TRACKING_PIXEL, {
         headers: { "Content-Type": "image/png", "Cache-Control": "no-cache" },
       });
+    } else if (action === "cta-click") {
+      // Handle CTA button click tracking
+      const targetUrl = url.searchParams.get("url") || "/";
+      
+      const updates: any = {
+        click_count: (conversation.click_count || 0) + 1,
+      };
+
+      if (!conversation.first_clicked_at) {
+        updates.first_clicked_at = new Date().toISOString();
+      }
+
+      // Add button click to button_clicks array
+      const buttonClick = {
+        button_id: buttonId,
+        button_text: buttonText,
+        clicked_at: new Date().toISOString()
+      };
+
+      // Append to existing button_clicks array
+      const existingClicks = conversation.button_clicks || [];
+      updates.button_clicks = [...existingClicks, buttonClick];
+
+      await supabase
+        .from("email_conversations")
+        .update(updates)
+        .eq("id", conversation.id);
+
+      console.log(`CTA button clicked: ${buttonText} (${buttonId}) in conversation ${conversation.id}`);
+
+      // Redirect to target URL
+      return new Response(null, {
+        status: 302,
+        headers: { Location: decodeURIComponent(targetUrl) },
+      });
     } else if (action === "click") {
+      // Handle regular link click tracking
       const targetUrl = url.searchParams.get("url") || "/";
       
       const updates: any = {

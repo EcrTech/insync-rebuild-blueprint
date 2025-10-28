@@ -273,13 +273,25 @@ async function processExecution(
     const trackingPixel = `<img src="${supabaseUrl}/functions/v1/email-tracking/open?id=${trackingPixelId}" width="1" height="1" style="display:none" alt="" />`;
     personalizedHtml = personalizedHtml.replace('</body>', `${trackingPixel}</body>`);
     
-    // Wrap links with tracking
+    // Wrap links with tracking (detect CTA buttons vs regular links)
     personalizedHtml = personalizedHtml.replace(
-      /<a\s+([^>]*href=["']([^"']+)["'][^>]*)>/gi,
-      (match, attrs, url) => {
+      /<a\s+([^>]*href=["']([^"']+)["'][^>]*)>([^<]+)<\/a>/gi,
+      (match, attrs, url, linkText) => {
         if (url.includes('unsubscribe')) return match; // Don't track unsubscribe link
-        const trackedUrl = `${supabaseUrl}/functions/v1/email-tracking/click?id=${trackingPixelId}&url=${encodeURIComponent(url)}`;
-        return `<a ${attrs.replace(url, trackedUrl)}>`;
+        
+        // Detect if this is a CTA button (has padding, background-color, etc.)
+        const isCTAButton = attrs.includes('padding:') && attrs.includes('background-color');
+        
+        if (isCTAButton) {
+          // Generate button ID from text
+          const buttonId = `btn-${linkText.trim().toLowerCase().replace(/\s+/g, '-')}`;
+          const trackedUrl = `${supabaseUrl}/functions/v1/email-tracking/cta-click?id=${trackingPixelId}&button_id=${buttonId}&button_text=${encodeURIComponent(linkText.trim())}&url=${encodeURIComponent(url)}`;
+          return `<a ${attrs.replace(url, trackedUrl)}>${linkText}</a>`;
+        } else {
+          // Regular link tracking
+          const trackedUrl = `${supabaseUrl}/functions/v1/email-tracking/click?id=${trackingPixelId}&url=${encodeURIComponent(url)}`;
+          return `<a ${attrs.replace(url, trackedUrl)}>${linkText}</a>`;
+        }
       }
     );
 

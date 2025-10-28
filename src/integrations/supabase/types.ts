@@ -2563,6 +2563,7 @@ export type Database = {
         Row: {
           attachments: Json | null
           bcc_emails: string[] | null
+          button_clicks: Json | null
           cc_emails: string[] | null
           click_count: number
           contact_id: string | null
@@ -2599,6 +2600,7 @@ export type Database = {
         Insert: {
           attachments?: Json | null
           bcc_emails?: string[] | null
+          button_clicks?: Json | null
           cc_emails?: string[] | null
           click_count?: number
           contact_id?: string | null
@@ -2635,6 +2637,7 @@ export type Database = {
         Update: {
           attachments?: Json | null
           bcc_emails?: string[] | null
+          button_clicks?: Json | null
           cc_emails?: string[] | null
           click_count?: number
           contact_id?: string | null

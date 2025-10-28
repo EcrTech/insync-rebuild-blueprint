@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { MessageSquare, Mail, Loader2 } from "lucide-react";
+import { MessageSquare, Mail, Loader2, MousePointerClick, Eye } from "lucide-react";
 import { format } from "date-fns";
 
 interface UnifiedMessage {
@@ -14,6 +14,13 @@ interface UnifiedMessage {
   sent_at: string;
   status: string;
   is_read: boolean;
+  button_clicks?: Array<{
+    button_id: string;
+    button_text: string;
+    clicked_at: string;
+  }>;
+  open_count?: number;
+  click_count?: number;
 }
 
 interface UnifiedCommunicationsProps {
@@ -41,7 +48,7 @@ export function UnifiedCommunications({ contactId }: UnifiedCommunicationsProps)
       // Fetch Email conversations
       const { data: emailData } = await supabase
         .from("email_conversations")
-        .select("*")
+        .select("id, direction, email_content, subject, sent_at, status, is_read, button_clicks, open_count, click_count")
         .eq("contact_id", contactId)
         .order("sent_at", { ascending: false });
 
@@ -65,6 +72,9 @@ export function UnifiedCommunications({ contactId }: UnifiedCommunicationsProps)
           sent_at: msg.sent_at,
           status: msg.status,
           is_read: msg.is_read,
+          button_clicks: msg.button_clicks,
+          open_count: msg.open_count,
+          click_count: msg.click_count,
         })),
       ].sort((a, b) => new Date(b.sent_at).getTime() - new Date(a.sent_at).getTime());
 
@@ -165,7 +175,45 @@ export function UnifiedCommunications({ contactId }: UnifiedCommunicationsProps)
               <p className="font-semibold text-sm mb-1">{message.subject}</p>
             )}
 
-            <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+            <p className="text-sm whitespace-pre-wrap line-clamp-3">{message.content}</p>
+
+            {/* Display email engagement metrics */}
+            {message.channel === "email" && message.direction === "outbound" && (
+              <div className="mt-3 pt-3 border-t space-y-2">
+                <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                  {message.open_count !== undefined && (
+                    <div className="flex items-center gap-1">
+                      <Eye className="h-3 w-3" />
+                      <span>Opened: {message.open_count}x</span>
+                    </div>
+                  )}
+                  {message.click_count !== undefined && message.click_count > 0 && (
+                    <div className="flex items-center gap-1">
+                      <MousePointerClick className="h-3 w-3" />
+                      <span>Clicks: {message.click_count}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Display CTA button clicks */}
+                {message.button_clicks && message.button_clicks.length > 0 && (
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium">Button Clicks:</p>
+                    {message.button_clicks.map((click, idx) => (
+                      <div key={idx} className="flex items-center justify-between text-xs bg-muted/50 rounded px-2 py-1">
+                        <div className="flex items-center gap-2">
+                          <MousePointerClick className="h-3 w-3 text-primary" />
+                          <span className="font-medium">{click.button_text}</span>
+                        </div>
+                        <span className="text-muted-foreground">
+                          {format(new Date(click.clicked_at), "MMM d, h:mm a")}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         ))}
       </div>
