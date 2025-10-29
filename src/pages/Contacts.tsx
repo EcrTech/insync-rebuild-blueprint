@@ -95,11 +95,13 @@ export default function Contacts() {
       const limit = 100; // Load 100 at a time
       
       // PERFORMANCE: Paginated loading with cursor
+      // Note: Using left join with contact_emails to get primary email if available
       const { data, error, count } = await supabase
         .from("contacts")
         .select(`
           *,
-          pipeline_stages:pipeline_stage_id(name, color)
+          pipeline_stages:pipeline_stage_id(name, color),
+          contact_emails!left(email, is_primary)
         `, { count: 'exact' })
         .eq("org_id", effectiveOrgId)
         .order("created_at", { ascending: false })
@@ -107,10 +109,22 @@ export default function Contacts() {
 
       if (error) throw error;
       
+      // Map the data to prioritize primary email from contact_emails
+      const mappedData = (data || []).map((contact: any) => {
+        const primaryEmail = Array.isArray(contact.contact_emails) 
+          ? contact.contact_emails.find((ce: any) => ce.is_primary)?.email 
+          : null;
+        
+        return {
+          ...contact,
+          email: primaryEmail || contact.email, // Use primary email from contact_emails or fallback to contacts.email
+        };
+      });
+      
       if (reset) {
-        setContacts(data || []);
+        setContacts(mappedData);
       } else {
-        setContacts(prev => [...prev, ...(data || [])]);
+        setContacts(prev => [...prev, ...mappedData]);
       }
       
       // Check if there are more contacts to load
